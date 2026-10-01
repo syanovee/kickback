@@ -1,0 +1,2218 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<link rel="icon" href="/favicon.svg" type="image/svg+xml"><link rel="icon" href="/favicon-32.png" sizes="32x32"><link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<script>if(location.hostname==="kickback-rewards.pages.dev")location.replace("https://getkickback.fun"+location.pathname+location.search+location.hash)</script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Kickback · your bags paid you</title>
+<meta name="description" content="Paste a wallet and see every holder reward it earned, each with its tx.">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Kickback">
+<meta property="og:title" content="Kickback · your bags paid you">
+<meta property="og:description" content="Holder rewards across Solana, BNB, Base, Ethereum and Robinhood. Every payout with its tx.">
+<meta property="og:url" content="https://getkickback.fun/">
+<meta property="og:image" content="https://getkickback.fun/og.png">
+<meta property="og:image:width" content="1200"><meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Kickback · your bags paid you">
+<meta name="twitter:description" content="Holder rewards across Solana, BNB, Base, Ethereum and Robinhood. Every payout with its tx.">
+<meta name="twitter:image" content="https://getkickback.fun/og.png">
+<meta name="theme-color" content="#141210">
+<script>document.documentElement.classList.add("fl");setTimeout(()=>document.documentElement.classList.remove("fl"),2500)</script>
+<link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;600;700;800&family=Unbounded:wght@700;900&family=JetBrains+Mono:wght@400;500&display=block">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;600;700;800&family=Unbounded:wght@700;900&family=JetBrains+Mono:wght@400;500&display=block" rel="stylesheet">
+<style>
+  :root{
+    --bg:#141210; --s1:#1c1916; --s2:#26211c; --line:rgba(255,246,234,.07); --line2:rgba(255,246,234,.13);
+    --text:#fff6ea; --muted:#a89c8c; --dim:#756b5f; --acc:#ff8a3d; --acc-ink:#141210; --dot:#fff1d6; --soft:rgba(255,138,61,.12);
+    --warn:#ffb547; --err:#ff6b6b; --ok:#7ee787; --glow:rgba(255,138,61,.12); --shade:rgba(0,0,0,.72);
+    --mono:"JetBrains Mono",ui-monospace,Menlo,monospace; --sans:"Inter Tight",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; --disp:"Unbounded","Inter Tight",sans-serif;
+    --ease:cubic-bezier(.22,1,.36,1);
+    color-scheme:dark;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;background:var(--bg);color:var(--text)}
+  body{font:14px/1.5 var(--sans);-webkit-font-smoothing:antialiased;min-height:100vh;min-height:100dvh;
+    background:radial-gradient(900px 420px at 50% -120px,var(--glow),transparent 70%),var(--bg)}
+  a{color:var(--text);text-decoration:none}
+  code{font:12px var(--mono);color:var(--muted);word-break:break-all}
+  .hidden{display:none!important}
+  .muted{color:var(--muted);font-size:13px}
+  .wrap{max-width:620px;margin:0 auto;padding:18px 16px 20px;min-height:100vh;min-height:100dvh;display:flex;flex-direction:column}
+  main{flex:1;display:flex;flex-direction:column}
+
+  .top{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+  .brand{display:flex;align-items:center;gap:10px;font-family:var(--disp);font-weight:900;font-size:18px;letter-spacing:-.02em;cursor:pointer}
+  .mark{width:28px;height:28px;display:block;transition:transform .6s var(--ease)} .brand:hover .mark{transform:rotate(-40deg)}
+  .nav{display:flex;align-items:center;gap:8px}
+  .nav a{width:38px;height:38px;border-radius:12px;display:grid;place-items:center;color:var(--muted);border:1px solid transparent;
+    transition:color .35s var(--ease),background-color .35s var(--ease),border-color .35s var(--ease),transform .35s var(--ease)}
+  .nav a svg{width:18px;height:18px;display:block}
+  .tipw{position:relative}
+  .tipbtn{width:38px;height:38px;display:grid;place-items:center;border-radius:12px;border:1px solid transparent;background:none;color:var(--muted);cursor:pointer;padding:0;transition:color .35s var(--ease),background-color .35s var(--ease),border-color .35s var(--ease),transform .35s var(--ease)}
+  .tipbtn svg{width:19px;height:19px;display:block;transition:transform .35s var(--ease)}
+  .tipbtn:hover,.tipbtn.on{color:var(--acc);background:var(--s2);border-color:var(--line2);transform:translateY(-2px)} .tipbtn:hover svg{transform:scale(1.12)}
+  .tiptip{position:absolute;right:0;top:calc(100% + 6px);font:500 11px var(--mono);color:var(--muted);white-space:nowrap;opacity:0;transform:translateY(-3px);transition:opacity .2s,transform .2s;pointer-events:none}
+  .tipw:hover .tiptip{opacity:1;transform:none} .tipbtn.on~.tiptip{opacity:0}
+  .tippop{position:absolute;right:0;top:calc(100% + 8px);width:270px;max-width:calc(100vw - 32px);background:var(--s1);border:1px solid var(--line2);border-radius:16px;padding:12px;box-shadow:0 24px 50px -20px rgba(0,0,0,.8);z-index:60;opacity:0;transform:translateY(-6px);pointer-events:none;transition:opacity .25s var(--ease),transform .25s var(--ease);display:flex;flex-direction:column;gap:4px}
+  .tippop.open{opacity:1;transform:none;pointer-events:auto}
+  .tippop b{font:700 14px var(--sans);color:var(--text);margin-bottom:4px} .tippop small{font:12px var(--sans);color:var(--dim);margin-bottom:8px}
+  .tiprow{display:flex;align-items:center;gap:8px;width:100%;background:var(--s2);border:1px solid var(--line);border-radius:10px;padding:8px 10px;margin-top:6px;cursor:pointer;color:var(--text);text-align:left;font:inherit;transition:border-color .25s}
+  .tiprow:hover{border-color:var(--acc)} .tiprow i{font:600 11px var(--mono);color:var(--acc);font-style:normal;min-width:30px}
+  .tiprow code{flex:1;font:12px var(--mono);color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;word-break:normal} .tiprow em{font:600 11px var(--mono);color:var(--dim);font-style:normal}
+  .tiprow.ok em{color:var(--ok)}
+
+  .nav a:hover,.nav a:focus-visible{color:var(--text);background:var(--s2);border-color:var(--line2);transform:translateY(-2px)}
+
+  .hero{overflow:hidden;max-height:260px;opacity:1;transition:max-height .6s var(--ease),opacity .4s ease,margin .6s var(--ease);margin:34px 0 20px}
+  h1{font-family:var(--disp);font-size:38px;line-height:1.08;letter-spacing:-.04em;font-weight:900;margin:0 0 10px}
+  h1 em{font-style:normal;color:var(--acc)}
+  .sub{color:var(--muted);font-size:15px;margin:0;max-width:520px}
+  body:not(.idle) .hero{max-height:0;opacity:0;margin:8px 0 4px}
+
+  .search{display:flex;gap:6px;background:var(--s1);border:1px solid var(--line2);border-radius:16px;padding:6px;max-height:140px;overflow:hidden;
+    transition:border-color .2s,box-shadow .2s,max-height .5s var(--ease),opacity .3s ease,padding .5s var(--ease),border-width .5s}
+  body:not(.idle) .search{max-height:0;opacity:0;padding-top:0;padding-bottom:0;border-width:0;pointer-events:none}
+  .search:focus-within{border-color:var(--acc);box-shadow:0 0 0 4px var(--soft)}
+  .search input{flex:1;min-width:0;background:none;border:0;color:var(--text);font:14px var(--mono);padding:10px;outline:none}
+  .search input::placeholder{color:var(--dim)}
+  button{font:700 14px var(--sans);border:0;border-radius:11px;padding:0 18px;cursor:pointer;background:var(--acc);color:var(--acc-ink);white-space:nowrap;transition:transform .15s var(--ease),opacity .2s,background-color .3s}
+  button:active{transform:scale(.97)} button:disabled{opacity:.45;cursor:default}
+  .search button{height:44px}
+  .chains{display:flex;flex-wrap:wrap;gap:6px;margin-top:12px;transition:opacity .3s}
+  .chains span{font:500 11px var(--mono);color:var(--dim)} .chains span+span:before{content:"·";margin-right:6px}
+  .whale{display:flex;align-items:center;gap:8px;margin-top:8px;font:500 11px var(--mono);color:var(--dim);line-height:1.4}
+  .whale i{width:6px;height:6px;border-radius:50%;background:var(--warn);flex:none;opacity:.8}
+  body:not(.idle) .whale{display:none}
+  body:not(.idle) .chains{display:none}
+  .status{display:none;font:12px/1.6 var(--mono);margin-top:12px;white-space:pre-line;color:var(--err)}
+  .status.err{display:block}
+
+  .stage{position:relative;height:0;overflow:hidden;transition:height .7s var(--ease)}
+  body.scanning .stage{height:min(58vh,480px)}
+  body.done .stage{height:146px;overflow:visible}
+  .tower{position:absolute;left:50%;bottom:48px;width:0;height:0}
+  .tc{position:absolute;left:-44px;bottom:0;width:88px;height:28px;border-radius:50%;background:var(--c);display:grid;place-items:center;
+    color:rgba(255,255,255,.9);font:800 12px var(--sans);
+    box-shadow:0 8px 0 color-mix(in srgb,var(--c) 55%,#000),0 8px 0 1px rgba(0,0,0,.35),0 16px 16px -8px rgba(0,0,0,.7);
+    background-image:radial-gradient(60% 55% at 50% 45%,rgba(255,255,255,.22),transparent 70%)}
+  .tc:after{content:"";position:absolute;inset:4px 10px;border-radius:50%;border:1.5px dashed rgba(255,255,255,.35)}
+  .ground{position:absolute;left:50%;bottom:40px;width:150px;margin-left:-75px;height:8px;border-radius:50%;background:radial-gradient(closest-side,rgba(0,0,0,.55),transparent)}
+  body:not(.scanning) .ground{opacity:0}
+  .bar{position:absolute;left:25%;right:25%;bottom:4px;height:3px;background:var(--line);border-radius:3px;overflow:hidden;opacity:0;transition:opacity .3s}
+  body.scanning .bar{opacity:0}
+  .loader{position:absolute;left:50%;top:calc(50% - 40px);transform:translate(-50%,-50%);display:flex;flex-direction:column;align-items:center;gap:14px;opacity:0;transition:opacity .4s ease;white-space:nowrap}
+  .loader .lrow{display:flex;align-items:center;gap:10px}
+  .kbprog{width:240px;height:3px;border-radius:3px;background:var(--line2);overflow:hidden;margin-top:-4px}
+  .kbprog i{display:block;height:100%;width:0;border-radius:3px;background:var(--acc);box-shadow:0 0 10px var(--acc);transition:width .7s var(--ease)}
+  .kbquip{position:absolute;top:calc(100% + 6px);left:50%;width:max-content;white-space:normal;max-width:min(330px,86vw);text-align:center;font:500 13.5px/1.35 var(--sans);color:var(--text);background:var(--s2);border:1px solid rgba(255,138,61,.35);border-radius:14px;padding:9px 15px;
+    opacity:0;transform:translate(-50%,10px) scale(.94);transition:opacity .45s ease,transform .6s cubic-bezier(.34,1.56,.64,1);box-shadow:0 10px 30px -12px rgba(255,138,61,.35)}
+  .kbquip.show{opacity:1;transform:translate(-50%,0)}
+  .kbquip:empty{display:none}
+  .kbwait{width:min(330px,84vw);white-space:normal;text-align:center;font:500 14px/1.45 var(--sans);color:var(--muted);opacity:0;transform:translateY(8px);transition:opacity .7s ease,transform .7s var(--ease);margin-top:2px}
+  .kbwait.show{opacity:1;transform:none} .kbwait b{color:var(--text);font-weight:600} .kbwait:empty{display:none}
+  .kbprog,.kblog,.kbquip,.kbchips,.loader .lrow .el{display:none!important}
+  .kbchips.one{display:flex!important}
+  .kbchips{display:flex;flex-direction:column;gap:6px;width:min(300px,84vw);margin-top:2px}
+  .kbchips .ck{position:relative;display:flex;align-items:center;gap:9px;height:34px;padding:0 11px 0 5px;border-radius:10px;background:#1d1916;border:1px solid var(--line2);overflow:hidden;
+      font:12px var(--mono);animation:ckIn .5s var(--ease) both;transition:border-color .4s}
+  .kbchips .ck>*{position:relative;z-index:1}
+  .kbchips .ck .fill{position:absolute;z-index:0;left:0;top:0;bottom:0;width:0;background:rgba(255,138,61,.09);transition:width var(--exp,8s) cubic-bezier(.08,.6,.2,1)}
+  .kbchips .ck.go .fill{width:90%}
+  #ckFill{transition:width .7s cubic-bezier(.22,1,.36,1),background .6s}
+  #ckArg{transition:opacity .25s} #ckArg.sw{opacity:0}
+  .kbchips .ck.ok .fill{width:100%;background:rgba(126,231,135,.07);transition:width .35s ease,background .6s}
+  .kbchips .ck.ok{border-color:rgba(126,231,135,.28);animation:ckWash .9s ease}
+  .kbchips .ck .ic{width:24px;height:24px;border-radius:7px;background:#29231e;display:grid;place-items:center;flex:none}
+  .kbchips .ck .ic svg{width:15px;height:15px;overflow:visible}
+  .kbchips .ck .ic .m path{fill:none;stroke:var(--acc);stroke-width:8;stroke-linecap:round;stroke-linejoin:round}
+  .kbchips .ck .ic .m .a{transform-origin:26px 26px;animation:kbSpin 1.1s cubic-bezier(.55,.12,.45,.88) infinite}
+  .kbchips .ck .ic .m circle{fill:var(--dot)}
+  .kbchips .ck .ic .c{display:none;stroke:var(--ok);fill:none;stroke-width:3;stroke-linecap:round;stroke-linejoin:round}
+  .kbchips .ck.ok .ic .m{display:none} .kbchips .ck.ok .ic .c{display:block;animation:ckPop .45s cubic-bezier(.3,1.6,.5,1)}
+  .kbchips .ck b{color:var(--text);font-weight:500}
+  .kbchips .ck em{font-style:normal;color:var(--dim);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .kbchips .ck.ok em{color:var(--muted)}
+  .kbchips .ck .tm{color:var(--dim);font-variant-numeric:tabular-nums}
+  .kbchips .ck.ok .tm{color:var(--ok)}
+  .kbchips .ck.err{border-color:rgba(239,68,68,.5);animation:ckShake .45s ease} .kbchips .ck.err .fill{width:100%;background:rgba(239,68,68,.1);transition:width .35s ease} .kbchips .ck.err .ic .m{opacity:.35} .kbchips .ck.err .tm{color:#ef4444}
+  @keyframes ckIn{from{opacity:0;transform:translateY(8px) scale(.97)}}
+  @keyframes ckWash{0%{box-shadow:inset 0 0 0 40px rgba(126,231,135,.14)}100%{box-shadow:inset 0 0 0 40px rgba(126,231,135,0)}}
+  @keyframes ckPop{from{transform:scale(.3);opacity:0}}
+  @keyframes ckShake{20%{transform:translateX(-6px)}40%{transform:translateX(6px)}60%{transform:translateX(-4px)}80%{transform:translateX(3px)}}
+  .call-chip{--cc-size:34px;--cc-font:13px;--cc-pad:12px;--cc-gap:7px;--cc-radius:10px;--cc-color:var(--text);--cc-surface:#221e1a;--cc-progress:var(--acc);--cc-progress-pct:10%;
+    --cc-done:#22c55e;--cc-error:#ef4444;--cc-wash-pct:14%;--cc-expected:12000ms;--cc-ease-out:cubic-bezier(0.23,1,0.32,1);
+    position:relative;display:inline-flex;align-items:center;gap:var(--cc-gap);box-sizing:border-box;height:var(--cc-size);padding:0 var(--cc-pad);border-radius:var(--cc-radius);overflow:hidden;
+    background:var(--cc-surface);color:var(--cc-color);font:var(--cc-font)/1 var(--mono);white-space:nowrap;user-select:none;margin-top:2px}
+  .call-chip__fill{position:absolute;inset:0;background:color-mix(in srgb,var(--cc-progress) var(--cc-progress-pct),transparent);transform:scaleX(0);transform-origin:left center;clip-path:inset(0 0 0 0);pointer-events:none}
+  .call-chip[data-status='running'] .call-chip__fill{transition:transform var(--cc-expected) linear}
+  .call-chip[data-status='done'] .call-chip__fill{background:color-mix(in srgb,var(--cc-done) var(--cc-wash-pct),transparent);clip-path:inset(100% 0 0 0);
+    transition:transform 200ms var(--cc-ease-out),background-color 120ms ease,clip-path 400ms var(--cc-ease-out) 200ms}
+  .call-chip[data-status='error'] .call-chip__fill{background:color-mix(in srgb,var(--cc-error) var(--cc-wash-pct),transparent);transition:background-color 200ms ease}
+  .call-chip__slot{position:relative;flex:none;width:calc(var(--cc-font) + 3px);height:calc(var(--cc-font) + 3px);overflow:hidden}
+  .call-chip__glyph{position:absolute;inset:0;display:grid;place-items:center;opacity:0;transform:translateY(70%);filter:blur(3px)}
+  .call-chip__glyph svg{width:100%;height:100%;overflow:visible}
+  .call-chip__glyph[data-state='in']{opacity:1;transform:none;filter:blur(0);transition:opacity 240ms var(--cc-ease-out),transform 240ms var(--cc-ease-out),filter 240ms var(--cc-ease-out)}
+  .call-chip__glyph[data-state='out']{transform:translateY(-70%);transition:opacity 160ms var(--cc-ease-out),transform 160ms var(--cc-ease-out),filter 160ms var(--cc-ease-out)}
+  .call-chip[data-status='done'] .call-chip__glyph[data-state='in']{color:var(--cc-done)}
+  .call-chip[data-status='error'] .call-chip__glyph[data-state='in']{color:var(--cc-error)}
+  .kbmini path{fill:none;stroke:var(--acc);stroke-width:8;stroke-linecap:round;stroke-linejoin:round} .kbmini circle{fill:var(--dot)}
+  .kbmini .a{transform-origin:26px 26px;animation:kbSpin 1.1s cubic-bezier(.55,.12,.45,.88) infinite}
+  .call-chip__name,.call-chip__arg,.call-chip__timer{position:relative}
+  .call-chip__name{font-weight:500}
+  .call-chip__arg{opacity:.72;transition:opacity .2s} .call-chip__arg.sw{opacity:0} .call-chip__arg b{font-weight:500}
+  .call-chip__timer{min-width:6ch;font-variant-numeric:tabular-nums;text-align:right;opacity:.5}
+  @media (prefers-reduced-motion: reduce){ .call-chip[data-status='done'] .call-chip__fill{clip-path:inset(0 0 0 0);transition:background-color 120ms ease} .call-chip__glyph{transform:none!important;filter:none!important} }
+  html.fl .wrap{opacity:0} .wrap{transition:opacity 1s ease}
+  body.idle #stats.hidden{display:flex!important;opacity:0} #stats{transition:opacity .6s ease}
+  .dcoins.first i{animation:none}
+  .coin .disc{position:relative;overflow:hidden} .coin .disc .dl{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:50%} .coin .disc.ok{background:transparent!important;color:transparent}
+  .dcard .dwho,.dcard .dcoins,.dcard .dsub{transition:opacity .32s ease}
+  .dcard.swap .dwho,.dcard.swap .dcoins,.dcard.swap .dsub{opacity:0}
+  .dtot .odr{transition-duration:1s!important}
+  .dcoins i{position:relative;overflow:hidden} .dcoins i img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:50%} .dcoins i img+b{display:none} .dcoins i b{font-weight:900}
+  @keyframes kbUp{from{opacity:0;transform:translateY(14px);filter:blur(4px)}to{opacity:1;transform:none;filter:none}}
+  body.done .proofs .rw{animation:kbFade .7s ease both;animation-delay:calc(.5s + var(--ri,0) * 40ms)}
+  @keyframes kbFade{from{opacity:0}}
+  .msheet{position:fixed;inset:0;z-index:60;pointer-events:none}
+  .msheet-bg{position:absolute;inset:0;background:rgba(0,0,0,.55);opacity:0;transition:opacity .35s ease;backdrop-filter:blur(2px)}
+  .msheet-panel{position:absolute;left:0;right:0;bottom:0;height:86vh;height:86dvh;background:var(--s1);border:1px solid var(--line2);border-bottom:0;border-radius:22px 22px 0 0;
+    transform:translateY(102%);transition:transform .45s cubic-bezier(.22,1,.36,1);display:flex;flex-direction:column;box-shadow:0 -20px 50px -20px rgba(0,0,0,.7)}
+  .msheet-top{position:relative;height:30px;flex:none} .msheet-top i{position:absolute;left:50%;top:10px;width:40px;height:4px;border-radius:2px;background:var(--line2);transform:translateX(-50%)}
+  .msheet-top button{position:absolute;right:10px;top:6px;width:30px;height:30px;padding:0;border-radius:50%;background:var(--s2);color:var(--muted);font-size:13px}
+  #sheetSlot{flex:1;min-height:0;display:flex;flex-direction:column}
+  #sheetSlot .details{position:relative;flex:1;min-height:0;max-height:none!important;overflow-y:auto!important;overscroll-behavior:contain;padding:0 16px calc(16px + env(safe-area-inset-bottom))}
+  #sheetSlot .details-in{padding-top:0}
+  #sheetSlot .rw{padding:7px 2px}
+  body.msopen .msheet{pointer-events:auto} body.msopen .msheet-bg{opacity:1} body.msopen .msheet-panel{transform:none}
+  .demo,.proofs{display:none}
+  .dhead{margin-bottom:6px}
+  .mtag{display:none}
+  .rep{display:none} .rep .sep{color:var(--dim);margin:0 4px}
+  @media (min-width:1000px){ .rep{display:inline} }
+  .noca{display:none!important}
+  .kbfoot{display:none}
+  body.idle .kbfoot{display:flex;justify-content:center;align-items:center;flex-wrap:wrap;gap:4px 10px;position:fixed;left:16px;right:16px;bottom:calc(16px + env(safe-area-inset-bottom));z-index:5;font:500 11.5px/1.4 var(--mono);color:var(--dim)}
+  .kbfoot button{all:unset;cursor:pointer;color:var(--muted);border-bottom:1px dashed var(--line2);padding-bottom:1px;transition:color .2s}
+  .kbfoot button:hover,.kbfoot button:focus-visible{color:var(--text)}
+  .kbfoot i{font-style:normal;opacity:.6}
+  @media (max-width:999px){ body.idle .kbfoot{font-size:10px;gap:3px 8px;bottom:calc(14px + env(safe-area-inset-bottom))} }
+  .kbmod{position:fixed;inset:0;z-index:90;display:grid;place-items:center;padding:16px;background:rgba(10,8,6,.62);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);opacity:0;pointer-events:none;transition:opacity .25s var(--ease)}
+  .kbmod.open{opacity:1;pointer-events:auto}
+  .kbmod .bx{position:relative;width:min(560px,100%);max-height:calc(100vh - 32px);overflow:auto;background:var(--s1);border:1px solid var(--line2);border-radius:20px;padding:24px 26px;box-shadow:0 40px 100px rgba(0,0,0,.6);transform:translateY(12px) scale(.98);transition:transform .3s var(--ease)}
+  .kbmod.open .bx{transform:none}
+  .kbmod h3{margin:0 0 14px;font:900 22px var(--disp);color:var(--text)}
+  .kbmod ul{margin:0;padding-left:18px;color:var(--muted);font:14px/1.6 var(--sans)} .kbmod li{margin-bottom:8px} .kbmod li b{color:var(--text)}
+  .kbmod .x{all:unset;cursor:pointer;position:absolute;top:18px;right:20px;color:var(--dim);font:500 12px var(--mono)} .kbmod .x:hover{color:var(--text)}
+  @media (max-width:560px){ .kbmod{align-items:end;padding:0} .kbmod .bx{border-radius:20px 20px 0 0;padding:22px 20px calc(22px + env(safe-area-inset-bottom));max-height:85vh;transform:translateY(40px)} .kbmod h3{font-size:19px} .kbmod ul{font-size:13.5px} }
+  body.idle .noca{display:block;position:fixed;left:16px;right:16px;bottom:calc(16px + env(safe-area-inset-bottom));font:11.5px/1.4 var(--mono);color:var(--dim);text-align:center;z-index:5}
+
+  @media (max-width:999px){ body.idle .mtag{display:flex;align-items:center;justify-content:center;gap:7px;position:fixed;left:0;right:0;bottom:calc(38px + env(safe-area-inset-bottom));font:11px var(--mono);color:var(--dim);pointer-events:none}
+    .mtag b{font:900 13px var(--disp);color:var(--text)} .mtag svg{width:16px;height:16px} }
+  :root{--z:1}
+  @media (min-width:1500px){ :root{--z:1.15} .wrap{zoom:1.15} }
+  @media (min-width:1800px){ :root{--z:1.28} .wrap{zoom:1.28} }
+  @media (min-width:1000px){
+    .wrap{max-width:1100px}
+    main{display:grid;grid-template-columns:minmax(0,1fr) min(430px,38%);column-gap:44px;align-items:start;align-content:start}
+    body.idle .stats{margin-top:22px}
+    main>*{grid-column:1}
+    body.done main{min-height:calc(100vh / var(--z) - 130px);align-content:center}
+    body.scanning .stage{height:calc(100vh / var(--z) - 190px);max-height:760px}
+    body.scanning .loader{transform:translate(-50%,-50%) scale(1.15)}
+    body.scanning main{grid-template-columns:minmax(0,1fr)}
+    h1{font-size:clamp(46px,4.4vw,64px)} .sub{font-size:17px}
+    .proofs,body.idle .demo{width:min(430px,38%)}
+    main{position:relative}
+    body.idle main{min-height:calc(100vh / var(--z) - 150px);align-content:center}
+    body.idle .demo{display:block;position:absolute;right:0;top:50%;transform:translateY(-50%)}
+    body.idle .demo .dcard{padding:30px 24px 20px} body.idle .dtot{font-size:54px} body.idle .dcoins i{width:60px;height:60px}
+    body.idle main>*:not(.demo):not(.proofs){grid-column:1}
+    body.done .proofs{display:block;position:absolute;right:0;top:0;animation:cardIn .7s var(--ease) both .45s}
+    body.done.zero main{grid-template-columns:minmax(0,1fr)} body.done.zero .proofs{display:none} body.done.zero #result{max-width:600px;width:100%;justify-self:center}
+    .proofs .card{position:relative;margin-top:0;height:calc(100vh / var(--z) - 130px);max-height:calc(100vh / var(--z) - 130px);box-sizing:border-box;overflow-y:auto;overscroll-behavior:contain}
+    .proofs .eyebrow{margin-bottom:4px}
+    .proofs .card{padding:16px 18px}
+    .proofs .rw{padding:6px 2px;gap:10px;grid-template-columns:26px 1fr auto}
+    .proofs .ic{width:26px;height:26px;font-size:9px}
+    .proofs .nm1{font-size:13.5px;line-height:1.3} .proofs .from{font-size:11px;line-height:1.35} .proofs .val b{font-size:13.5px;line-height:1.3} .proofs .val small{font-size:10px;line-height:1.3}
+    .proofs #meta{font-size:12px} .proofs #linkedInfo{font-size:11.5px;color:var(--dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:6px}
+    .proofs .list{padding-bottom:4px} .proofs .hint{margin:8px 0 0;font-size:11.5px} .proofs .details-in{padding-top:6px} .proofs .checks{margin-top:6px}
+    .coins{zoom:1.3} body.done .stage{height:196px}
+    .proofs .details{max-height:none!important;overflow:visible!important}
+    #moreBtn{display:none}
+    .total{font-size:72px}
+  }
+  .dcard{background:#141210;border:1px solid var(--line2);border-radius:20px;padding:22px 20px 16px;text-align:center;box-shadow:0 30px 60px -30px rgba(0,0,0,.8)}
+  .dwho{display:flex;align-items:center;justify-content:center;gap:8px;font:12px var(--mono);color:var(--muted)} .dwho b{font:700 14px var(--sans);color:var(--text)}
+  .dav{width:26px;height:26px;border-radius:50%;border:2px solid var(--acc);display:grid;place-items:center;font:900 11px var(--disp);color:var(--acc);background:#2b2520;transition:transform .5s var(--ease)}
+  .dcoins{display:flex;justify-content:center;margin:18px 0 6px;height:62px;align-items:center}
+  .dcoins i{width:52px;height:52px;border-radius:50%;margin-left:-12px;display:grid;place-items:center;font:900 10px var(--disp);color:#fff;font-style:normal;box-shadow:0 0 0 4px #141210;background-color:transparent;
+    animation:dPop .7s ease both;background-size:cover;background-position:center}
+  .dcoins i:first-child{margin-left:0}
+  @keyframes dPop{from{opacity:0;transform:scale(.92)}}
+  .dcoins.out i{transition:opacity .35s ease;opacity:0}
+  .dtot{font:900 46px/1.1 var(--disp);letter-spacing:-.04em;color:var(--acc);font-variant-numeric:tabular-nums}
+  .dsub{font:12px var(--mono);color:var(--muted);margin-top:6px;transition:opacity .3s} .dsub.sw{opacity:0}
+  .dfoot{display:flex;align-items:center;justify-content:center;gap:6px;margin-top:18px;font:11px var(--mono);color:var(--dim)} .dfoot b{font:900 13px var(--disp);color:var(--text)}
+  .dcap{color:var(--muted);font-size:14px;text-align:center;margin:14px 6px 0;font-weight:500}
+  .kblog{display:flex;flex-direction:column;align-items:center;gap:3px;min-height:74px;margin-top:2px}
+  .lg{display:flex;align-items:center;gap:7px;font:11.5px var(--mono);color:var(--dim);animation:lgIn .45s var(--ease) both;transition:opacity .4s}
+  .lg:nth-last-child(n+3){opacity:.45} .lg:last-child{color:var(--muted)}
+  .lg i{font-style:normal;color:var(--dim);width:10px;text-align:center} .lg.ok i{color:var(--ok)} .lg b{color:var(--text);font-weight:500}
+  @keyframes lgIn{from{opacity:0;transform:translateY(6px)}}
+  .chainrow,.found{display:none!important}
+  .loader .live{display:flex;flex-direction:column;align-items:center;margin:-2px 0 -4px;animation:liveIn .5s var(--ease)}
+  .loader .live b{font-family:var(--disp);font-weight:900;font-size:44px;line-height:1;letter-spacing:-.045em;color:var(--acc);font-variant-numeric:tabular-nums;text-shadow:0 0 28px color-mix(in srgb,var(--acc) 35%,transparent)}
+  @keyframes liveIn{from{opacity:0;transform:translateY(6px) scale(.96)}}
+  .kbspin{width:58px;height:58px;overflow:visible}
+  .kbspin .trail{fill:none;stroke:var(--acc);stroke-width:7;opacity:.1}
+  .kbspin .arc{transform-origin:26px 26px;animation:kbSpin 1.25s cubic-bezier(.55,.12,.45,.88) infinite}
+  .kbspin .arc path{fill:none;stroke:var(--acc);stroke-width:7;stroke-linecap:round;stroke-linejoin:round}
+  .kbspin .core{fill:var(--dot);transform-origin:26px 26px;animation:kbBreathe 1.25s ease-in-out infinite}
+  .kbspin .core.pop{animation:kbPop .5s cubic-bezier(.3,1.6,.5,1)}
+  @keyframes kbSpin{to{transform:rotate(360deg)}}
+  @keyframes kbBreathe{50%{transform:scale(.8)}}
+  @keyframes kbPop{40%{transform:scale(1.7);fill:var(--acc)}}
+  @media (prefers-reduced-motion:reduce){ .kbspin .arc,.kbspin .core{animation-duration:4s} }
+  body.scanning .loader{opacity:1}
+  .loader .px{display:grid;grid-template-columns:repeat(3,4px);gap:1.5px}
+  .loader .px i{width:4px;height:4px;border-radius:1px;background:var(--text);opacity:.15;animation:pixel-on 650ms ease-in-out infinite}
+  .loader .shim{transition:opacity .35s ease,transform .45s var(--ease)} .loader .shim.sw{opacity:0;transform:translateY(4px)}
+  .loader .shim{font-size:13px;font-weight:500;color:transparent;background:linear-gradient(90deg,var(--muted) 35%,var(--text) 50%,var(--muted) 65%);background-size:200% 100%;-webkit-background-clip:text;background-clip:text;animation:shimmer-text 1.4s linear infinite}
+  .loader .el{font:12px var(--mono);color:var(--muted);font-variant-numeric:tabular-nums}
+  .pcol{position:absolute;left:12px;right:12px;top:calc(50% + 118px);display:flex;flex-direction:column;align-items:center;gap:10px;pointer-events:none}
+  .loader,.bar,.tower{pointer-events:none}
+  .swho{display:flex;flex-wrap:wrap;justify-content:center;gap:6px;opacity:0;transition:opacity .4s ease}
+  body.scanning .swho{opacity:1}
+  .swho span{font:500 11.5px var(--mono);color:var(--text);background:var(--s1);border:1px solid var(--line2);border-radius:8px;padding:4px 9px;animation:crIn .5s var(--ease) both}
+  .swho span em{font-style:normal;color:var(--acc);margin-left:6px}
+  .chainrow{display:flex;justify-content:center;flex-wrap:wrap;gap:6px;opacity:0;transition:opacity .4s ease}
+  body.scanning .chainrow{opacity:1}
+  .cr{display:inline-flex;align-items:center;gap:6px;font:500 11.5px var(--mono);color:var(--dim);border:1px solid var(--line);border-radius:99px;padding:4px 10px;
+    transition:color .5s var(--ease),border-color .5s var(--ease),background-color .5s var(--ease);animation:crIn .6s var(--ease) both;animation-delay:calc(var(--i)*60ms)}
+  .cr i{width:6px;height:6px;border-radius:50%;background:var(--dim);animation:crPulse 1.2s ease-in-out infinite;animation-delay:calc(var(--i)*150ms)}
+  .cr b{font-weight:500;color:var(--acc)} .cr b:empty{display:none}
+  .cr.ok{color:var(--text);border-color:var(--line2);background:var(--s1)} .cr.ok i{background:var(--ok);animation:none}
+  @keyframes crIn{from{opacity:0;transform:translateY(6px)}}
+  @keyframes crPulse{50%{opacity:.25}}
+  .found{text-align:center;font:12px var(--mono);color:var(--muted);opacity:0;transition:opacity .4s ease}
+  body.scanning .found{opacity:1}
+  @keyframes pixel-on{0%,100%{opacity:.12}50%{opacity:1}}
+  @keyframes shimmer-text{0%{background-position:200% 0}100%{background-position:-200% 0}}
+  .bar i{display:block;height:100%;width:0;background:var(--acc);box-shadow:0 0 12px var(--acc);transition:width .4s var(--ease)}
+
+  .coins{position:absolute;left:0;right:0;top:22px;display:flex;justify-content:center;align-items:flex-start;perspective:700px}
+  body:not(.done) .coins{visibility:hidden}
+  .coin{position:relative;margin-left:-14px;display:flex;flex-direction:column;align-items:center;gap:6px;cursor:pointer;background:none;border:0;padding:0;height:auto;color:var(--text);margin-top:var(--y,0)}
+  .coin:first-child{margin-left:0}
+  .coin:active{transform:none}
+  .coin .bob{display:block;animation:bob 3.4s ease-in-out infinite;animation-delay:var(--dl,0s)}
+  .coin .disc{--rx:0deg;--ry:0deg;--lift:0px;--sc:1;width:var(--s,58px);height:var(--s,58px);border-radius:50%;border:3px solid var(--bg);background:var(--c,#999) center/cover;
+    display:grid;place-items:center;color:#fff;font:800 11px var(--sans);position:relative;overflow:hidden;box-shadow:0 10px 20px -12px var(--shade);
+    transform:perspective(420px) translateY(var(--lift)) scale(var(--sc)) rotateX(var(--rx)) rotateY(var(--ry));
+    transition:transform .55s var(--ease),box-shadow .55s var(--ease),border-color .4s ease;will-change:transform;backface-visibility:hidden}
+  .coin.tilt .disc{transition:transform .16s ease-out,box-shadow .55s var(--ease),border-color .4s ease}
+  .coin .bob{will-change:transform}
+  .coin .disc:after{content:"";position:absolute;inset:-40%;background:linear-gradient(115deg,transparent 42%,rgba(255,255,255,.5) 50%,transparent 58%);transform:translateX(-120%);transition:transform 1s var(--ease)}
+  .coin b{font:700 12px var(--sans);font-variant-numeric:tabular-nums;color:var(--muted);transition:color .4s ease}
+  .coin:hover{z-index:20}
+  .coin:hover .disc{--lift:-10px;--sc:1.1;box-shadow:0 22px 26px -14px var(--shade)}
+  .coin:hover .disc:after{transform:translateX(120%)}
+  .coin:hover b,.coin.on b{color:var(--text)}
+  .coin.on .disc{border-color:var(--acc)}
+  .coin.more .disc{background:var(--s2);color:var(--muted);font-size:12px}
+  @keyframes bob{50%{transform:translateY(-4px)}}
+  .coin-tip{position:absolute;left:0;right:0;bottom:0;text-align:center;font:12px var(--mono);color:var(--muted);opacity:0;transition:opacity .5s ease .5s}
+  body.done .coin-tip{opacity:1}
+  .coin-tip b{color:var(--text);font-weight:600}
+
+  .card{background:var(--s1);border:1px solid var(--line);border-radius:22px;padding:20px;margin-top:10px;box-shadow:0 20px 50px -30px var(--shade);
+    animation:cardIn .7s var(--ease) both .25s}
+  @keyframes cardIn{from{opacity:0;transform:translateY(16px)}}
+  .who{display:flex;align-items:center;gap:10px;margin-bottom:10px;font-weight:600}
+  .who img{width:34px;height:34px;border-radius:50%;object-fit:cover;border:2px solid var(--acc)}
+  .who .fomo{font:500 10px var(--mono);color:var(--muted);border:1px solid var(--line2);border-radius:5px;padding:1px 5px}
+  .eyebrow{font:500 11px var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+  .total-row{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin:6px 0 12px}
+  .total{font-family:var(--disp);color:var(--acc);font-size:52px;line-height:1;font-weight:900;letter-spacing:-.05em;font-variant-numeric:tabular-nums}
+  .share{background:var(--s2);color:var(--text);border:1px solid var(--line2);height:40px;font-weight:600;display:flex;align-items:center;gap:8px;transition:border-color .3s var(--ease),transform .3s var(--ease)}
+  .share:hover{border-color:var(--acc);transform:translateY(-1px)}
+  .rank{font:12.5px var(--mono);color:var(--muted);margin:2px 0 10px} .rank b{color:var(--acc);font-weight:500}
+  .stats{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:18px;padding-top:14px;border-top:1px solid var(--line);font:12.5px var(--mono);color:var(--muted);animation:crIn .6s var(--ease) both}
+  .stats .stl{display:flex;align-items:center;gap:6px;white-space:nowrap}
+  .howl{color:var(--muted);text-decoration:none;white-space:nowrap;transition:color .25s} .howl:hover{color:var(--acc)}
+  body:not(.idle) .stats{display:none}
+  .stats>i{width:7px;height:7px;border-radius:50%;background:var(--ok);box-shadow:0 0 0 0 rgba(126,231,135,.45);animation:stPulse 2s ease-out infinite;margin-right:2px}
+  @keyframes stPulse{0%{box-shadow:0 0 0 0 rgba(126,231,135,.45)}70%,100%{box-shadow:0 0 0 7px rgba(126,231,135,0)}}
+  .stats b{color:var(--acc);font-weight:600;display:inline-flex;font-variant-numeric:tabular-nums}
+  .od{display:inline-block;height:1.25em;line-height:1.25em;overflow:hidden;vertical-align:bottom}
+  .odr{display:flex;flex-direction:column;transition:transform 1.6s cubic-bezier(.16,.84,.24,1)}
+  .odr i{display:block;height:1.25em;font-style:normal;text-align:center}
+  .keys{display:none!important}
+  .rank #rank:not(.hidden)+#tierNext:not(:empty)::before{content:" · ";color:var(--dim)} #tierNext b{color:var(--acc);font-weight:700} #tierNext .tn{color:var(--muted)}
+  .tiers{display:flex;flex-direction:column;gap:3px;margin-left:auto;align-self:center}
+  .tiers>div{display:flex;align-items:center;justify-content:flex-end;gap:7px;height:11px}
+  .tiers b{font:900 9px/1 var(--disp);color:#4a4239;width:12px;text-align:right}
+  .tiers i{display:block;height:3px;border-radius:2px;background:var(--s2)}
+  .tiers .done b{color:var(--dim)} .tiers .done i{background:rgba(255,246,234,.22)}
+  .tiers .on b{color:var(--acc);font-size:12px} .tiers .on i{background:var(--acc)}
+  #go{position:relative;min-width:108px;padding:0;background:none;perspective:500px;overflow:visible}
+  #go .gf,#go .gb{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;border-radius:11px;backface-visibility:hidden;-webkit-backface-visibility:hidden;transition:transform .7s cubic-bezier(.34,1.56,.64,1)}
+  #go .gf{background:var(--acc);color:var(--acc-ink)}
+  #go .gb{background:#f4efe6;color:#141210;transform:rotateX(-180deg)}
+  #go.flip .gf{transform:rotateX(180deg)} #go.flip .gb{transform:rotateX(0)}
+  #go:hover:not(.flip){transform:scale(1.03)} #go:active{transform:scale(.95)} #go:disabled{opacity:1}
+  body.scanning .search{transition-delay:.55s}
+  #result.tierS .total, #result.tierS #tierNext b{color:#ffc94d} #result.tierS .tiers .on i{background:#ffc94d} #result.tierS .tiers .on b, #result.tierS .tiers .on span{color:#ffc94d}
+  .postbig{width:100%;margin-top:16px;background:var(--acc);color:var(--acc-ink);font-weight:700;font-size:15px;height:48px;border-radius:14px;border:0;cursor:pointer}
+  .postbig:hover{filter:brightness(1.06)}
+  #result .share{display:none}
+  .againbtn{display:block;margin:10px auto 0;background:none;color:var(--muted);font:500 12.5px var(--mono);height:auto;padding:6px 10px;order:9}
+  .againbtn:hover{color:var(--acc)}
+  .hint a{color:var(--muted);text-decoration:none} .hint a:hover{color:var(--acc)}
+  .deep{display:inline-flex;align-items:center;gap:6px;margin-left:10px;color:var(--dim)}
+  .deep i{width:5px;height:5px;border-radius:50%;background:var(--acc);animation:dp 1.2s ease-in-out infinite}
+  @keyframes dp{50%{opacity:.2}}
+  .stack{display:flex;height:6px;border-radius:99px;overflow:hidden;gap:2px;margin:0 0 10px;background:var(--line)}
+  .ztrack{display:none;height:30px;border:1px dashed var(--line2);border-radius:99px;place-items:center;font:500 12px var(--mono);color:var(--dim);margin:2px 0 12px;padding:0 12px;text-align:center;animation:zin .6s var(--ease) both}
+  @keyframes zin{from{opacity:0;transform:translateY(6px)}}
+  #result.z0 .ztrack{display:grid;border-color:rgba(255,138,61,.3);color:var(--muted)}
+  .coin.qcoin{cursor:default} .coin.qcoin .disc{background:radial-gradient(circle at 36% 30%,#3a3129,var(--s1) 75%);border:2px solid rgba(255,138,61,.4);color:var(--acc);font:900 calc(var(--s)*.4) var(--disp);box-shadow:0 10px 24px -12px rgba(255,138,61,.35)} .coin.qcoin b{color:var(--muted)}
+  #result.z0 .pdraw,#result.z0 #shareBtn,#result.z0 #postBig,#result.z0 .rank{display:none!important}
+  .stack i{display:block;height:100%}
+  .pdraw{display:grid;grid-template-rows:1fr} .pdraw>div{min-height:0;overflow:hidden}
+  body.done .pdraw{animation:kbOpen 1.5s cubic-bezier(.45,0,.2,1) .8s both}
+  body.done .pdraw>div>*{animation:kbSlide 2s cubic-bezier(.22,1,.36,1) 1.1s both}
+  @keyframes kbOpen{from{grid-template-rows:0fr}to{grid-template-rows:1fr}}
+  @keyframes kbSlide{from{opacity:0;transform:translateY(10px);filter:blur(6px)}to{opacity:1;transform:none;filter:none}}
+
+  .plats{display:flex;flex-wrap:wrap;gap:6px}
+  .plat{display:flex;align-items:center;gap:7px;font-size:12.5px;background:var(--s2);border-radius:99px;padding:5px 11px}
+  .plat .dot{width:7px;height:7px;border-radius:50%;flex:none}
+  .plat .nm{color:var(--muted);white-space:nowrap}
+  .plat b{font-weight:600;font-variant-numeric:tabular-nums}
+  #linked{font-size:12px;color:var(--muted);margin-top:12px}
+  #linked:empty{display:none}
+  #linked code{color:var(--text)}
+  .addw{height:30px;padding:0 12px;font-size:12px;margin-left:6px;border-radius:9px;vertical-align:middle}
+
+  .morebtn{width:100%;margin-top:14px;height:40px;background:none;color:var(--muted);border:1px solid var(--line2);font-weight:600;display:flex;align-items:center;justify-content:center;gap:8px}
+  .morebtn:hover{color:var(--text);border-color:var(--acc)}
+  .morebtn svg{transition:transform .45s var(--ease)} .morebtn.open svg{transform:rotate(180deg)}
+  .details{max-height:0;overflow:hidden;transition:max-height .6s var(--ease)}
+  .details.open{max-height:48vh;overflow-y:auto;overscroll-behavior:contain}
+  .details-in{padding-top:12px}
+  #meta{font:12px var(--mono);color:var(--dim)}
+  .checks{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+  .chk{font:500 11px var(--mono);padding:4px 9px;border-radius:99px;border:1px solid var(--line);color:var(--muted);background:var(--s2)}
+  .chk.ok{color:var(--ok);border-color:rgba(126,231,135,.22)} .chk.warn{color:var(--warn);border-color:rgba(255,181,71,.25)}
+  details.ck{width:100%} details.ck summary{list-style:none;cursor:pointer;display:flex;align-items:center;gap:10px} details.ck summary::-webkit-details-marker{display:none}
+  details.ck .more{font:11px var(--mono);color:var(--dim)}
+  .ckl{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+  #linkedInfo{font-size:12px;color:var(--muted);margin-top:10px} #linkedInfo:empty{display:none}
+  .list{margin-top:12px;border-top:1px solid var(--line)}
+  .rw{display:grid;grid-template-columns:32px 1fr auto;gap:12px;align-items:center;padding:11px 4px;border-bottom:1px solid var(--line);cursor:pointer;transition:background-color .3s ease}
+  .rw:hover{background:var(--soft)}
+  .ic{width:32px;height:32px;border-radius:50%;background:var(--s2);border:1px solid var(--line);display:grid;place-items:center;font:700 11px var(--sans);color:var(--muted);overflow:hidden;position:relative}
+  .ic img{width:100%;height:100%;object-fit:cover;position:absolute;inset:0}
+  .nm1{font-weight:600;display:flex;align-items:center;gap:7px;min-width:0}
+  .tag{font:500 10px var(--mono);padding:1px 6px;border-radius:5px;color:var(--bg);white-space:nowrap}
+  .from{font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .val{text-align:right;font-variant-numeric:tabular-nums} .val b{display:block;font-weight:600} .val small{font:11px var(--mono);color:var(--dim)}
+  .proof{padding:4px 4px 14px 48px;border-bottom:1px solid var(--line)}
+  .proof .pm{font-size:12px;color:var(--muted);margin-bottom:6px;line-height:1.6}
+  .proof ul{margin:0;padding:0;list-style:none}
+  .proof li{display:grid;grid-template-columns:1fr auto auto;gap:14px;font:12px var(--mono);padding:5px 0;color:var(--muted);border-top:1px dashed var(--line)}
+  .proof li span:nth-child(2){color:var(--text)} .proof a{color:var(--acc)}
+  details.small{border-bottom:1px solid var(--line)}
+  .showall{display:block;width:100%;margin:10px 0 2px;padding:9px;border:1px dashed var(--line2);border-radius:12px;background:none;color:var(--muted);font:500 12px var(--mono);cursor:pointer;transition:color .25s,border-color .25s}
+  .showall:hover{color:var(--text);border-color:var(--acc)} .rows-more{animation:kbFade .5s ease both}
+  details.small summary{list-style:none;cursor:pointer;display:flex;justify-content:space-between;padding:11px 4px;font-size:13px;color:var(--muted)}
+  details.small summary::-webkit-details-marker{display:none}
+  details.small summary b{font-weight:500;color:var(--muted);font-variant-numeric:tabular-nums}
+  details.small[open] summary{color:var(--text)}
+  details.small .rw{padding:9px 4px;grid-template-columns:26px 1fr auto} details.small .ic{width:26px;height:26px;font-size:9px}
+  .hint{font-size:12px;color:var(--dim);margin:10px 0 0}
+  .hint.acc{margin-top:4px;font-size:11px;opacity:.75}
+  details.box{margin-top:14px;border:1px solid rgba(255,181,71,.2);border-radius:14px;padding:0 14px;background:rgba(255,181,71,.03)}
+  details.box summary{cursor:pointer;list-style:none;padding:12px 0;font-weight:600;display:flex;justify-content:space-between;gap:8px}
+  details.box summary::-webkit-details-marker{display:none}
+  details.box summary:after{content:"+";color:var(--muted);font-weight:400} details.box[open] summary:after{content:"−"}
+  #suspects{margin:0 0 14px;padding-left:16px;font-size:12.5px;color:var(--muted)} #suspects li{margin-bottom:6px} #suspects b{color:var(--text)} #suspects a{color:var(--acc)}
+  details.how{margin-top:14px;border-top:1px solid var(--line);padding-top:4px}
+  details.how summary{cursor:pointer;color:var(--muted);font-size:13px;padding:8px 0;list-style:none}
+  details.how summary::-webkit-details-marker{display:none}
+  details.how ol{padding-left:18px;color:var(--muted);font-size:13px;margin:6px 0} details.how li{margin-bottom:6px} details.how b{color:var(--text);font-weight:600}
+  .keys{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px}
+  .keys input{width:100%;background:var(--s2);border:1px solid var(--line);color:var(--text);border-radius:9px;padding:8px 10px;font:12px var(--mono)}
+
+  footer{margin-top:auto;padding-top:18px;font:11px var(--mono);color:var(--dim);text-align:center}
+
+  .modal{position:fixed;inset:0;background:var(--shade);backdrop-filter:blur(6px);display:grid;place-items:center;padding:16px;z-index:50;animation:fade .35s ease}
+  @keyframes fade{from{opacity:0}}
+  .sheet{width:min(680px,100%);max-height:calc(100vh - 32px);overflow:auto;background:var(--s1);border:1px solid var(--line2);border-radius:18px;padding:16px;display:flex;flex-direction:column;gap:12px;animation:cardIn .45s var(--ease)}
+  .seg-row{display:flex;gap:8px;flex-wrap:wrap} .seg{display:flex;background:var(--bg);border:1px solid var(--line2);border-radius:10px;padding:3px;gap:3px} .seg button{height:32px;padding:0 12px;font-size:13px;background:none;color:var(--muted);border-radius:8px} .seg button.on{background:var(--s2);color:var(--text)}
+  .sheet-top{display:flex;justify-content:space-between;align-items:center} .sheet .x{background:none;color:var(--muted);font-size:22px;padding:0 6px;height:30px}
+  #cardPrev{width:100%;border-radius:10px;border:1px solid var(--line);aspect-ratio:16/9;background:var(--bg)}
+  .pfp-row{display:flex;gap:8px} .pfp-row input{flex:1;min-width:0;background:var(--bg);border:1px solid var(--line2);color:var(--text);border-radius:10px;padding:10px 12px;font:13px var(--mono);outline:none} .pfp-row input:focus{border-color:var(--acc)}
+  .pfp-need{font-size:13px;color:var(--text);background:var(--soft);border:1px solid rgba(255,138,61,.35);border-radius:10px;padding:9px 12px}
+  .pfp-row.need input{border-color:var(--acc);box-shadow:0 0 0 4px var(--soft)}
+  .up{display:flex;align-items:center;padding:0 14px;border:1px solid var(--line2);border-radius:10px;font-size:13px;color:var(--text);cursor:pointer;white-space:nowrap} .up:hover{border-color:var(--acc)}
+  .sheet-actions{display:flex;gap:8px} .sheet-actions button{flex:1;height:44px} .sheet-actions .ghost{background:var(--s2);color:var(--text);border:1px solid var(--line2)}
+
+  @media (max-width:560px){ h1{font-size:31px} .total{font-size:42px} .search{flex-direction:column} .card{padding:16px} .proof{padding-left:4px} .keys{grid-template-columns:1fr} .coin{margin-left:-12px} }
+  @media (prefers-reduced-motion:reduce){ *{animation:none!important;transition:none!important} }
+</style>
+</head>
+<body class="idle">
+<div class="wrap">
+  <header class="top">
+    <div class="brand" id="home"><svg class="mark" viewBox="0 0 52 52" aria-hidden="true"><path d="M40 14A18 18 0 1 0 44 30" fill="none" stroke="var(--acc)" stroke-width="7" stroke-linecap="round"/><path d="M30 12l12 2-2 12" fill="none" stroke="var(--acc)" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/><circle cx="26" cy="26" r="6" fill="var(--dot)"/></svg>kickback</div>
+    <nav class="nav">
+      <a data-link="github" href="#" target="_blank" rel="noopener" aria-label="GitHub"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 .5a12 12 0 0 0-3.8 23.4c.6.1.8-.3.8-.6v-2.1c-3.3.7-4-1.6-4-1.6-.6-1.4-1.4-1.8-1.4-1.8-1.1-.7.1-.7.1-.7 1.2.1 1.9 1.3 1.9 1.3 1.1 1.8 2.9 1.3 3.6 1 .1-.8.4-1.3.8-1.6-2.7-.3-5.5-1.3-5.5-5.9 0-1.3.5-2.4 1.2-3.2-.1-.3-.5-1.5.1-3.2 0 0 1-.3 3.3 1.2a11.5 11.5 0 0 1 6 0C17.3 4.6 18.3 5 18.3 5c.6 1.7.2 2.9.1 3.2.8.8 1.2 1.9 1.2 3.2 0 4.6-2.8 5.6-5.5 5.9.4.4.8 1.1.8 2.2v3.3c0 .3.2.7.8.6A12 12 0 0 0 12 .5Z"/></svg></a>
+      <a data-link="x" href="#" target="_blank" rel="noopener" aria-label="X"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M18.9 2H22l-7.6 8.7L23.3 22h-7l-5.5-7.2L4.5 22H1.4l8.1-9.3L1 2h7.2l5 6.6L18.9 2Zm-1.2 18h1.7L7.4 3.9H5.6L17.7 20Z"/></svg></a>
+      <div class="tipw"><button class="tipbtn" id="tipBtn" type="button" aria-label="Tip the dev"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20.5s-7.5-4.6-7.5-10.2A4.3 4.3 0 0 1 12 7.6a4.3 4.3 0 0 1 7.5 2.7c0 5.6-7.5 10.2-7.5 10.2Z"/></svg></button><span class="tiptip">Tip the dev</span>
+        <div class="tippop" id="tipPop" role="dialog" aria-label="Tip the dev"><b>Love the tech? Tip the dev.</b><div id="tipRows"></div></div></div>
+    </nav>
+  </header>
+
+  <main>
+    <section class="hero">
+      <h1>Your bags paid you.<br><em>See how much.</em></h1>
+      <p class="sub">Paste any wallet. Every holder reward, each with its tx.</p>
+    </section>
+
+    <div class="search">
+      <input id="wallet" placeholder="Paste your wallet · Solana or 0x…" autocomplete="off" spellcheck="false">
+      <button id="go" aria-label="Check"><span class="gf">Check</span><span class="gb">Checking…</span></button>
+    </div>
+    <div class="chains"><span>Solana</span><span>BNB</span><span>Base</span><span>Ethereum</span><span>Robinhood</span></div>
+    <div class="stats hidden" id="stats"><span class="stl"><b id="stTotal"></b><span>found ·</span><b id="stN"></b><span id="stW">wallets</span></span><a class="howl" href="https://github.com/syanovee/kickback#how-we-count" target="_blank" rel="noopener">How it works ↗</a></div>
+    <div class="mtag"><svg viewBox="0 0 52 52"><path d="M40 14A18 18 0 1 0 44 30" fill="none" stroke="var(--acc)" stroke-width="7" stroke-linecap="round"/><path d="M30 12l12 2-2 12" fill="none" stroke="var(--acc)" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/><circle cx="26" cy="26" r="6" fill="var(--dot)"/></svg><b>kickback</b></div>
+    <div class="noca">There is no CA.</div>
+    <nav class="kbfoot" aria-label="About Kickback"><button type="button" data-kbtip>No CA</button><i>·</i><button type="button" data-kbmod="kbPriv">Privacy</button><i>·</i><button type="button" data-kbmod="kbDisc">Disclaimer</button><i>·</i><button type="button" data-kbx>@syanovee</button></nav>
+    <div class="kbmod" id="kbPriv" role="dialog" aria-modal="true" aria-label="Privacy"><div class="bx"><button class="x" type="button" data-kbclose>esc ✕</button><h3>Privacy</h3><ul>
+      <li><b>No wallet connection.</b> You paste a public address. Nothing to sign, no access to your funds.</li>
+      <li>We keep simple stats so we can improve Kickback: the addresses checked, what was found, the X handle if you enter one, country and the site you came from.</li>
+      <li><b>No IP addresses</b>, no ad cookies, no tracking across sites.</li>
+      <li>Cards you post or copy are saved so the share link works.</li>
+      <li>Want something removed? DM <b>@syanovee</b> on X.</li></ul></div></div>
+    <div class="kbmod" id="kbDisc" role="dialog" aria-modal="true" aria-label="Disclaimer"><div class="bx"><button class="x" type="button" data-kbclose>esc ✕</button><h3>Disclaimer</h3><ul>
+      <li><b>Not financial advice.</b> Kickback only shows what a wallet has already received. It doesn't tell you what to buy, hold or sell.</li>
+      <li><b>Numbers can be off.</b> Values use today's prices, not the price on the day of each payout. Some rewards may be missing, for example very old ones or ones we can't verify on-chain yet.</li>
+      <li><b>Read-only.</b> We only read public blockchain data. No wallet connection, nothing to sign, no access to funds.</li>
+      <li><b>Not affiliated</b> with StonkFun, pump.fun, Flap, Pons, Ember, Four.meme or any other platform. Names and logos belong to their owners.</li>
+      <li><b>No token.</b> Kickback has no coin and no CA. Anyone offering one is not us.</li></ul></div></div>
+    <div class="status" id="status"></div>
+
+    <div class="stage" id="stage" aria-hidden="true">
+      <div class="tower hidden" id="tower"></div>
+      <div class="coins" id="coins"></div>
+      <div class="coin-tip" id="coinTip"></div>
+      <div class="bar"><i id="prog"></i></div>
+      <div class="loader" aria-live="polite">
+        <svg class="kbspin" viewBox="0 0 52 52" aria-hidden="true"><circle class="trail" cx="26" cy="26" r="18"/><g class="arc"><path d="M40 14A18 18 0 1 0 44 30"/><path d="M30 12l12 2-2 12"/></g><circle class="core" id="kbCore" cx="26" cy="26" r="6"/></svg>
+        <div class="live hidden" id="liveWrap"><b id="liveSum">$0.00</b></div>
+        <div class="lrow"><span class="shim" id="kbHead">Counting your kickbacks</span><span class="el" id="elapsed">0.0s</span></div>
+        <div class="kbprog"><i id="kbBar"></i></div>
+        <div class="kblog" id="kbLog"></div>
+        <div class="kbchips" id="kbChips"></div>
+        <span class="call-chip" id="kbCall" data-status="idle">
+          <span class="call-chip__fill" id="kbCallFill"></span>
+          <span class="call-chip__slot">
+            <span class="call-chip__glyph" data-g="tool"><svg viewBox="0 0 52 52" class="kbmini"><g class="a"><path d="M40 14A18 18 0 1 0 44 30"/><path d="M30 12l12 2-2 12"/></g><circle cx="26" cy="26" r="6"/></svg></span>
+            <span class="call-chip__glyph" data-g="check"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></span>
+            <span class="call-chip__glyph" data-g="retry"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 11a8 8 0 1 0-2.3 5.7M20 4v7h-7"/></svg></span>
+          </span>
+          <span class="call-chip__name" id="kbCallName">scan</span>
+          <span class="call-chip__arg" id="kbCallArg">…</span>
+          <span class="call-chip__timer" id="kbCallTm">0 ms</span>
+        </span>
+        <div class="kbquip" id="kbQuip"></div>
+        <div class="kbwait" id="kbWait"></div>
+      </div>
+      <div class="pcol"><div class="swho" id="scanWho"></div><div class="chainrow" id="chainRow"></div>
+      <div class="found" id="foundLine"></div></div>
+    </div>
+    <div class="hidden" id="scan"></div>
+
+    <div class="card hidden" id="result">
+      <div class="who hidden" id="who"><img id="whoImg" alt=""><span id="whoName"></span></div>
+      <div class="eyebrow">Holder rewards earned · today's prices</div>
+      <div class="total-row">
+        <div class="total" id="total">$0.00</div>
+        <div class="tiers hidden" id="tiers"></div>
+        <button class="share" id="shareBtn" type="button"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M18.9 2H22l-7.6 8.7L23.3 22h-7l-5.5-7.2L4.5 22H1.4l8.1-9.3L1 2h7.2l5 6.6L18.9 2Zm-1.2 18h1.7L7.4 3.9H5.6L17.7 20Z"/></svg>Share</button>
+      </div>
+      <div class="rank"><span class="hidden" id="rank"></span><span id="tierNext"></span><span class="deep hidden" id="deep" title="Double-checking older history &amp; creator drops"><i></i>verifying</span></div>
+      <div class="ztrack" id="zTrack"></div>
+      <div class="pdraw"><div>
+      <div class="stack" id="stack"></div>
+      <div class="plats" id="plats"></div>
+      </div></div>
+      <button class="postbig hidden" id="postBig" type="button">Post card on X</button>
+      <div id="linked"></div>
+      <button class="againbtn" id="againBtn" type="button">↺ Check another wallet</button>
+      <button class="morebtn" id="moreBtn" type="button">Details &amp; proofs <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button>
+      <div class="details" id="details"><div class="details-in">
+        <div class="eyebrow dhead">Every payout · with its transaction</div>
+        <div id="meta"></div>
+        <div class="checks" id="checks"></div>
+        <div id="linkedInfo"></div>
+        <div class="list" id="rows"></div>
+        <p class="hint">Tap a reward to see each payout and its transaction.</p>
+        <details class="box hidden" id="suspectBox">
+          <summary>Needs review · not in the total</summary>
+          <div class="muted" style="margin-bottom:8px">Value reached you in a pattern that looks like a reward, but from a source we can't verify yet.</div>
+          <ul id="suspects"></ul>
+        </details>
+        <p class="hint"><a href="https://github.com/syanovee/kickback#how-we-count" target="_blank" rel="noopener">How we count ↗</a><span class="rep"> <span class="sep">·</span> <a id="reportLink" href="https://x.com/messages/compose?recipient_id=1354812939778150409" target="_blank" rel="noopener">Something went wrong? ↗</a></span></p>
+        <p class="hint acc">Today's prices, only rewards we can verify on-chain. The real total may be a bit higher.</p>
+      </div></div>
+    </div>
+    <aside class="demo" id="demo" aria-hidden="true"><div class="dcard">
+      <div class="dwho"><span class="dav" id="dAv">W</span><b id="dName">@whale</b><span>held and got paid</span></div>
+      <div class="dcoins" id="dCoins"></div>
+      <div class="dtot" id="dTot">$0.00</div>
+      <div class="dsub" id="dSub">earned holding coins</div>
+      <div class="dfoot"><svg viewBox="0 0 52 52" width="18" height="18"><path d="M40 14A18 18 0 1 0 44 30" fill="none" stroke="var(--acc)" stroke-width="7" stroke-linecap="round"/><path d="M30 12l12 2-2 12" fill="none" stroke="var(--acc)" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/><circle cx="26" cy="26" r="6" fill="var(--dot)"/></svg><b>kickback</b></div>
+    </div><p class="dcap">Get your flex card with Kickback.</p></aside>
+    <div class="msheet" id="sheet"><div class="msheet-bg" id="sheetBg"></div><div class="msheet-panel" id="sheetPanel"><div class="msheet-top"><i></i><button type="button" id="sheetX" aria-label="Close">✕</button></div><div id="sheetSlot"></div></div></div>
+    <aside class="proofs" id="proofs"><div class="card"><div id="proofsSlot"></div></div></aside>
+  </main>
+
+  <div class="modal hidden" id="shareModal">
+    <div class="sheet" role="dialog" aria-label="Share your card">
+      <div class="sheet-top"><b>Your card</b><button class="x" id="closeShare" aria-label="Close">×</button></div>
+      <div class="seg-row"><div class="seg"><button type="button" data-cstyle="stack">Coin stack</button><button type="button" data-cstyle="top">Top rewards</button></div></div>
+      <img id="cardPrev" alt="Your Kickback card">
+      <div class="pfp-need hidden" id="pfpNeed">Add your X handle so the card shows your pfp and @name instead of a wallet address.</div>
+      <div class="pfp-row">
+        <input id="xHandle" placeholder="@your_x_handle (adds your pfp)" autocomplete="off" spellcheck="false">
+        <label class="up">Upload pfp<input type="file" id="pfpFile" accept="image/*" hidden></label>
+      </div>
+      <div class="sheet-actions">
+        <button class="ghost" id="dlCard" type="button">Copy image</button>
+        <button id="postX" type="button">Post card on X</button>
+      </div>
+      <div class="muted" style="font-size:12px">Copy the image, flex your card on X.</div>
+    </div>
+  </div>
+</div>
+
+<script>
+
+const W_SOL_DIST = {
+  'HuBMeYW3aDn8BH65fo8xxbP4oiexyup8udzKyccgi8Ga': 'StonkFun',
+  '5KXDF6QnqhBj72hDtJNkkpFaQVUfbFXNybMsp3DiK6tD': 'StonkFun',
+  'GZjYfGyUNQfDChcQ66Gc3ZMcQqPEisyRYe1nPyQhP9bp': 'Ember',
+};
+const PUMP_PROGRAM = '6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P';
+const SOL_MINT = 'So11111111111111111111111111111111111111112';
+const SOL_IGNORE_SIGNERS = new Set([
+  'AgmLJBMDCqWynYnQiPCuj9ewsNNsBJXyzoUhD9LJzN51',
+  'F7p3dFrjRTbtRp8FRF6qHLomXbKRBzpvBLjtQcfcgmNe',
+]);
+const TOKEN_PROGRAMS = ['TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA','TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb'];
+const STONK_API = 'https://www.stonkfun.xyz/api/public/v1';
+const stonkUrl = m => '/api/stonk/'+m;
+const RH_API = 'https://robinhoodchain.blockscout.com/api/v2';
+const RELAY_PROXY = '/api/relay';
+let relayV3;
+const PONS_ESCROW = '0xd3afeb2a57f70ef218aa82451c51b2fb0416ac9e';
+const RELAY_ROUTER = '0xb92fe925dc43a0ecde6c8b1a2709c170ec4fff4f';
+const SEL_DIVIDEND = '0x6124e4e7';
+const SEL_SYMBOL = '0x95d89b41';
+const PROOFS = 8;
+const CG_IMG = 'https://coin-images.coingecko.com/coins/images/';
+const MAJOR_ICON = {BTC:CG_IMG+'1/large/bitcoin.png', BTCB:CG_IMG+'1/large/bitcoin.png', WBTC:CG_IMG+'1/large/bitcoin.png',
+  ETH:CG_IMG+'279/large/ethereum.png', WETH:CG_IMG+'279/large/ethereum.png', BNB:CG_IMG+'825/large/bnb-icon2_2x.png', WBNB:CG_IMG+'825/large/bnb-icon2_2x.png',
+  SOL:CG_IMG+'4128/large/solana.png', WSOL:CG_IMG+'4128/large/solana.png', USDT:CG_IMG+'325/large/Tether.png', USDC:CG_IMG+'6319/large/usdc.png'};
+
+const $ = id => document.getElementById(id);
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+const esc = s => String(s??'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const short = a => a ? a.slice(0,4)+'…'+a.slice(-4) : '';
+const fmtUsd = v => '$'+v.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+const fmtAmt = v => v>=1000?v.toLocaleString('en-US',{maximumFractionDigits:0}):v.toLocaleString('en-US',{maximumSignificantDigits:6});
+const REPORT_DM = 'https://x.com/messages/compose?recipient_id=1354812939778150409';
+const earnedOn = names => { const n=names.filter(Boolean); return 'earned holding coins from '+(n.length<2?n.join(''):n.slice(0,-1).join(', ')+' and '+n[n.length-1]); };
+const fmtDate = t => t?new Date(t*1000).toLocaleDateString('en-US',{month:'short',day:'numeric'}):'·';
+const fmtDT = t => t?new Date(t*1000).toLocaleString('en-US',{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'}):'·';
+const rawToNum = (raw, dec) => Number(BigInt(raw)) / 10**dec;
+let progBase = 0, progSpan = 100;
+const statusLines = {};
+function setStatus(t, err){
+  const s=$('status'); const m=/^(Solana|Robinhood Chain|BNB Chain|Ethereum|Base|Monad):/.exec(t||'');
+  if (m && !err){ if (s.classList.contains('err')) return;
+    statusLines[m[1]]=t; s.textContent=Object.values(statusLines).join('\n'); s.className='status'; return; }
+  for (const k in statusLines) delete statusLines[k];
+  s.textContent=t; s.className='status'+(err?' err':'');
+}
+function setProg(p){ $('prog').style.width = Math.max(0,Math.min(100,progBase+p*progSpan/100))+'%'; }
+
+async function fetchJson(url, opts){ const ac=new AbortController(), tm=setTimeout(()=>ac.abort(),9000); try{ const r=await fetch(url,{...opts, signal:ac.signal}); if(!r.ok) return null; return await r.json(); }catch(e){ return null; }finally{ clearTimeout(tm); } }
+
+const NC = /[?&]nc\b/.test(location.search);
+const MC=new MessageChannel(), MCQ=[]; MC.port1.onmessage=()=>{ const f=MCQ.shift(); if (f) f(); };
+const soon = f => { if (document.hidden){ let k=0; const hop=()=>{ if (++k>=40) f(); else { MCQ.push(hop); MC.port2.postMessage(0); } }; MCQ.push(hop); MC.port2.postMessage(0); return -1; } return setTimeout(f,15); };
+const AQ={q:[], inflight:0, max:3, size:24, pause:0, timer:0, gather:0};
+function viaBatch(url, body){
+  return new Promise(res=>{ AQ.q.push({url, body, res, tries:0}); if (!AQ.gather){ AQ.gather=1; soon(()=>{ AQ.gather=0; pumpAQ(); }); } });
+}
+function pumpAQ(){
+  while (AQ.inflight<Math.floor(AQ.max) && AQ.q.length){
+    const wait=AQ.pause-Date.now();
+    if (wait>0){ if (!AQ.timer) AQ.timer=setTimeout(()=>{ AQ.timer=0; pumpAQ(); }, wait); return; }
+    const url=AQ.q[0].url, items=[];
+    for (let i=0; i<AQ.q.length && items.length<AQ.size; ){ if (AQ.q[i].url===url) items.push(AQ.q.splice(i,1)[0]); else i++; }
+    AQ.inflight++; sendAQ(url, items).finally(()=>{ AQ.inflight--; pumpAQ(); });
+  }
+}
+const busyMsg = m => /rate|limit|too many|capacity|busy|missing reply/i.test(m||'');
+async function sendAQ(url, items){
+  let arr=null, status=0;
+  try{
+    const r=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json',...(NC?{'x-kb-nc':'1'}:{})},body:JSON.stringify(items.map((x,i)=>({...x.body,id:i})))});
+    status=r.status; if (r.ok) arr=await r.json().catch(()=>null);
+  }catch(e){ status=0; }
+  const by={}; if (Array.isArray(arr)) for (const a of arr) by[a.id]=a;
+  const again=[];
+  items.forEach((x,i)=>{
+    const a=by[i], busy = !arr || (a ? busyMsg(a.error?.message) : true);
+    if (busy && status!==401 && status!==403 && ++x.tries<25) again.push(x);
+    else x.res(a ? {status:200, j:a} : {status:status||0, j:null});
+  });
+  if (again.length){
+    AQ.q.unshift(...again);
+    AQ.max=Math.max(1, AQ.max-1); AQ.size=Math.max(6, Math.floor(AQ.size*.7));
+    AQ.pause=Math.max(AQ.pause, Date.now()+250+Math.random()*250);
+  } else { AQ.max=Math.min(6, AQ.max+.34); AQ.size=Math.min(40, AQ.size+2); }
+}
+async function post(url, body){
+  if (url.startsWith('/api/alchemy/')) return viaBatch(url, body);
+  try{ const r=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json',...(NC&&url.startsWith('/api/')?{'x-kb-nc':'1'}:{})},body:JSON.stringify({...body,id:1})}); return {status:r.status, j:await r.json().catch(()=>({}))}; }
+  catch(e){ return {status:0,j:null}; }
+}
+async function rpc(url, method, params){
+  let last;
+  for (let i=0;i<10;i++){
+    const {status, j} = await post(url,{jsonrpc:'2.0',method,params});
+    if (!status){ last='network error'; await sleep(Math.min(8000,700*2**i)); continue; }
+    if (status===429 || status>=500){ last='rate limited'; await sleep(Math.min(8000,700*2**i)); continue; }
+    if (j?.error){
+      if (/rate|limit|too many|timeout|busy|capacity/i.test(j.error.message||'')){ last=j.error.message; await sleep(Math.min(8000,700*2**i)); continue; }
+      throw new Error(j.error.message||JSON.stringify(j.error));
+    }
+    if (status===401 || status===403) throw new Error('API key rejected');
+    return j?.result;
+  }
+  throw new Error('RPC kept failing ('+last+')');
+}
+
+const bsToken = a => bs('/tokens/'+a);
+async function bs(path){
+  for (let i=0;i<10;i++){
+    try{ const r = await fetch(RH_API+path); if (r.ok) return await r.json(); if (r.status!==429 && r.status<500) return null; }catch(e){}
+    await sleep(Math.min(10000, 800*2**i));
+  }
+  throw new Error('Robinhood Chain explorer is not responding');
+}
+
+const REWARDS_SINCE = Math.floor(Date.parse('2026-07-15T00:00:00Z')/1000);
+const SOL_F = {status:'succeeded', tokenAccounts:'balanceChanged'};
+async function solAccounts(url, W){
+  const accs = {};
+  const rs = await Promise.all(TOKEN_PROGRAMS.map(p=>rpc(url,'getTokenAccountsByOwner',[W,{programId:p},{encoding:'jsonParsed'}])));
+  for (const r of rs) for (const a of r.value){ const i=a.account.data.parsed.info; accs[a.pubkey]={mint:i.mint, raw:BigInt(i.tokenAmount.amount)}; }
+  return accs;
+}
+const SOL_CAP = 25000;
+async function solIndex(url, W, lo, hi, onP, onFirst, cap){
+  const out=[];
+  const f = await rpc(url,'getTransactionsForAddress',[W,{transactionDetails:'signatures',limit:1000,filters:{...SOL_F, blockTime:{gte:lo,lt:hi}}}]);
+  for (const x of f.data||[]) out.push({sig:x.signature, slot:x.slot, t:x.blockTime});
+  if (onP) onP(out.length);
+  if (onFirst) onFirst(out.slice());
+  if (!f.paginationToken || !out.length) return out;
+  const hi0 = hi;
+  hi = Math.min(...out.map(x=>x.t||hi));
+  if (cap){
+    const rate = out.length/Math.max(60, hi0-hi), est = Math.round(rate*(hi0-lo));
+    if (est > cap){ lo = Math.max(lo, Math.floor(hi - (cap-out.length)/rate*1.15)); out.est = est; }
+  }
+  const seen = new Set(out.map(x=>x.sig));
+  const K=12, DAYS=86400, step=Math.max(DAYS, Math.ceil((hi+1-lo)/K/DAYS)*DAYS), wins=[];
+  for (let s=lo; s<=hi; s+=step) wins.push([s, Math.min(hi+1, s+step)]);
+  await pool(wins, K, async ([a,b])=>{
+    let tk=null;
+    do{ const o={transactionDetails:'signatures',limit:1000,filters:{...SOL_F, blockTime:{gte:a,lt:b}}}; if (tk) o.paginationToken=tk;
+      const r=await rpc(url,'getTransactionsForAddress',[W,o]);
+      for (const x of r.data||[]) if (!seen.has(x.signature)){ seen.add(x.signature); out.push({sig:x.signature, slot:x.slot, t:x.blockTime}); }
+      tk=r.paginationToken; if (onP) onP(out.length);
+    }while(tk);
+  });
+  if (cap && out.length > cap){ const est=out.est||out.length; out.sort((a,b)=>(b.t||0)-(a.t||0)); out.length=cap; out.est=est; }
+  if (cap && out.est){ out.truncated=true; out.cutoff=Math.min(...out.map(x=>x.t||Infinity)); }
+  return out;
+}
+const CARD_API = '/api/card';
+const RANK_API = '/api/rank';
+const LOG_API = '/api/log';
+const STUDIO = /[?&]studio\b/.test(location.search);
+if (STUDIO){ const m=location.search.match(/[?&]studio=(\w+)/); window.__studioStyle = m ? m[1] : 'blur'; const sc=document.createElement('script'); sc.src='/studio.js'; document.head.appendChild(sc); }
+const TESTRUN = /[?&]test\b/.test(location.search) || !/(^|\.)getkickback\.fun$/.test(location.hostname);
+function logEvent(o){ if (TESTRUN || !LOG_API || !window.__runKey) return;
+  const body=JSON.stringify({run:window.__runKey, ...(o.kind==='copy'||o.kind==='post'?{wallets:[window.__share?.wallet].filter(Boolean)}:{}), ...o});
+  try{ fetch(LOG_API,{method:'POST',keepalive:true,headers:{'Content-Type':'application/json'},body}).catch(()=>{}); }catch(e){} }
+const SOLSCAN = '/api/solscan';
+async function postJson(url, body, ms=30000){ const ac=new AbortController(), tm=setTimeout(()=>ac.abort(),ms);
+  try{ const r=await fetch(url,{method:'POST',signal:ac.signal,headers:{'Content-Type':'application/json',...(NC?{'x-kb-nc':'1'}:{})},body:JSON.stringify(body)}); return r.ok?await r.json():null; }catch(e){ return null; }finally{ clearTimeout(tm); } }
+function solSlices(index, size){
+  const bySlot = {}; for (const x of index) (bySlot[x.slot]=bySlot[x.slot]||[]).push(x.sig);
+  const ranges=[]; let cur=null;
+  for (const s of Object.keys(bySlot).map(Number).sort((a,b)=>b-a)){ if (!cur) cur={lo:s, hi:s, sigs:[]}; cur.lo=s; cur.sigs.push(...bySlot[s]); if (cur.sigs.length>=size){ ranges.push(cur); cur=null; } }
+  if (cur) ranges.push(cur);
+  return ranges;
+}
+let solAlchemyOk;
+async function solRead(url, W, index, all, onP, aurl, bySig){
+  const put=(sig,c)=>{ all.set(sig,c); liveSol(c, W); };
+  if (bySig){
+    for (let k=0;k<4;k++){
+      const left = index.filter(x=>!all.has(x.sig)); if (!left.length) break;
+      if (k) await sleep(800*k);
+      const chunks=[]; for (let i=0;i<left.length;i+=50) chunks.push(left.slice(i,i+50).map(x=>x.sig));
+      if (SOLSCAN) await pool(chunks, 6, async sigs=>{ const j=await postJson(SOLSCAN,{w:W, sigs, src:'a'}); for (const [sig,c] of Object.entries(j?.txs||{})) put(sig,c); if (onP) onP(); });
+      else await pool(left, 12, async x=>{ const tx=await rpc(url,'getTransaction',[x.sig,{encoding:'jsonParsed',maxSupportedTransactionVersion:0}]).catch(()=>null); if (tx) put(x.sig, solCompact(tx, W)); });
+    }
+    return index.filter(x=>!all.has(x.sig)).length;
+  }
+  if (SOLSCAN){
+    const ranges = solSlices(index.filter(x=>!all.has(x.sig)), 100);
+    let qi=0; const next=()=>qi<ranges.length?ranges[qi++]:null;
+    const worker = src => async()=>{ for (let r; (r=next());){ const j=await postJson(SOLSCAN,{w:W, sigs:r.sigs, lo:r.lo, hi:r.hi, src}); for (const [sig,c] of Object.entries(j?.txs||{})) put(sig,c); if (onP) onP(); } };
+    await Promise.all([...Array(14)].map(worker('h')));
+    for (let k=0;k<5;k++){
+      const left = index.filter(x=>!all.has(x.sig)); if (!left.length) return;
+      if (k) await sleep(800*k);
+      await pool(solSlices(left, 50), 6, async r=>{ const j=await postJson(SOLSCAN,{w:W, sigs:r.sigs, lo:r.lo, hi:r.hi, src:k%2&&r.sigs.length<=20?'a':'h'}); for (const [sig,c] of Object.entries(j?.txs||{})) put(sig,c); });
+    }
+    return index.filter(x=>!all.has(x.sig)).length;
+  }
+  const ranges = solSlices(index.filter(x=>!all.has(x.sig)), 50);
+  let qi=0; const next=()=>qi<ranges.length?ranges[qi++]:null;
+  const helius = async()=>{ for (let r; (r=next());){
+    let tk=null;
+    do{ const o={transactionDetails:'full',limit:100,encoding:'jsonParsed',maxSupportedTransactionVersion:1,filters:{...SOL_F, slot:{gte:r.lo,lte:r.hi}}}; if (tk) o.paginationToken=tk;
+      const res=await rpc(url,'getTransactionsForAddress',[W,o]);
+      for (const tx of res.data||[]) put(tx.transaction.signatures[0], solCompact(tx, W));
+      tk=res.paginationToken;
+    }while(tk);
+    if (onP) onP();
+  } };
+  const alchemy = async()=>{ for (let r; (r=next());){
+    await Promise.all(r.sigs.map(sig=>rpc(aurl,'getTransaction',[sig,{encoding:'jsonParsed',maxSupportedTransactionVersion:0,commitment:'confirmed'}]).then(tx=>{ if (tx) put(sig, solCompact(tx, W)); }).catch(()=>null)));
+    if (onP) onP();
+  } };
+  const useA = aurl ? await (solAlchemyOk ??= rpc(aurl,'getSlot',[]).then(()=>true).catch(()=>false)) : false;
+  await Promise.all([...Array(16)].map(helius).concat(useA?[...Array(3)].map(alchemy):[]));
+  const missing = index.filter(x=>!all.has(x.sig));
+  await pool(missing, 16, async x=>{ const tx=await rpc(url,'getTransaction',[x.sig,{encoding:'jsonParsed',maxSupportedTransactionVersion:0}]).catch(()=>null); if (tx) put(x.sig, solCompact(tx, W)); });
+}
+function solCompact(tx, W){
+  const msg = tx.transaction.message, keys = msg.accountKeys, kp = keys.map(k=>k.pubkey), sg = keys.filter(k=>k.signer).map(k=>k.pubkey);
+  const c = {s:tx.transaction.signatures[0], sl:tx.slot||0, t:tx.blockTime||0};
+  if (tx.meta.err){ c.err=1; return c; }
+  const d = {};
+  for (const [ph,arr] of [['pre',tx.meta.preTokenBalances],['post',tx.meta.postTokenBalances]]){
+    for (const b of arr||[]){
+      if (b.owner!==W) continue;
+      const a = kp[b.accountIndex];
+      const e = d[a] || (d[a]={a, m:b.mint, dec:b.uiTokenAmount.decimals, pre:'0', post:'0'});
+      e[ph] = b.uiTokenAmount.amount;
+    }
+  }
+  c.d = Object.values(d); c.sg = sg;
+  if (sg.includes(W)){ c.sw=1; return c; }
+  const wi = kp.indexOf(W);
+  c.wg = wi>=0 ? String(tx.meta.postBalances[wi]-tx.meta.preBalances[wi]) : '0';
+  const logs = tx.meta.logMessages||[];
+  const scribe = logs.map(l=>/scribe:rewards (\w{32,44})/.exec(l)).find(Boolean); if (scribe) c.sc = scribe[1];
+  if (logs.some(l=>l.includes('DistributeFeeToHolders')) && kp.includes(PUMP_PROGRAM)){
+    const ix = msg.instructions.find(i=>i.programId===PUMP_PROGRAM);
+    c.pf = 1; c.pc = (ix?.accounts||[]).find(a=>a.endsWith('pump')) || ix?.accounts?.[2] || null;
+  }
+  const gainers = new Set();
+  for (const b of tx.meta.postTokenBalances||[]){
+    const p=(tx.meta.preTokenBalances||[]).find(x=>x.accountIndex===b.accountIndex);
+    if (BigInt(b.uiTokenAmount.amount)>BigInt(p?.uiTokenAmount.amount||'0')) gainers.add(b.owner);
+  }
+  let solGainers=0; kp.forEach((k,j)=>{ if (tx.meta.postBalances[j]>tx.meta.preBalances[j]) solGainers++; });
+  if (Math.max(gainers.size, solGainers) >= 5){
+    const senders = new Set(sg);
+    const ixs = [...msg.instructions, ...(tx.meta.innerInstructions||[]).flatMap(x=>x.instructions)];
+    for (const i of ixs){ const inf=i.parsed?.info; if (inf?.authority) senders.add(inf.authority); if (inf?.multisigAuthority) senders.add(inf.multisigAuthority); if (i.parsed?.type==='transfer' && inf?.source && inf?.lamports) senders.add(inf.source); }
+    const groups = {};
+    for (const i of ixs){ const t=i.parsed?.type, inf=i.parsed?.info; if(!inf) continue;
+      if ((t==='transfer'||t==='transferChecked') && inf.destination){ const amt = inf.tokenAmount?.amount ?? inf.amount ?? inf.lamports; if (amt==null) continue;
+        const k=(inf.mint||(inf.lamports!=null?'SOL':'tok'))+'|'+(inf.authority||inf.source); (groups[k]=groups[k]||new Map()).set(inf.destination, String(amt)); } }
+    c.b = {snd:[...senders], pr:Object.values(groups).some(g=>g.size>=5 && new Set(g.values()).size>=3)?1:0};
+  }
+  return c;
+}
+function solAnalyze(W, all, initBal){
+  const payouts=[], cands=[], accSum={}, stonkMints=new Set(), everMints=new Set();
+  const ordered = [...all.values()].sort((a,b)=>a.sl-b.sl || a.t-b.t);
+  const bal = {...initBal};
+  for (const c of ordered){
+    if (c.err) continue;
+    const sig = c.s;
+    for (const e of c.d){ accSum[e.a]=(accSum[e.a]||0n)+(BigInt(e.post)-BigInt(e.pre)); everMints.add(e.m); }
+    const heldBefore = Object.keys(bal).filter(m=>bal[m]>0n);
+    for (const e of c.d) bal[e.m]=(bal[e.m]||0n)+(BigInt(e.post)-BigInt(e.pre));
+    if (c.sw) continue;
+    const solGain = BigInt(c.wg||'0');
+    const tokenGains = c.d.filter(e=>BigInt(e.post)>BigInt(e.pre)).map(e=>({mint:e.m, dec:e.dec, pre:BigInt(e.pre), post:BigInt(e.post)}));
+    if (solGain<=0n && !tokenGains.length) continue;
+    const base = {chain:'solana', sig, t:c.t||0, link:'https://solscan.io/tx/'+sig};
+    const signers = c.sg||[];
+
+    const sf = signers.find(s=>W_SOL_DIST[s] && !(window.__prDisable||{})[W_SOL_DIST[s]]);
+    if (sf){ const plat=W_SOL_DIST[sf];
+      for (const e of tokenGains){ payouts.push({...base, platform:plat, asset:e.mint, raw:e.post-e.pre, dec:e.dec, held:heldBefore}); if (plat==='StonkFun') stonkMints.add(e.mint); }
+      if (plat!=='StonkFun' && solGain>0n) payouts.push({...base, platform:plat, asset:SOL_MINT, raw:solGain, dec:9});
+      continue; }
+    if (c.sc && solGain>0n && !(window.__prDisable||{}).Scribe){ payouts.push({...base, platform:'Scribe', asset:SOL_MINT, raw:solGain, dec:9, coin:c.sc}); continue; }
+    if (c.pf){
+      if (solGain>0n) payouts.push({...base, platform:'pump.fun', asset:SOL_MINT, raw:solGain, dec:9, coin:c.pc});
+      for (const e of tokenGains) payouts.push({...base, platform:'pump.fun', asset:e.mint, raw:e.post-e.pre, dec:e.dec, coin:c.pc});
+      continue;
+    }
+    if (signers.some(s=>SOL_IGNORE_SIGNERS.has(s))) continue;
+    if (c.b){
+      if (!tokenGains.length && solGain < 100000n) continue;
+      cands.push({base, signer:signers[0], senders:new Set(c.b.snd), held:heldBefore.filter(m=>!tokenGains.some(e=>e.mint===m)), tokenGains, solGain, prorata:!!c.b.pr});
+    }
+  }
+  return {payouts, cands, accSum, stonkMints, everMints};
+}
+async function scanSolana(W, key, akey){
+  const url = '/api/helius', aurl = akey ? '/api/alchemy/solana-mainnet' : null;
+  setStatus('Solana: finding token accounts…');
+  const accsP = solAccounts(url, W);
+  const all = new Map();
+  let total = 0; const reads = [], firstSigs = new Set();
+  const prog = ()=>{ setStatus(`Solana: reading history · ${all.size}/${total||'…'} transactions`); solProgress(all.size, total); };
+  const recent = await solIndex(url, W, REWARDS_SINCE, Math.floor(Date.now()/1000)+300, n=>{ total=n; setStatus(`Solana: indexing history · ${n} transactions`); },
+    first=>{ for (const x of first) firstSigs.add(x.sig); reads.push(solRead(url, W, first, all, prog, aurl)); }, SOL_CAP);
+  total = recent.length;
+  logLine(`reading <b>${total.toLocaleString('en-US')}</b> txs`, false, 'solana');
+  reads.push(solRead(url, W, recent.filter(x=>!firstSigs.has(x.sig)), all, prog, aurl));
+  const [accs, ...miss] = await Promise.all([accsP, ...reads]);
+  const missing = miss.reduce((a,b)=>a+(b||0),0);
+  const trunc = recent.truncated ? {read:recent.length, est:recent.est, since:recent.cutoff} : null;
+  const initBal = {}; for (const a of Object.values(accs)) initBal[a.mint]=(initBal[a.mint]||0n)+a.raw;
+  for (const c of all.values()){ if (c.err) continue; for (const e of c.d) initBal[e.m]=(initBal[e.m]||0n)-(BigInt(e.post)-BigInt(e.pre)); }
+  const A1 = solAnalyze(W, all, initBal);
+  for (const a of Object.values(accs)) A1.everMints.add(a.mint);
+  for (const m of Object.keys(initBal)) A1.everMints.add(m);
+  const first = {payouts:A1.payouts, suspects:[], recon:null, txCount:all.size, stonkMints:A1.stonkMints, everMints:A1.everMints, partial:true, trunc, missing};
+
+  first.deep = async ()=>{
+    const o = await rpc(url,'getTransactionsForAddress',[W,{transactionDetails:'signatures',limit:1,sortOrder:'asc',filters:SOL_F}]).catch(()=>null);
+    const t0 = o?.data?.[0]?.blockTime;
+    let missOld = 0;
+    if (!trunc && t0 && t0<REWARDS_SINCE){ const old = await solIndex(url, W, t0, REWARDS_SINCE); missOld = await solRead(url, W, old, all, null, aurl) || 0; }
+    if (trunc){
+      const rm = new Set([...A1.payouts.map(p=>p.asset), ...A1.stonkMints].filter(m=>m && m!==SOL_MINT));
+      const ata = Object.entries(accs).filter(([,v])=>rm.has(v.mint)).map(([a])=>a);
+      const seen = new Set(all.keys()), extra = [];
+      await pool(ata, 6, async a=>{ const ix = await solIndex(url, a, REWARDS_SINCE, trunc.since+1, null, null, 15000).catch(()=>[]);
+        for (const x of ix) if (!seen.has(x.sig)){ seen.add(x.sig); extra.push(x); } });
+      if (extra.length){ setStatus(`Solana: reading older rewards · ${extra.length} transactions`); missOld += await solRead(url, W, extra, all, null, aurl, true) || 0; }
+      trunc.deep = {accounts:ata.length, read:extra.length};
+    }
+    const A = solAnalyze(W, all, trunc ? initBal : {});
+    for (const a of Object.values(accs)) A.everMints.add(a.mint);
+    const payouts = A.payouts, suspects = {};
+    if (A.cands.length){
+      const mints=[...new Set(A.cands.flatMap(c=>[...c.held, ...c.tokenGains.map(e=>e.mint)]))], creators={};
+      await pool(mints, 16, async m=>{
+        const r=await rpc(url,'getTransactionsForAddress',[m,{transactionDetails:'full',limit:1,sortOrder:'asc',encoding:'jsonParsed',maxSupportedTransactionVersion:1}]).catch(()=>null);
+        const t=r?.data?.[0]; creators[m]=new Set((t?.transaction?.message?.accountKeys||[]).filter(k=>k.signer).map(k=>k.pubkey).filter(k=>k!==m));
+      });
+      for (const c of A.cands){
+        const coin = c.held.find(m=>[...(creators[m]||[])].some(s=>c.senders.has(s)));
+        const selfMinted = c.tokenGains.length && c.tokenGains.every(e=>[...(creators[e.mint]||[])].some(s=>c.senders.has(s)));
+        if (coin && selfMinted){ const k='solana:promo:'+c.signer; const s=suspects[k]||(suspects[k]={chain:'Solana', sender:c.signer, n:0, ex:c.base.link, note:'promo airdrop of the sender\'s own token'}); s.n++; continue; }
+        if (coin){
+          if (c.solGain>0n) payouts.push({...c.base, platform:'Creator rewards', asset:SOL_MINT, raw:c.solGain, dec:9, coin, distributor:c.signer});
+          for (const e of c.tokenGains) payouts.push({...c.base, platform:'Creator rewards', asset:e.mint, raw:e.post-e.pre, dec:e.dec, coin, distributor:c.signer});
+        } else {
+          const k='solana:'+c.signer;
+          const s=suspects[k]||(suspects[k]={chain:'Solana', chainKey:'solana', sender:c.signer, n:0, ex:c.base.link, gains:{}, prorata:false, last:0});
+          s.n++; s.prorata = s.prorata || c.prorata; if (c.base.t>s.last){ s.last=c.base.t; s.ex=c.base.link; }
+          if (c.solGain>0n) s.gains[SOL_MINT]={raw:(s.gains[SOL_MINT]?.raw||0n)+c.solGain, dec:9};
+          for (const e of c.tokenGains) s.gains[e.mint]={raw:(s.gains[e.mint]?.raw||0n)+(e.post-e.pre), dec:e.dec};
+        }
+      }
+      const bySender={}; for (const x of payouts) if (x.platform==='Creator rewards') (bySender[x.distributor]=bySender[x.distributor]||new Set()).add(x.sig);
+      for (const [snd,sigs] of Object.entries(bySender)) if (sigs.size<2){
+        const k='solana:once:'+snd, s=suspects[k]={chain:'Solana', chainKey:'solana', sender:snd, n:sigs.size, ex:'', gains:{}, prorata:false, last:0};
+        for (let i=payouts.length-1;i>=0;i--){ const x=payouts[i]; if (x.platform!=='Creator rewards' || x.distributor!==snd) continue;
+          s.ex=x.link; s.last=x.t; s.gains[x.asset]={raw:(s.gains[x.asset]?.raw||0n)+x.raw, dec:x.dec}; payouts.splice(i,1); }
+      }
+    }
+    const recheck = await solAccounts(url, W);
+    let ok=0, moved=0, bad=0;
+    for (const a of Object.keys(accs)){
+      const now = recheck[a]?.raw ?? 0n;
+      if (now!==accs[a].raw){ moved++; continue; }
+      if ((A.accSum[a]||0n)===now) ok++; else bad++;
+    }
+    return {payouts, suspects:Object.values(suspects), recon:trunc?{ok:0,moved:0,bad:0,skipped:true}:{ok,moved,bad}, txCount:all.size, stonkMints:A.stonkMints, everMints:A.everMints, trunc, missing:missing+missOld};
+  };
+  return first;
+}
+
+async function evmCreatorRewards(ev){
+  const payouts=[], suspects={};
+  const cand = ev.inc.filter(x=>!ev.classified.has(x.hash));
+  if (!cand.length) return {payouts, suspects:[], batchHashes:[]};
+  const hashes=[...new Set(cand.map(x=>x.hash))], info={};
+  let i=0, d=0;
+  await Promise.all(Array.from({length:12},async()=>{ while(i<hashes.length){ const h=hashes[i++]; info[h]=await ev.batch(h); d++; setStatus(`${ev.label}: checking airdrops ${d}/${hashes.length}`); } }));
+  for (const h of hashes){
+    const mine = cand.filter(x=>x.hash===h), t=info[h]?.rows||[];
+    const grp = x=>t.filter(r=>r.token===x.token && r.from===x.from?.toLowerCase());
+    info[h].n = Math.max(0, ...mine.map(x=>new Set(grp(x).map(r=>r.to)).size));
+    info[h].prorata = mine.some(x=>{ const g=grp(x); return new Set(g.map(r=>r.to)).size>=5 && new Set(g.map(r=>r.amt)).size>=3; });
+  }
+  const batches = hashes.filter(h=>info[h].n>=5);
+  if (ev.txFrom){ let bi=0; await Promise.all(Array.from({length:12},async()=>{ while(bi<batches.length){ const h=batches[bi++]; info[h].from = await ev.txFrom(h).catch(()=>null); } })); }
+  if (!batches.length) return {payouts, suspects:[], batchHashes:[]};
+  const moves = [...(ev.allInc||ev.inc).map(x=>({...x,sign:1n})), ...ev.out.map(x=>({...x,sign:-1n}))].sort((a,b)=>a.block-b.block);
+  const heldAt = block => { const b={}; for (const m of moves){ if (m.block>=block) break; b[m.token]=(b[m.token]||0n)+m.sign*m.raw; } return Object.keys(b).filter(k=>b[k]>0n); };
+  const held={}; for (const h of batches){ const blk=cand.find(x=>x.hash===h).block; held[h]=heldAt(blk).filter(tk=>!cand.some(x=>x.hash===h&&x.token===tk)); }
+  const toks=[...new Set(Object.values(held).flat())], creators={};
+  i=0; d=0;
+  await Promise.all(Array.from({length:20},async()=>{ while(i<toks.length){ const tk=toks[i++]; creators[tk]=(await ev.creator(tk).catch(()=>null))?.toLowerCase()||null; d++; setStatus(`${ev.label}: checking creators of held coins ${d}/${toks.length}`); } }));
+  for (const h of batches){
+    const rows = cand.filter(x=>x.hash===h);
+    const senders = new Set([info[h].from, ...rows.map(x=>x.from)].filter(Boolean).map(x=>x.toLowerCase()));
+    const coin = held[h].find(tk=>creators[tk] && senders.has(creators[tk]));
+    if (coin){ const own = await Promise.all(rows.map(x=>creators[x.token]!==undefined?creators[x.token]:ev.creator(x.token).then(c=>creators[x.token]=c?.toLowerCase()||null).catch(()=>null)));
+      if (rows.every((x,k)=>own[k] && senders.has(own[k]))){ const k2=ev.chain+':promo:'+(info[h].from||rows[0].from); const s=suspects[k2]||(suspects[k2]={chain:ev.label, sender:info[h].from||rows[0].from, n:0, ex:ev.link(h), note:'promo airdrop of the sender\'s own token'}); s.n++; continue; } }
+    if (coin){ for (const x of rows) payouts.push({chain:ev.chain, platform:'Creator rewards', asset:x.token, sym:x.sym, raw:x.raw, dec:x.dec, t:x.t, sig:h, link:ev.link(h), coin, coinSym:ev.symOf?.(coin)}); }
+    else {
+      const k=ev.chain+':'+(rows[0].from||'').toLowerCase(); const s=suspects[k]||(suspects[k]={chain:ev.label, chainKey:ev.chain, sender:rows[0].from, n:0, ex:ev.link(h), gains:{}, prorata:false, last:0});
+      s.n++; s.prorata = s.prorata || info[h].prorata; if (rows[0].t>s.last){ s.last=rows[0].t; s.ex=ev.link(h); }
+      for (const x of rows) s.gains[x.token]={raw:(s.gains[x.token]?.raw||0n)+x.raw, dec:x.dec, sym:x.sym}; }
+  }
+  return {payouts, suspects:Object.values(suspects), batchHashes:batches};
+}
+
+const EVM_CHAINS = {
+  bsc:       {label:'BNB Chain',       net:'bnb-mainnet',       dex:'bsc',      tx:'https://bscscan.com/tx/',                     native:'BNB', cg:'binancecoin', internal:false},
+  robinhood: {label:'Robinhood Chain', net:'robinhood-mainnet', dex:null,       tx:'https://robinhoodchain.blockscout.com/tx/',   native:'ETH', cg:'ethereum',    internal:false},
+  eth:       {label:'Ethereum',        net:'eth-mainnet',       dex:'ethereum', tx:'https://etherscan.io/tx/',                    native:'ETH', cg:'ethereum',    internal:true},
+  base:      {label:'Base',            net:'base-mainnet',      dex:'base',     tx:'https://basescan.org/tx/',                    native:'ETH', cg:'ethereum',    internal:true},
+};
+const RELAY_TXS = new Set();
+const BRIDGE_ADDRS = new Set([RELAY_ROUTER, '0xf70da97812cb96acdf810712aa562db8dfa3dbef']);
+const SEL_CLAIMED_FEE = '0x89661ea2', SEL_CLAIMABLE_FEE = '0xa1c59afc', SEL_QUOTE = '0x999b93af';
+const SEL_TOKEN = '0xfc0c546a', SEL_INDEX_TOKEN = '0xe7d015f2', SEL_RATE_HOLDER = '0x6234b84f', SEL_BALANCE = '0x70a08231';
+const TRANSFER_TOPIC = '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef';
+const decStr = h=>{ try{ const len=parseInt(h.slice(66,130),16); return decodeURIComponent(h.slice(130,130+len*2).replace(/(..)/g,'%$1')); }catch(e){ return null; } };
+const addrOf = r => (r && r.length>=66 && !/^0x0*$/.test(r)) ? ('0x'+r.slice(26,66)).toLowerCase() : null;
+async function pool(items, n, fn){ let i=0; await Promise.all(Array.from({length:Math.min(n,items.length)},async()=>{ while(i<items.length){ const x=items[i++]; await fn(x); } })); }
+
+async function evmReachable(url){
+  try{ await rpc(url,'eth_blockNumber',[]); return true; }
+  catch(e){ if (/not enabled|not supported|unsupported|invalid.*(network|chain)|does not exist|api key rejected/i.test(e.message||'')) return false; throw new Error('the network is busy right now'); }
+}
+const SWAP_TOPICS = new Set(['0xd78ad95fa46c994b6551d0da85fc275fe613ce37657fb8d5e3d130840159d822','0xc42079f94a6350d7e6235f29174924f928cc2ac818eb64fed8004e115fbcca67','0x40e9cecb9f5f1f1c5b9c97dec2917b7ee92e57ba5563708daca94dd84ad7112f','0x19b47279256b2a23a1665c810c8d55a1758940ee09377d4f8d26497a3577dc83']);
+const WRAPPED_NATIVE = new Set(['WBNB','WETH','WMON']);
+const FLAP_CHAINS = new Set(['bsc']);
+
+async function scanEvm(chain, A, key, relayReady){
+  const C = EVM_CHAINS[chain], url = `/api/alchemy/${C.net}`, a = A.toLowerCase(), L = C.label;
+  if (!await evmReachable(url)) { const e=new Error(`${L} is not enabled for this API key`); e.notEnabled=true; throw e; }
+  const call = (to,data)=>rpc(url,'eth_call',[{to,data},'latest']);
+  const get = async (dir, cats, zero) => { let pk, out=[]; do{ const p={fromBlock:'0x0',toBlock:'latest',category:cats,withMetadata:true,excludeZeroValue:!zero,maxCount:'0x3e8'}; p[dir]=A; if(pk)p.pageKey=pk; const r=await rpc(url,'alchemy_getAssetTransfers',[p]); out=out.concat(r.transfers); pk=r.pageKey; setStatus(`${L}: reading history · ${out.length} transfers`); }while(pk); return out; };
+  const incCats = ['erc20','external'].concat(C.internal?['internal']:[]);
+  const [incAll, out] = await Promise.all([get('toAddress', incCats), get('fromAddress', ['erc20','external'], true)]);
+  const inc = incAll.filter(t=>t.from?.toLowerCase()!==a);
+  if (relayReady) await relayReady;
+  const norm = t => { const native = t.category!=='erc20'; return {hash:t.hash, block:parseInt(t.blockNum,16), from:(t.from||'').toLowerCase(), cat:t.category,
+    token: native ? 'native:'+chain : t.rawContract.address?.toLowerCase(), raw:BigInt(t.rawContract.value||'0x0'),
+    dec: native ? 18 : parseInt(t.rawContract.decimal||'0x12',16), sym: native ? C.native : t.asset, t:Math.floor(Date.parse(t.metadata.blockTimestamp)/1000)}; };
+  const I = inc.map(norm).filter(x=>x.raw>0n), O = out.map(norm);
+  const myTx = new Set(out.filter(t=>t.category==='external').map(t=>t.hash));
+  const paid = new Set(O.filter(x=>x.raw>0n).map(x=>x.hash));
+  const syms = {}; for (const x of I.concat(O)) if (x.token && x.sym) syms[x.token]=x.sym;
+  const link = h => C.tx+h;
+
+  const moves = [...I.map(x=>({...x,s:1n})), ...O.filter(x=>x.cat==='erc20').map(x=>({...x,s:-1n}))].sort((p,q)=>p.block-q.block);
+  const heldAt = (tok, block) => { let b=0n; for (const m of moves){ if (m.block>=block) break; if (m.token===tok) b+=m.s*m.raw; } return b>0n; };
+  const tokens = [...new Set(moves.map(m=>m.token).filter(t=>t && !t.startsWith('native:')))];
+
+  const acc = {incoming:I.length, trades:0, bridge:0, rewards:0, direct:0, spam:0, review:0};
+  let rest = [];
+  for (const x of I){
+    if (paid.has(x.hash)) { acc.trades++; continue; }
+    if (BRIDGE_ADDRS.has(x.from) || RELAY_TXS.has(x.hash)) { acc.bridge++; continue; }
+    rest.push(x);
+  }
+
+  const MAJOR_SYM = /^(W?BNB|W?ETH|USDT|USDC|USD1|FDUSD|DAI|BUSD|USDG|USDE)$/i;
+  const touched = new Set([...O.map(x=>x.token), ...I.filter(x=>paid.has(x.hash)||myTx.has(x.hash)).map(x=>x.token)]);
+  const early = x => x.token?.startsWith('native:') || MAJOR_SYM.test(x.sym||'') || touched.has(x.token);
+  const later = rest.filter(x=>!early(x)); rest = rest.filter(early);
+  const isContract={}, coinOfSender={}, ponsFunded={};
+  let d=0;
+  const checkSenders = senders => { d=0; return pool(senders, 24, async s=>{
+    const code = await rpc(url,'eth_getCode',[s,'latest']).catch(()=>'0x');
+    isContract[s] = !!code && code!=='0x' && !code.startsWith('0xef0100');
+    if (isContract[s]){
+      const [tk, ix, pons] = await Promise.all([
+        tokens.includes(s) ? null : call(s,SEL_TOKEN).catch(()=>null),
+        tokens.includes(s) ? null : call(s,SEL_INDEX_TOKEN).catch(()=>null),
+        chain==='robinhood' ? rpc(url,'alchemy_getAssetTransfers',[{fromBlock:'0x0',toBlock:'latest',category:['erc20'],fromAddress:PONS_ESCROW,toAddress:s,maxCount:'0x1'}]).catch(()=>null) : null ]);
+      if (tokens.includes(s)) coinOfSender[s]={coin:s, how:'self'};
+      else if (addrOf(tk)) coinOfSender[s]={coin:addrOf(tk), how:'token'};
+      else if (addrOf(ix)) coinOfSender[s]={coin:addrOf(ix), how:'index'};
+      if (chain==='robinhood') ponsFunded[s]=(pons?.transfers||[]).length>0;
+    }
+    d++; setStatus(`${L}: checking senders ${d}/${senders.length}`);
+  }); };
+  await checkSenders([...new Set(rest.map(x=>x.from))]);
+  const FLAP_LIKELY = t => /(7777|8888)$/.test(t), FOUR_LIKELY = t => /(4444|ffff)$/.test(t);
+  const flapCheck = list => { let n=0; return pool(list, 24, async tk=>{ const dv=addrOf(await call(tk,SEL_DIVIDEND).catch(()=>null)); if (dv && !coinOfSender[dv]) coinOfSender[dv]={coin:tk, how:'flap'}; n++; setStatus(`${L}: checking coins ${n}/${list.length}`); }); };
+  if (FLAP_CHAINS.has(chain)) await flapCheck(tokens.filter(t=>FLAP_LIKELY(t) && touched.has(t)));
+  const platformOf = async (s, info) => {
+    if (info.how==='flap') return 'Flap';
+    if (chain==='robinhood' && ponsFunded[s] && info.how==='token') return 'Pons';
+    if (info.how==='self'){ const r=await call(s,SEL_RATE_HOLDER).catch(()=>null); if (r && r.length>=66 && BigInt(r)>0n) return 'Four.meme'; }
+    return 'Coin rewards';
+  };
+  const coinSym = {};
+  const symOf = async c => { if (coinSym[c]!==undefined) return coinSym[c]; const r=await call(c,SEL_SYMBOL).catch(()=>null); return coinSym[c]=r?decStr(r):(syms[c]||null); };
+
+  const payouts=[], left=[];
+  const platCache={};
+  const infoSenders=[...new Set(rest.map(x=>x.from).filter(f=>coinOfSender[f]))];
+  await Promise.all([
+    pool(infoSenders, 24, async f=>{ platCache[f]=await platformOf(f, coinOfSender[f]); }),
+    pool([...new Set(infoSenders.map(f=>coinOfSender[f].coin))], 24, async c=>{ await symOf(c); }) ]);
+  const batchSeen={};
+  const isBatchPayout = (h, from, token) => batchSeen[h+from+token] ??= (async()=>{
+    if (token.startsWith('native:')) return false;
+    const r = await rpc(url,'eth_getTransactionReceipt',[h]).catch(()=>null);
+    const to = new Set((r?.logs||[]).filter(l=>l.topics?.[0]===TRANSFER_TOPIC && l.topics.length===3 && l.address?.toLowerCase()===token && ('0x'+l.topics[1].slice(26)).toLowerCase()===from).map(l=>l.topics[2].toLowerCase()));
+    return to.size>=3;
+  })();
+  const classify = async items => { for (const x of items){
+    const info = coinOfSender[x.from];
+    if (!info) { left.push(x); continue; }
+    const plat = platCache[x.from] ??= await platformOf(x.from, info);
+    if ((plat==='Coin rewards' || plat==='Four.meme') && !heldAt(info.coin, x.block)) { left.push(x); continue; }
+    if (plat==='Coin rewards' && x.token===info.coin) { left.push(x); continue; }
+    if (plat==='Coin rewards' && info.how!=='index' && !(await isBatchPayout(x.hash, x.from, x.token))) { left.push(x); continue; }
+    payouts.push({chain, platform:plat, asset:x.token, sym:x.sym, raw:x.raw, dec:x.dec, t:x.t, sig:x.hash, link:link(x.hash), coin:info.coin, coinSym:await symOf(info.coin), distributor:x.from});
+    acc.rewards++;
+  } };
+  await classify(rest);
+
+  let unclaimed = [];
+  const fourCheck = list => { const pad = a.slice(2).padStart(64,'0');
+    return pool(list, 12, async tk=>{
+      const rate = await call(tk,SEL_RATE_HOLDER).catch(()=>null); if (!rate || rate.length<66 || BigInt(rate)===0n) return;
+      const [claimed, claimable, quote] = await Promise.all([call(tk,SEL_CLAIMED_FEE+pad).catch(()=>null), call(tk,SEL_CLAIMABLE_FEE+pad).catch(()=>null), call(tk,SEL_QUOTE).catch(()=>null)]);
+      const q = addrOf(quote), asset = q || 'native:bsc';
+      const seen = payouts.filter(p=>p.coin===tk && p.asset===asset).reduce((s,p)=>s+p.raw,0n);
+      const total = claimed && claimed.length>=66 ? BigInt(claimed) : 0n;
+      const dec = q ? (I.find(x=>x.token===q)?.dec ?? 18) : 18, sym = q ? (syms[q]||null) : 'BNB';
+      if (total>seen){ const t=moves.filter(m=>m.token===tk).at(-1)?.t||0;
+        payouts.push({chain, platform:'Four.meme', asset, sym, raw:total-seen, dec, t, sig:'record:'+tk, link:C.tx.replace('/tx/','/token/')+tk+'?a='+a, coin:tk, coinSym:await symOf(tk), distributor:tk, fromRecord:true}); acc.rewards++; }
+      if (claimable && claimable.length>=66 && BigInt(claimable)>0n) unclaimed.push({coin:tk, sym:await symOf(tk), asset, raw:BigInt(claimable), dec});
+    }); };
+  if (chain==='bsc') await fourCheck(tokens.filter(t=>FOUR_LIKELY(t) && touched.has(t)));
+  left.push(...later);
+
+  const first = {payouts:[...payouts], suspects:[], transfers:inc.length+out.length, acc:{...acc}, recon:null, chain, unclaimed, partial:true};
+  first.deep = async ()=>{
+  await checkSenders([...new Set(later.map(x=>x.from))].filter(s=>!(s in isContract)));
+  if (FLAP_CHAINS.has(chain)) await flapCheck(tokens.filter(t=>!(FLAP_LIKELY(t) && touched.has(t))));
+  { const now = left.filter(x=>coinOfSender[x.from]);
+    if (now.length){ for (const x of now) left.splice(left.indexOf(x),1); await classify(now); } }
+  if (chain==='bsc') await fourCheck(tokens.filter(t=>!(FOUR_LIKELY(t) && touched.has(t))));
+  const cr = await evmCreatorRewards({chain, label:L, inc:left.filter(x=>!x.token.startsWith('native:')), allInc:I.filter(x=>!x.token.startsWith('native:')), out:O.filter(x=>x.cat==='erc20'), classified:new Set(),
+    txFrom: async h=>(await rpc(url,'eth_getTransactionByHash',[h]))?.from,
+    batch: async h=>{ const r=await rpc(url,'eth_getTransactionReceipt',[h]); return {from:r?.from, rows:(r?.logs||[]).filter(l=>l.topics?.[0]===TRANSFER_TOPIC && l.topics.length===3).map(l=>({token:l.address.toLowerCase(), from:'0x'+l.topics[1].slice(26), to:'0x'+l.topics[2].slice(26), amt:l.data}))}; },
+    creator: async tk=>{ const r=await rpc(url,'alchemy_getAssetTransfers',[{fromBlock:'0x0',toBlock:'latest',contractAddresses:[tk],category:['erc20'],maxCount:'0x1',order:'asc'}]); const h=r?.transfers?.[0]?.hash; if(!h) return null; const rc=await rpc(url,'eth_getTransactionReceipt',[h]); return rc?.from||null; },
+    link, symOf: c=>syms[c]||coinSym[c]});
+  for (const p of cr.payouts){ payouts.push(p); acc.rewards++; }
+  const inBatch = new Set([...cr.payouts.map(p=>p.sig), ...cr.batchHashes]);
+  const suspects = cr.suspects.map(s=>({...s, kind:'batch'}));
+  acc.spam += cr.batchHashes.length - new Set(cr.payouts.map(p=>p.sig)).size;
+
+  const byKey = {}, txInfo = {};
+  const open = left.filter(x=>!inBatch.has(x.hash));
+  d=0;
+  await pool([...new Set(open.map(x=>x.hash))], 16, async h=>{
+    const [tx, rc] = await Promise.all([rpc(url,'eth_getTransactionByHash',[h]).catch(()=>null), rpc(url,'eth_getTransactionReceipt',[h]).catch(()=>null)]);
+    txInfo[h] = {from:tx?.from?.toLowerCase(), to:tx?.to?.toLowerCase(), value:BigInt(tx?.value||'0x0'), swap:(rc?.logs||[]).some(l=>SWAP_TOPICS.has(l.topics?.[0]))};
+    const ti = txInfo[h];
+    if (!ti.swap && (ti.from===a || ti.to===a) && tx?.blockNumber){
+      const bn=BigInt(tx.blockNumber); const [b1,b0]=await Promise.all([rpc(url,'eth_getBalance',[a,'0x'+bn.toString(16)]).catch(()=>null), rpc(url,'eth_getBalance',[a,'0x'+(bn-1n).toString(16)]).catch(()=>null)]);
+      if (b1!=null && b0!=null && BigInt(b1)<BigInt(b0)) ti.paidNative=true;
+    }
+    d++; setStatus(`${L}: checking the rest ${d}`);
+  });
+  for (const x of open){
+    const tx = txInfo[x.hash]||{};
+    const own = myTx.has(x.hash) || tx.from===a || (tx.to===a && tx.from!==x.from);
+    if (own && (tx.swap || tx.paidNative || (tx.from===a && tx.value>0n))) { acc.trades++; continue; }
+    let kind;
+    if (own) kind='claim';
+    else if (tx.swap) { acc.trades++; continue; }
+    else if (isContract[x.from]) kind = x.token.startsWith('native:') ? 'native' : 'contract';
+    else { acc.direct++; continue; }
+    const k=chain+':'+kind+':'+x.from;
+    const s=byKey[k]||(byKey[k]={chain:L, chainKey:chain, sender:x.from, n:0, ex:link(x.hash), gains:{}, prorata:false, last:0, kind, hashes:new Set()});
+    if (!s.hashes.has(x.hash)){ s.n++; s.hashes.add(x.hash); }
+    if (x.t>s.last){ s.last=x.t; s.ex=link(x.hash); }
+    s.gains[x.token]={raw:(s.gains[x.token]?.raw||0n)+x.raw, dec:x.dec, sym:x.sym};
+  }
+  for (const s of Object.values(byKey)){ s.hx=[...s.hashes]; delete s.hashes; suspects.push(s); if (s.kind==='native') acc.direct++; else acc.review++; }
+
+  const recon = {ok:0, bad:0, grew:[]};
+  const bal = {}; for (const m of moves) if (!m.token.startsWith('native:')) bal[m.token]=(bal[m.token]||0n)+m.s*m.raw;
+  const check = tokens.filter(tk=>!WRAPPED_NATIVE.has((syms[tk]||'').toUpperCase())).slice(0,400);
+  d=0;
+  await pool(check, 16, async tk=>{
+    const r = await call(tk, SEL_BALANCE+a.slice(2).padStart(64,'0')).catch(()=>null);
+    d++; if (d%20===0) setStatus(`${L}: balance check ${d}/${check.length}`);
+    if (!r || r==='0x') return;
+    const actual = BigInt(r), diff = actual-(bal[tk]||0n);
+    if (diff===0n) { recon.ok++; return; }
+    recon.bad++;
+    if (diff>0n){ const dec=I.concat(O).find(x=>x.token===tk)?.dec??18; recon.grew.push({token:tk, raw:diff, dec, sym:syms[tk]}); }
+  });
+  for (const g of recon.grew) suspects.push({chain:L, chainKey:chain, sender:g.token, n:1, ex:C.tx.replace('/tx/','/token/')+g.token, gains:{[g.token]:{raw:g.raw, dec:g.dec, sym:g.sym}}, prorata:false, last:0, kind:'grew'});
+
+  return {payouts, suspects, transfers:inc.length+out.length, acc, recon, chain, unclaimed};
+  };
+  return first;
+}
+
+async function evmMeta(chain, addrs){
+  const C = EVM_CHAINS[chain], info = {};
+  const nat = addrs.filter(x=>x.startsWith('native:')), tok = addrs.filter(x=>!x.startsWith('native:'));
+  if (nat.length){ const j=await fetchJson(`https://api.coingecko.com/api/v3/simple/price?ids=${C.cg}&vs_currencies=usd`); for (const n of nat) info[n]={price:j?.[C.cg]?.usd??null, sym:C.native, src:'CoinGecko'}; }
+  if (chain==='robinhood') return {...info, ...(tok.length?await robinhoodMeta(tok):{})};
+  const dexChunks=[]; for (let i=0;i<tok.length;i+=30) dexChunks.push(tok.slice(i,i+30));
+  const dexRes = await Promise.all(dexChunks.map(c=>fetchJson(`https://api.dexscreener.com/tokens/v1/${C.dex}/`+c.join(',')).then(p=>[c,p])));
+  for (const [chunk, pairs] of dexRes){
+    for (const p of (Array.isArray(pairs)?pairs:[])){
+      const m=p.baseToken?.address?.toLowerCase(); if(!chunk.includes(m)) continue;
+      const liq=p.liquidity?.usd||0;
+      if (!info[m] || liq>info[m].liq) info[m]={price:+p.priceUsd, sym:p.baseToken.symbol, icon:p.info?.imageUrl, liq, src:'DexScreener'};
+    }
+  }
+  const CG_PLAT={bnb:'binance-smart-chain', base:'base', eth:'ethereum'};
+  if (CG_PLAT[chain]) await pool(tok.filter(m=>!info[m]?.icon).slice(0,12), 4, async m=>{
+    const j=await fetchJson(`https://api.coingecko.com/api/v3/coins/${CG_PLAT[chain]}/contract/${m}`);
+    if (j?.image?.small){ info[m]=info[m]||{sym:j.symbol?.toUpperCase(), price:j.market_data?.current_price?.usd??null, src:'CoinGecko'}; info[m].icon=j.image.small; }
+  });
+  if (nat.length) for (const n of nat) info[n].icon = info[n].icon || ({bnb:'https://coin-images.coingecko.com/coins/images/825/large/bnb-icon2_2x.png', base:'https://coin-images.coingecko.com/coins/images/279/large/ethereum.png', eth:'https://coin-images.coingecko.com/coins/images/279/large/ethereum.png'})[chain];
+  for (const m in info) if (info[m].liq!=null && info[m].liq<1000) info[m].price=null;
+  return info;
+}
+
+async function solanaMeta(mints){
+  const info = {};
+  const chunks=(n)=>{ const o=[]; for (let i=0;i<mints.length;i+=n) o.push(mints.slice(i,i+n)); return o; };
+  const [jups, dexs] = await Promise.all([
+    Promise.all(chunks(50).map(c=>fetchJson('https://lite-api.jup.ag/price/v3?ids='+c.join(',')))),
+    Promise.all(chunks(30).map(c=>fetchJson('https://api.dexscreener.com/tokens/v1/solana/'+c.join(',')).then(p=>[c,p]))) ]);
+  for (const j of jups) if (j) for (const m in j) info[m]={...info[m], price:j[m].usdPrice, src:'Jupiter'};
+  for (const [chunk, pairs] of dexs){
+    for (const p of (Array.isArray(pairs)?pairs:[])) for (const side of ['baseToken','quoteToken']){
+      const m=p[side]?.address; if(!chunk.includes(m)) continue;
+      const c=info[m]||{}; if(!c.sym) c.sym=p[side].symbol;
+      if (side==='baseToken'){ if(!c.icon && p.info?.imageUrl) c.icon=p.info.imageUrl; if(c.price==null && p.priceUsd){ c.price=+p.priceUsd; c.src='DexScreener'; } }
+      info[m]=c;
+    }
+  }
+  const noIcon=mints.filter(m=>!info[m]?.icon), noIconChunks=[];
+  for (let i=0;i<noIcon.length;i+=50) noIconChunks.push(noIcon.slice(i,i+50));
+  for (const j of await Promise.all(noIconChunks.map(c=>fetchJson('https://lite-api.jup.ag/tokens/v2/search?query='+c.join(','))))){
+    for (const t of (Array.isArray(j)?j:[])) if (info[t.id]!==undefined || noIcon.includes(t.id)){ const c=info[t.id]||{}; if(!c.icon&&t.icon) c.icon=t.icon; if(!c.sym&&t.symbol) c.sym=t.symbol; info[t.id]=c; }
+  }
+  if (info[SOL_MINT]) info[SOL_MINT].sym = 'SOL';
+  return info;
+}
+async function robinhoodMeta(addrs){
+  const info={};
+  await pool(addrs, 16, async a=>{ const j=await bsToken(a).catch(()=>null); if (j) info[a]={price:j.exchange_rate!=null?+j.exchange_rate:null, sym:j.symbol, icon:j.icon_url, src:'Blockscout'}; });
+  return info;
+}
+async function stonkPairs(mints){
+  const out={}; let idx=0;
+  const worker=async()=>{ while(idx<mints.length){ const m=mints[idx++]; const j=await fetchJson(stonkUrl(m)); if(j?.data?.mode==='reward') out[m]={quote:j.data.quote?.mint, base:(j.data.base?.payoutCount||0)>0}; } };
+  await Promise.all(Array.from({length:24},worker));
+  return out;
+}
+
+const CHAIN_LABEL = {solana:'Solana', robinhood:'Robinhood Chain', bsc:'BNB Chain', eth:'Ethereum', base:'Base', monad:'Monad', all:'all chains'};
+const PLAT_COLOR = {'StonkFun':'#7b4dff','pump.fun':'#5ee6a8','Pons':'#ff8a3d','Flap':'#e0a800','Four.meme':'#f0b90b','Ember':'#ff6b6b','Scribe':'#a996ff','Coin rewards':'#4cc9f0','Creator rewards':'#ff7ad9'};
+const platColor = p => PLAT_COLOR[p]||'#9aa0a6';
+const MIN_ROW_USD = 2;
+function renderRows(rows){
+  const big=rows.filter(r=>r.usd>=MIN_ROW_USD), small=rows.filter(r=>!(r.usd>=MIN_ROW_USD));
+  const smallUsd=small.reduce((a,r)=>a+r.usd,0);
+  const tail = small.length ? `<details class="small"><summary><span>+ ${small.length} smaller reward${small.length>1?'s':''} under $${MIN_ROW_USD}</span><b>${fmtUsd(smallUsd)}</b></summary>${rowHtml(small,big.length)}</details>` : '';
+  const TOP_ROWS=8, head=big.slice(0,TOP_ROWS), rest=big.slice(TOP_ROWS), restUsd=rest.reduce((a,r)=>a+r.usd,0)+smallUsd;
+  $('rows').innerHTML = rest.length
+    ? rowHtml(head,0) + `<div class="rows-more hidden" id="rowsMore">${rowHtml(rest,TOP_ROWS)}${tail}</div><button class="showall" id="showAll" type="button">Show all ${big.length+small.length} rewards · ${fmtUsd(restUsd)} more ↓</button>`
+    : rowHtml(big,0) + tail;
+}
+function rowHtml(rows, off){
+  return rows.map((r,j)=>{ const i=j+off;
+    const id='p'+i, proofs=r.proofs.slice().sort((a,b)=>b.t-a.t).slice(0,PROOFS), sym=r.sym||short(r.asset);
+    return `
+    <div class="rw" data-target="${id}" style="--ri:${Math.min(i,14)}">
+      <div class="ic">${esc(sym.replace(/[^A-Za-z0-9]/g,'').slice(0,3).toUpperCase())}${r.icon?`<img src="${esc(thumb(r.icon))}" alt="" loading="lazy" decoding="async" onerror="this.remove()">`:''}</div>
+      <div style="min-width:0"><div class="nm1">${esc(sym)}<span class="tag" style="background:${platColor(r.platform)}">${esc(r.platform)}</span></div>
+        <div class="from">${r.from.length?'for holding '+r.from.slice(0,3).map(esc).join(', ')+(r.from.length>3?` +${r.from.length-3}`:''):esc(CHAIN_LABEL[r.chain])} · ${r.count} payout${r.count>1?'s':''}</div></div>
+      <div class="val"><b>${r.price!=null?fmtUsd(r.usd):'<span class="muted">no price</span>'}</b><small>${fmtAmt(r.amount)} ${esc(sym)}</small></div>
+    </div>
+    <div class="proof hidden" id="${id}">
+      <div class="pm">${esc(CHAIN_LABEL[r.chain])} · <code>${esc(short(r.asset))}</code>${r.price!=null?` · ${fmtUsd(r.price)} via ${esc(r.src)}`:''}${r.from.length?` · earned by holding ${r.from.map(esc).join(', ')}`:''}</div>
+      <ul>
+      ${proofs.map(p=>`<li><span>${fmtDT(p.t)}</span><span>+${fmtAmt(p.d)}</span><a href="${p.link}" target="_blank" rel="noopener">${short(p.sig)} ↗</a></li>`).join('')}
+      ${r.count>proofs.length?`<li><span>+ ${r.count-proofs.length} more payouts</span><span></span><span></span></li>`:''}
+      </ul></div>`;
+  }).join('');
+}
+document.addEventListener('click', e=>{
+  const rw=e.target.closest('.rw'); if(!rw || e.target.closest('a')) return;
+  const box=$(rw.dataset.target), opening=box.classList.contains('hidden');
+  if (opening) document.querySelectorAll('.rw').forEach(o=>{ if(o!==rw){ const b=$(o.dataset.target); if(b) b.classList.add('hidden'); } });
+  box.classList.toggle('hidden', !opening);
+  const sc=rw.closest('.proofs .card, #sheetSlot .details');
+  if (opening && sc) requestAnimationFrame(()=>{
+    let y=0, n=rw; while(n && n!==sc && sc.contains(n)){ y+=n.offsetTop; n=n.offsetParent; }
+    if (n!==sc) y=rw.getBoundingClientRect().top-sc.getBoundingClientRect().top+sc.scrollTop;
+    sc.scrollTo({top:Math.max(0,y-8), behavior:'smooth'});
+  });
+});
+document.addEventListener('click', e=>{ if (!e.target.closest('#showAll')) return; $('rowsMore')?.classList.remove('hidden'); $('showAll').remove(); });
+function renderChecks(list){
+  const c=list.filter(x=>!x.startsWith('%%')), warn=c.filter(x=>x.includes('chk warn')).length;
+  const head = warn ? `<span class="chk warn">⚠ ${warn} thing${warn>1?'s':''} to look at</span>` : `<span class="chk ok">✓ Verified on every chain</span>`;
+  $('checks').innerHTML = `<details class="ck"><summary>${head}<span class="more">details</span></summary><div class="ckl">${c.join('')}</div></details>`;
+}
+function countUp(el, to, from=0){
+  const t0=performance.now(), dur=900;
+  const f=t=>{ const k=Math.min(1,(t-t0)/dur), e=1-Math.pow(1-k,3); el.textContent=fmtUsd(from+(to-from)*e); if(k<1) requestAnimationFrame(f); };
+  requestAnimationFrame(f);
+}
+const LINKS = {
+  github: 'https://github.com/syanovee/kickback',
+  docs:   'https://github.com/syanovee/kickback#readme',
+  x:      'https://x.com/syanovee',
+  mvpTweet: '',
+  site:   'https://getkickback.fun',
+};
+for (const [k,v] of Object.entries(LINKS)) document.querySelectorAll(`[data-link="${k}"]`).forEach(a=>{ if(v) a.href=v; else a.style.display='none'; });
+
+document.addEventListener('click', e=>{ const b=e.target.closest('.addw'); if(!b) return;
+  const cur=$('wallet').value.split(/[\s,;]+/).filter(Boolean); for (const w of b.dataset.w.split(' ')) if(!cur.includes(w)) cur.push(w);
+  $('wallet').value=cur.join(' '); run(); });
+const CHAIN_NAME={sol:'Solana', bsc:'BNB', base:'Base', eth:'Ethereum', robinhood:'Robinhood'};
+let chainLeft={}, chainFound={}, foundTotal=0;
+const PROG={sol:null, pct:0};
+function progReset(){ mainChipReset(); PROG.sol=null; PROG.pct=0; const b=$('kbBar'); if (b){ b.style.transition='none'; b.style.width='0%'; void b.offsetWidth; b.style.transition=''; } $('kbLog').innerHTML=''; }
+function progRender(extra){
+  const keys=Object.keys(chainLeft||{}); if (!keys.length) return;
+  const hasSol='sol' in chainLeft, evm=keys.filter(k=>k!=='sol'), wSol=hasSol?(evm.length?0.62:0.92):0, wEvm=evm.length?(0.92-wSol)/evm.length:0;
+  let p=0;
+  if (hasSol){ const s=PROG.sol; p+= chainLeft.sol<=0 ? wSol : s&&s.total ? wSol*(0.08+0.92*Math.min(1,s.done/s.total)) : wSol*0.04; }
+  for (const k of evm) p+= chainLeft[k]<=0 ? wEvm : wEvm*0.15;
+  if (extra!=null) p=Math.max(p, extra);
+  p=Math.max(PROG.pct, Math.min(1,p)); PROG.pct=p; const b=$('kbBar'); if (b) b.style.width=(p*100).toFixed(1)+'%';
+}
+function solProgress(done,total){ PROG.sol={done,total}; progRender(); }
+function logLine(html, ok, name){
+  mainChip(name||null, html);
+  const box=$('kbLog'); if (!box) return;
+  box.insertAdjacentHTML('beforeend', `<div class="lg${ok?' ok':''}"><i>${ok?'✓':'›'}</i><span>${html}</span></div>`);
+  while (box.children.length>4) box.firstElementChild.remove();
+}
+const CK_EXP={sol:9000, bsc:9000, base:7000, robinhood:8000, eth:5000, px:2500};
+let CK={};
+const CK_ICON='<svg class="m" viewBox="0 0 52 52"><g class="a"><path d="M40 14A18 18 0 1 0 44 30"/><path d="M30 12l12 2-2 12"/></g><circle cx="26" cy="26" r="6"/></svg><svg class="c" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>';
+function ckAdd(k, name, arg){
+  const box=$('kbChips'); if (!box) return;
+  if (CK[k]){ if (CK[k].done){ CK[k].done=false; CK[k].el.classList.remove('ok','err'); } return; }
+  box.insertAdjacentHTML('beforeend', `<div class="ck" id="ck-${k}" style="--exp:${CK_EXP[k]||8000}ms"><i class="fill"></i><span class="ic">${CK_ICON}</span><b>${esc(name)}</b><em>${esc(arg||'')}</em><span class="tm">0.0s</span></div>`);
+  const el=document.getElementById('ck-'+k); CK[k]={el, t0:Date.now(), done:false};
+  requestAnimationFrame(()=>requestAnimationFrame(()=>el.classList.add('go')));
+}
+function ckArg(k, text){ const c=CK[k]; if (c) c.el.querySelector('em').innerHTML=text; }
+function ckDone(k, ok=true, note){
+  const c=CK[k]; if (!c || c.done) return; c.done=true;
+  c.el.querySelector('.tm').textContent=((Date.now()-c.t0)/1000).toFixed(1)+'s';
+  if (note!=null) ckArg(k, note);
+  c.el.classList.add(ok?'ok':'err');
+}
+const CC={t0:0, raf:0, glyph:'tool'};
+const ccFmt=ms=>ms<10000?`${Math.round(ms)} ms`:`${(ms/1000).toFixed(1)} s`;
+function ccGlyph(g){ const root=$('kbCall'); if(!root || g===CC.glyph) { if(root && !root.querySelector('[data-state="in"]')) root.querySelector(`[data-g="${g}"]`).dataset.state='in'; return; }
+  root.querySelectorAll('.call-chip__glyph').forEach(el=>{ el.dataset.state = el.dataset.g===g ? 'in' : el.dataset.g===CC.glyph ? 'out' : ''; }); CC.glyph=g; }
+function ccFill(f, instant){ const fill=$('kbCallFill'); if(!fill) return; if (instant) fill.style.transition='none'; fill.style.transform=`scaleX(${f})`; if (instant){ void fill.getBoundingClientRect(); fill.style.transition=''; } }
+function ccStatus(st){ const root=$('kbCall'); if(!root) return; root.dataset.status=st; cancelAnimationFrame(CC.raf);
+  if (st==='running'){ ccGlyph('tool'); ccFill(0,true); requestAnimationFrame(()=>ccFill(0.9,false)); CC.t0=performance.now(); const tick=()=>{ $('kbCallTm').textContent=ccFmt(performance.now()-CC.t0); CC.raf=requestAnimationFrame(tick); }; tick(); }
+  else if (st==='done'){ $('kbCallTm').textContent=ccFmt(performance.now()-CC.t0); ccFill(1,false); ccGlyph('check'); }
+  else if (st==='error'){ const fill=$('kbCallFill'); const live=fill?new DOMMatrix(getComputedStyle(fill).transform).a:0; ccFill(Math.min(1,Math.max(0,live)),true); ccGlyph('retry');
+    root.animate([0,-1,1,-.66,.66,-.33,0].map(k=>({transform:`translateX(${k*6}px)`})),{duration:450,easing:'cubic-bezier(0.77,0,0.175,1)'}); }
+  else { ccGlyph('tool'); ccFill(0,true); $('kbCallTm').textContent='0 ms'; } }
+function mainChip(name, arg){ const n=$('kbCallName'), e=$('kbCallArg'); if(!n) return; if (name) n.textContent=name;
+  if (arg!=null){ e.classList.add('sw'); clearTimeout(mainChip.t); mainChip.t=setTimeout(()=>{ e.innerHTML=arg; e.classList.remove('sw'); },170); } }
+function mainChipReset(){ if(!$('kbCall')) return; $('kbCallName').textContent='scan'; $('kbCallArg').innerHTML='starting…'; ccStatus('running'); }
+function mainChipDone(ok, arg){ if (arg!=null) mainChip(ok?'done':'error', arg); ccStatus(ok?'done':'error'); }
+function ckTick(){ const now=Date.now(); for (const k in CK){ const c=CK[k]; if (!c.done) c.el.querySelector('.tm').textContent=((now-c.t0)/1000).toFixed(1)+'s'; } }
+function chainStart(jobs){
+  chainLeft={}; chainFound={}; foundTotal=0; $('chainRow').innerHTML=''; $('foundLine').textContent=''; CK={}; if ($('kbChips')) $('kbChips').innerHTML='';
+  progReset();
+  for (const j of jobs) chainAdd(j);
+}
+function chainAdd(j){
+  const k=j.kind==='sol'?'sol':j.c;
+  if (!(k in chainLeft)){ chainLeft[k]=0; chainFound[k]=0; const i=Object.keys(chainLeft).length-1;
+    $('chainRow').insertAdjacentHTML('beforeend', `<span class="cr" id="cr-${k}" style="--i:${i}"><i></i>${CHAIN_NAME[k]}<b></b></span>`); }
+  chainLeft[k]++; const el=document.getElementById('cr-'+k); if (el) el.classList.remove('ok');
+  ckAdd(k, CHAIN_NAME[k].toLowerCase(), short(j.w)); (CK[k].ws||(CK[k].ws=new Set())).add(j.w); if (CK[k].ws.size>1) ckArg(k, CK[k].ws.size+' wallets');
+}
+function chainDone(j,r){
+  const k=j.kind==='sol'?'sol':j.c, n=r?.payouts?.length||0;
+  chainFound[k]+=n; foundTotal+=n; chainLeft[k]--;
+  if (chainLeft[k]<=0){ const el=document.getElementById('cr-'+k); if(el){ el.classList.add('ok'); el.querySelector('b').textContent=chainFound[k]?chainFound[k]:''; } }
+  if (chainLeft[k]<=0) ckDone(k, !!r, r ? (chainFound[k]?`<b>${chainFound[k].toLocaleString('en-US')}</b> payout${chainFound[k]>1?'s':''}`:'no rewards') : 'could not read');
+  if (chainLeft[k]<=0) logLine(`${chainFound[k]?`<b>${chainFound[k].toLocaleString('en-US')}</b> payout${chainFound[k]>1?'s':''}`:'no rewards'} ✓`, true, CHAIN_NAME[k].toLowerCase());
+  progRender();
+  const core=document.getElementById('kbCore'); if (core){ core.classList.remove('pop'); void core.getBBox(); core.classList.add('pop'); setTimeout(()=>core.classList.remove('pop'),520); }
+  if (foundTotal) $('foundLine').textContent=`${foundTotal.toLocaleString('en-US')} payouts found so far`;
+}
+let elapsedT=null;
+const QUIPS={
+  whale:["not my fault you're such a whale 🐋","big bags, big history. hang tight 🐋","whale detected. counting every single kickback 🐋"],
+  busy:["your wallet's been busy. digging through it ⛏️","lots of history here. almost there ⛏️"],
+  late:["ok, that's a LOT of kickbacks. worth the wait, promise 🫡","still counting… every payout gets its own tx ✓","nearly done. good things take time ⏳"]};
+let quipT=[];
+const HEAD={ whale:["Big bags. Counting every single one","Whale-sized history. Still counting","You got paid a lot. Hang tight"],
+  busy:["Lots of history here. Still digging","Your wallet's been busy. Almost there"],
+  late:["Almost there. Worth the wait","Checking every payout has its tx","Last few chains. Nearly done"] };
+function headline(t, now){ const h=$('kbHead'); if(!h) return; if (now){ h.textContent=t; h.classList.remove('sw'); return; }
+  h.classList.add('sw'); setTimeout(()=>{ h.textContent=t; h.classList.remove('sw'); },350); }
+function quip(text){ const q=$('kbQuip'); if(!q) return; q.classList.remove('show'); setTimeout(()=>{ q.textContent=text; requestAnimationFrame(()=>q.classList.add('show')); }, q.textContent?260:0); }
+const pick=a=>a[Math.floor(Math.random()*a.length)];
+let longWait=false, dingCtx=null;
+function dingPrime(){ try{ dingCtx = dingCtx || new (window.AudioContext||window.webkitAudioContext)(); if (dingCtx.state==='suspended') dingCtx.resume();
+  const b=dingCtx.createBuffer(1,1,22050), src=dingCtx.createBufferSource(); src.buffer=b; src.connect(dingCtx.destination); src.start(0); }catch(e){} }
+function ding(){ try{ const c=dingCtx; if (!c) return; if (c.state==='suspended') c.resume(); const t=c.currentTime+.05;
+  for (const [f,d] of [[1318.5,0],[1975.5,.15]]){
+    const g=c.createGain(); g.gain.setValueAtTime(0,t+d); g.gain.linearRampToValueAtTime(.22,t+d+.006); g.gain.exponentialRampToValueAtTime(.0001,t+d+1.2); g.connect(c.destination);
+    for (const [m,a,dk] of [[1,1,1.2],[2.76,.25,.25],[5.4,.08,.1]]){ const o=c.createOscillator(), og=c.createGain(); o.type='sine'; o.frequency.value=f*m;
+      og.gain.setValueAtTime(a,t+d); og.gain.exponentialRampToValueAtTime(.0001,t+d+dk); o.connect(og); og.connect(g); o.start(t+d); o.stop(t+d+1.3); } } }catch(e){} }
+function doneTitle(){ if (!document.hidden) return; const old=document.title; document.title='✓ Your kickbacks are in';
+  const back=()=>{ if (!document.hidden){ document.title=old; document.removeEventListener('visibilitychange',back); } }; document.addEventListener('visibilitychange',back); }
+function kbState(st){
+  quipT.forEach(clearTimeout); quipT=[];
+  if (st==='scanning'){ const q=$('kbQuip'); if(q){ q.classList.remove('show'); q.textContent=''; }
+    headline('Counting your kickbacks', true);
+    quipT.push(setTimeout(()=>headline((LIVE?.shown||0)>=1000 ? pick(HEAD.whale) : pick(HEAD.busy)),12000), setTimeout(()=>headline(pick(HEAD.late)),24000),
+      setTimeout(()=>{ longWait=true; headline('Big wallet. A few more minutes'); const w=$('kbWait'); if (w){ w.innerHTML='This wallet has a long history, and big wallets are slow right now (we\'re working on it). Go do your thing, <b>we\'ll play a sound</b> when it\'s ready 🔔'; w.classList.add('show'); } }, 120000)); }
+  if (st!=='scanning'){ const w=$('kbWait'); if (w){ w.classList.remove('show'); w.innerHTML=''; } }
+  if (st==='done'){ ding(); doneTitle(); }
+  if (st!=='scanning') longWait=false;
+  const b=document.body; b.classList.remove('idle','scanning','done'); b.classList.add(st);
+  if (st==='idle') $('go')?.classList.remove('flip');
+  clearInterval(elapsedT);
+  if (st==='idle' && typeof loadStats==='function') setTimeout(loadStats, 200);
+  if (st==='scanning'){ const t0=Date.now(), el=$('elapsed'); const tick=()=>{ const s=(Date.now()-t0)/1000; el.textContent=s<60?s.toFixed(1)+'s':Math.floor(s/60)+'m '+(s%60).toFixed(1)+'s'; ckTick(); }; tick(); elapsedT=setInterval(tick,100); }
+  if (st!=='done') setDetails(false);
+}
+const DESK = matchMedia('(min-width:1000px)');
+const detHome = { parent:null, next:null };
+function placeDetails(){
+  const det=$('details'), slot=$('proofsSlot'); if (!det || !slot) return;
+  if (!detHome.parent){ detHome.parent=det.parentElement; detHome.next=det.nextSibling; }
+  const target = DESK.matches ? slot : $('sheetSlot');
+  if (det.parentElement!==target) target.appendChild(det);
+  if (DESK.matches) document.body.classList.remove('msopen');
+}
+DESK.addEventListener?.('change', placeDetails); placeDetails();
+const FMP=t=>'https://financialmodelingprep.com/image-stock/'+t+'.png';
+const TVS={AAPL:'apple',NVDA:'nvidia',TSLA:'tesla',MSFT:'microsoft',AMZN:'amazon',GOOGL:'alphabet',GOOG:'alphabet',META:'meta-platforms',PLTR:'palantir',COIN:'coinbase',HOOD:'robinhood',MSTR:'microstrategy',AMD:'advanced-micro-devices',NFLX:'netflix',CRCL:'circle',AVGO:'broadcom',ORCL:'oracle',JPM:'jpmorgan-chase',V:'visa',MA:'mastercard',LLY:'eli-lilly',BRKB:'berkshire-hathaway',SPCX:'spacex',UNH:'unitedhealth',XOM:'exxon',INTC:'intel',IBM:'international-bus-mach',BABA:'alibaba',GME:'gamestop',UBER:'uber',SHOP:'shopify',PYPL:'paypal',DIS:'walt-disney',KO:'coca-cola',MCD:'mcdonalds',WMT:'walmart',QQQ:'invesco',CRWV:'coreweave',ASML:'asml',TSM:'taiwan-semiconductor',PEP:'pepsico',CSCO:'cisco',ABNB:'airbnb',RDDT:'reddit',SNOW:'snowflake',ARM:'arm',SMCI:'super-micro-computer',ACN:'accenture'};
+const stockIcon=t=>{ const k=String(t||'').toUpperCase().replace(/[^A-Z]/g,''); return TVS[k]?'https://s3-symbol-logo.tradingview.com/'+TVS[k]+'--big.svg':FMP(t); };
+const CMC=stockIcon;
+const T={RAY:'https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/4k3Dyjzvzp8eMZWUXbBCjEvwSkkk59S5iCNLY3QrkX6R/logo.png',
+  ORE:'https://ore.supply/assets/icon.png', JUP:'https://static.jup.ag/jup/icon.png', BONK:'https://arweave.net/hQiPZOsRZXGXBJd_82PhVdlM_hACsT_q6wqwf5cSY7I',
+  SOL:MAJOR_ICON.SOL, BTC:MAJOR_ICON.BTC, ETH:MAJOR_ICON.ETH, BNB:MAJOR_ICON.BNB, USDC:MAJOR_ICON.USDC,
+  PLTR:CMC('PLTR'), DJT:CMC('DJT'), CRCL:CMC('CRCL'), NVDA:CMC('NVDA'), TSLA:CMC('TSLA'), QQQ:CMC('QQQ'), COIN:CMC('COIN'), HOOD:CMC('HOOD'), GOOG:CMC('GOOG'), AAPL:CMC('AAPL')};
+const DEMOS=[
+  {n:'@whale', t:'$19,551.69', c:['RAY','ORE','SOL','NVDA','BTC'], p:'StonkFun, Flap, Pons'},
+  {n:'@degen', t:'$2,289.79', c:['DJT','BONK','PLTR','SOL'], p:'Pons, StonkFun, pump.fun'},
+  {n:'@holder', t:'$633.48', c:['BNB','JUP','CRCL'], p:'Flap, Pons, Ember'},
+  {n:'@trenches', t:'$7,815.57', c:['ORE','GOOG','RAY','JUP','ETH'], p:'StonkFun, pump.fun'},
+  {n:'@bagholder', t:'$1,204.55', c:['BONK','TSLA','QQQ','SOL'], p:'pump.fun, StonkFun, Pons'},
+  {n:'@yourname', t:'$4,412.20', c:['HOOD','SOL','COIN','AAPL','BNB'], p:'Flap, StonkFun'}].map(d=>({...d, c:d.c.map(s=>[s,T[s]])}));
+setTimeout(()=>DEMOS.forEach(d=>d.c.forEach(([,u])=>{ const im=new Image(); im.src=thumb(u); })),0);
+let demoI=0, demoT=null;
+function demoFill(d){ const coins=$('dCoins');
+  coins.innerHTML=d.c.map(([s,u],i)=>`<i title="${esc(s)}" style="animation-delay:${i*80}ms"><img src="${esc(thumb(u))}" alt="" onerror="this.remove()"><b>${esc(s.slice(0,4))}</b></i>`).join('');
+  $('dName').textContent=d.n; $('dAv').textContent=d.n[1].toUpperCase(); $('dSub').textContent=earnedOn(d.p.split(/,\s*/)); }
+const decodeImg=u=>new Promise(r=>{ const im=new Image(); im.onload=()=>(im.decode?im.decode().catch(()=>{}):Promise.resolve()).then(r); im.onerror=r; im.src=u; });
+let demoBusy=false;
+async function demoStep(){
+  if (demoBusy || !DESK.matches || !document.body.classList.contains('idle') || document.hidden) return;
+  demoBusy=true;
+  const d=DEMOS[demoI++%DEMOS.length], card=document.querySelector('.dcard');
+  await Promise.race([Promise.all(d.c.map(([,u])=>decodeImg(thumb(u)))), sleep(900)]);
+  card.classList.add('swap');
+  await sleep(320);
+  $('dCoins').classList.add('first');
+  demoFill(d);
+  odo($('dTot'), d.t); $('dTot').querySelectorAll('.odr').forEach(r=>r.style.transitionDelay='0ms');
+  requestAnimationFrame(()=>card.classList.remove('swap'));
+  demoBusy=false;
+}
+function demoRun(){ clearInterval(demoT); demoT=setInterval(demoStep, 3000); }
+setTimeout(()=>{ demoFill(DEMOS[0]); $('dCoins').classList.add('first'); $('dTot').textContent=DEMOS[0].t; demoI=1;
+  const logos=DEMOS[0].c.map(([,u])=>new Promise(r=>{ const im=new Image(); im.onload=im.onerror=r; im.src=thumb(u); }));
+  const fonts=document.fonts?Promise.all(['900 40px Unbounded','500 14px "JetBrains Mono"','500 16px "Inter Tight"'].map(f=>document.fonts.load(f))).catch(()=>{}):null;
+  Promise.race([Promise.all([fonts,...logos]), sleep(1600)]).then(()=>requestAnimationFrame(()=>document.documentElement.classList.remove('fl')));
+},0);
+DESK.addEventListener?.('change', demoRun); setTimeout(demoRun, 1200);
+const STATS_API = '/api/stats';
+function odo(el, text){
+  const chars=[...text];
+  if (el._len!==chars.length || el._sep!==text.replace(/\d/g,'')){
+    el._len=chars.length; el._sep=text.replace(/\d/g,'');
+    el.innerHTML=chars.map(c=>/\d/.test(c)?`<span class="od"><span class="odr">${[0,1,2,3,4,5,6,7,8,9].map(d=>`<i>${d}</i>`).join('')}</span></span>`:`<span>${esc(c)}</span>`).join('');
+    void el.offsetWidth;
+  }
+  const reels=[...el.querySelectorAll('.odr')], digits=chars.filter(c=>/\d/.test(c));
+  reels.forEach((r,i)=>{ r.style.transitionDelay=((reels.length-1-i)*70)+'ms'; r.style.transform=`translateY(-${(+digits[i])*10}%)`; });
+}
+async function loadStats(){
+  if (!STATS_API) return;
+  const j=await fetchJson(STATS_API+'?t='+Math.floor(Date.now()/20000)); if (!j?.n) return;
+  $('stats').classList.remove('hidden');
+  requestAnimationFrame(()=>{ odo($('stTotal'), '$'+Math.round(j.total).toLocaleString('en-US')); odo($('stN'), j.n.toLocaleString('en-US')); $('stW').textContent = j.n===1?'wallet':'wallets'; });
+}
+loadStats(); setInterval(()=>{ if (document.body.classList.contains('idle') && !document.hidden) loadStats(); }, 30000);
+$('againBtn').onclick=()=>{ $('home').click(); setTimeout(()=>{ $('wallet').select(); $('wallet').focus(); },350); };
+function setDetails(open){ $('details').classList.toggle('open',open); $('moreBtn').classList.toggle('open',open);
+  const sheet=!DESK.matches && open; document.body.classList.toggle('msopen',sheet); document.documentElement.style.overflow=sheet?'hidden':''; }
+$('moreBtn').onclick=()=>setDetails(!$('details').classList.contains('open'));
+document.addEventListener('click',e=>{ if (e.target.closest('#sheetBg,#sheetX')) setDetails(false); });
+{ let y0=null; const p=()=>$('sheetPanel');
+  document.addEventListener('touchstart',e=>{ const s=e.target.closest('#sheetPanel'); y0 = s && (e.target.closest('.msheet-top') || s.querySelector('#details').scrollTop<=0) ? e.touches[0].clientY : null; },{passive:true});
+  document.addEventListener('touchmove',e=>{ if (y0==null) return; const d=e.touches[0].clientY-y0; if (d>0){ p().style.transition='none'; p().style.transform=`translateY(${d}px)`; } },{passive:true});
+  document.addEventListener('touchend',e=>{ if (y0==null) return; const d=(e.changedTouches[0].clientY-y0); p().style.transition=''; p().style.transform=''; if (d>90) setDetails(false); y0=null; });
+}
+$('home').onclick=()=>{ if(!document.body.classList.contains('scanning')){ $('result').classList.add('hidden'); $('coins').innerHTML=''; kbState('idle'); } };
+
+const TOWER_COINS=[['◎','#8a4dff'],['₿','#f2a900'],['$','#2aa198'],['T','#d64545'],['G','#c9a227'],['Ξ','#4c6fff'],['P','#5cb85c'],['N','#1fb57a'],['M','#e0567a'],['S','#5b6b8c']];
+const Tower=(()=>{
+  const STEP=12, SHOW=13; let el, n=0, timer=null, raf=0, cam=0, camNow=0, t0=0, running=false;
+  function frame(t){
+    if(!running) return;
+    camNow+=(cam-camNow)*0.08;
+    const sway=Math.sin((t-t0)/650)*Math.min(2.5, n*0.3);
+    el.style.transform=`translateY(${camNow.toFixed(2)}px) rotate(${sway.toFixed(3)}deg)`;
+    raf=requestAnimationFrame(frame);
+  }
+  function drop(){
+    const [g,c]=TOWER_COINS[n%TOWER_COINS.length], d=document.createElement('i');
+    d.className='tc'; d.textContent=g; d.style.setProperty('--c',c);
+    d.style.bottom=(n*STEP)+'px'; d.style.marginLeft=Math.round(Math.sin(n*2.3)*5)+'px';
+    el.appendChild(d); n++;
+    const swing=Math.round(Math.sin(performance.now()/420)*70);
+    d.animate([
+      {transform:`translate(${swing}px,-300px) rotate(${swing/4}deg)`},
+      {transform:'translate(0,0) rotate(0deg)', offset:.7},
+      {transform:'translate(0,-9px)', offset:.84},
+      {transform:'translate(0,0)'}
+    ],{duration:820, easing:'cubic-bezier(.45,0,.9,.35)'});
+    if (n>SHOW) cam=(n-SHOW)*STEP;
+    for (const x of [...el.children]) if (parseInt(x.style.bottom)<(n-SHOW-4)*STEP) x.remove();
+  }
+  return {
+    start(){ el=$('tower'); this.stop(true); el.style.opacity=''; n=0; cam=camNow=0; t0=performance.now(); running=true; drop(); timer=setInterval(drop,850); raf=requestAnimationFrame(frame); },
+    stop(clear){ running=false; clearInterval(timer); cancelAnimationFrame(raf); if(clear&&el){ el.innerHTML=''; el.style.transform=''; } },
+    top(k){ return [...(el?.children||[])].slice(-k).reverse(); }
+  };
+})();
+
+const thumb = u => !u || /^data:/.test(u) ? u : 'https://wsrv.nl/?url='+encodeURIComponent(u)+'&w=256&h=256&fit=cover&output=webp';
+const THUMBS = {};
+const preThumb = u => { if (!u) return Promise.resolve(); if (THUMBS[u]) return THUMBS[u]; const im=new Image(); im.decoding='async';
+  const p=new Promise(r=>{ im.onload=()=>{ (im.decode?im.decode().catch(()=>{}):Promise.resolve()).then(r); }; im.onerror=()=>r(); }); im.src=thumb(u); return THUMBS[u]=p; };
+const COIN_BG=['#d64545','#f2a900','#8a4dff','#2aa198','#4c6fff','#c9a227','#5cb85c','#34495e'];
+const fanUsd = v => v<10 ? v.toFixed(2) : v<1000 ? String(Math.round(v)) : v<1e4 ? (Math.floor(v/100)/10).toFixed(1).replace(/\.0$/,'')+'k' : v<1e6 ? Math.floor(v/1000)+'k' : (Math.floor(v/1e5)/10).toFixed(1).replace(/\.0$/,'')+'M';
+function renderCoins(d){
+  const all=(d.coins||[]).filter(c=>c.usd>=0.01), n=Math.min(7,all.length), mid=(n-1)/2;
+  const slot=[...Array(n).keys()].sort((a,b)=>Math.abs(a-mid)-Math.abs(b-mid)||a-b); const at=[]; slot.forEach((s,k)=>at[s]=k);
+  const disc=(c,i)=>`<span class="disc" style="--c:${COIN_BG[i%8]}">${esc(c.sym.replace(/[^A-Za-z0-9]/g,'').slice(0,4).toUpperCase())}${c.icon?`<img class="dl" src="${esc(thumb(c.icon))}" alt="" onload="this.parentNode.classList.add('ok')" onerror="this.remove()">`:''}</span>`;
+  let h=''; for (let s=0;s<n;s++){ const k=at[s], c=all[k], dist=Math.abs(s-mid);
+    h+=`<button class="coin" type="button" data-coin="${k}" data-rank="${k}" style="--dl:${(s*0.23).toFixed(2)}s;--y:${Math.round(dist*dist*2)}px;--s:${Math.round(66-dist*6)}px;z-index:${10-Math.round(dist)}"><span class="bob">${disc(c,k)}</span><b>$${fanUsd(c.usd)}</b></button>`; }
+  if (all.length>n) h+=`<button class="coin more" type="button" data-coin="more" data-rank="${n}" style="--dl:${(n*0.23).toFixed(2)}s;--y:8px;--s:44px"><span class="bob"><span class="disc">+${all.length-n}</span></span><b>more</b></button>`;
+  if (!n && !((d.total||0)>=0.005)) for (let s=0;s<5;s++){ const dist=Math.abs(s-2);
+    h+=`<span class="coin qcoin" style="--dl:${(s*0.23).toFixed(2)}s;--y:${dist*dist*2}px;--s:${66-dist*6}px;z-index:${10-dist}"><span class="bob"><span class="disc">?</span></span><b>$??</b></span>`; }
+  $('coins').innerHTML=h;
+  $('coinTip').innerHTML='';
+  window.__coins=all;
+}
+function towerToFan(){
+  const fan=[...$('coins').children].sort((a,b)=>(+a.dataset.rank)-(+b.dataset.rank));
+  const src=Tower.top(fan.length); Tower.stop(false);
+  const E='cubic-bezier(.22,1,.36,1)';
+  fan.forEach((f,k)=>{
+    const lab=f.querySelector('b'), s=src[k];
+    lab.animate([{opacity:0,transform:'translateY(6px)'},{opacity:1,transform:'none'}],{duration:500,delay:650+k*70,easing:E,fill:'backwards'});
+    if (!s){ f.animate([{opacity:0,transform:'translateY(18px) scale(.7)'},{opacity:1,transform:'none'}],{duration:800,delay:120+k*80,easing:E,fill:'backwards'}); return; }
+    const a=s.getBoundingClientRect(), b=f.querySelector('.disc').getBoundingClientRect();
+    const dx=(a.left+a.width/2)-(b.left+b.width/2), dy=(a.top+a.height/2)-(b.top+b.height/2), sx=a.width/b.width, sy=a.height/b.height;
+    s.style.visibility='hidden';
+    f.animate([{transform:`translate(${dx}px,${dy}px) scale(${sx},${sy})`},{transform:'none'}],{duration:950,delay:k*70,easing:E,fill:'backwards'});
+  });
+  const tw=$('tower'); tw.animate([{opacity:1},{opacity:0}],{duration:400,easing:'ease',fill:'forwards'})
+    .onfinish=()=>{ tw.innerHTML=''; tw.style.transform=''; tw.getAnimations().forEach(x=>x.cancel()); };
+}
+document.addEventListener('click', e=>{
+  const b=e.target.closest('[data-coin]'); if(!b) return;
+  document.querySelectorAll('.coin.on').forEach(x=>x.classList.remove('on'));
+  if (b.dataset.coin==='more'){ setDetails(true); return; }
+  const c=window.__coins[+b.dataset.coin]; b.classList.add('on');
+  $('coinTip').innerHTML=`<b>${esc(c.sym)} ${fmtUsd(c.usd)}</b> · ${c.from?'for holding '+esc(c.from)+' · ':''}${esc(c.platform)} · ${c.n} payout${c.n===1?'':'s'}`;
+});
+let tiltRaf=0, tiltEv=null;
+document.addEventListener('pointermove', e=>{
+  if (e.pointerType==='touch') return; tiltEv=e; if (tiltRaf) return;
+  tiltRaf=requestAnimationFrame(()=>{ tiltRaf=0; const ev=tiltEv; const b=ev.target.closest?.('.coin'); if(!b) return; const d=b.querySelector('.disc'), r=d.getBoundingClientRect();
+    const x=Math.max(-.5,Math.min(.5,(ev.clientX-r.left)/r.width-.5)), y=Math.max(-.5,Math.min(.5,(ev.clientY-r.top)/r.height-.5));
+    b.classList.add('tilt'); d.style.setProperty('--ry',(x*26).toFixed(1)+'deg'); d.style.setProperty('--rx',(-y*26).toFixed(1)+'deg'); });
+});
+document.addEventListener('pointerout', e=>{ const b=e.target.closest?.('.coin'); if(b && !b.contains(e.relatedTarget)){ b.classList.remove('tilt'); const d=b.querySelector('.disc'); d.style.setProperty('--rx','0deg'); d.style.setProperty('--ry','0deg'); } });
+
+let pfp=null, pfpHandle='';
+const imgReady=im=>new Promise(res=>{ if(im.complete&&im.naturalWidth) return res(true); im.onload=()=>res(true); im.onerror=()=>res(false); setTimeout(()=>res(!!im.naturalWidth),6000); });
+async function imgFromUrl(u, noProxy){
+  const get=async url=>{ const r=await fetch(url); if(!r.ok) throw 0; const im=new Image(); im.src=URL.createObjectURL(await r.blob()); if(!(await imgReady(im))) throw 0; return im; };
+  try{ return await get(u); }catch(e){}
+  if (noProxy) return null;
+  try{ return await get('https://wsrv.nl/?url='+encodeURIComponent(u)+'&w=400&h=400&fit=cover&output=png'); }catch(e){ return null; }
+}
+async function fomoProfile(wallets, key){
+  for (const w of wallets){
+    try{
+      const r=await fetch('/api/fomo/'+w);
+      if(!r.ok) continue; const j=await r.json(); const u=j?.data?.user||j?.data||j?.user||j;
+      if (u?.handle) return {handle:String(u.handle).replace(/^@/,''), pic:u.profilePicture||u.profile_picture||u.avatar||null, name:u.name||u.profileName||null};
+    }catch(e){}
+  }
+  return null;
+}
+async function applyProfile(p){
+  if(!p) return; pfpHandle=p.handle;
+  pfp = (p.pic && await imgFromUrl(p.pic)) || await imgFromUrl('https://unavatar.io/x/'+p.handle+'?fallback=false');
+  $('who').classList.remove('hidden'); $('whoName').textContent='@'+p.handle;
+  if (pfp) $('whoImg').src=pfp.src; else $('whoImg').classList.add('hidden');
+  if (!$('xHandle').value) $('xHandle').value=p.handle;
+}
+async function loadPfp(handle){
+  handle=(handle||'').trim().replace(/^@/,'').replace(/[^A-Za-z0-9_]/g,'');
+  pfpHandle=handle; if(!handle){ pfp=null; return; }
+  try{ const r=await fetch('https://unavatar.io/x/'+handle+'?fallback=false'); if(!r.ok) throw 0;
+    const im=new Image(); im.src=URL.createObjectURL(await r.blob()); pfp=(await imgReady(im))?im:null; }catch(e){ pfp=null; }
+}
+const CARD_THEMES = {
+  day:   {bg:'#f6f1ff', text:'#1a0b2e', muted:'#6f5f8f', card:'#ffffff', primary:'#7b4dff', dot:'#ffb020', avatar:'#e7ddff'},
+  ember: {bg:'#141210', text:'#fff6ea', muted:'#a89c8c', card:'#201c18', primary:'#ff8a3d', dot:'#fff1d6', avatar:'#2e2822'}
+};
+const COIN_COLORS = ['#d64545','#f2a900','#8a4dff','#2aa198','#4c6fff','#c9a227','#5cb85c','#34495e','#1e88e5','#ff5722'];
+let cardStyle='top', cardTheme='day'; const iconCache={};
+const pageDark=()=>{ const t=document.documentElement.dataset.theme; return t? t==='dark' : matchMedia('(prefers-color-scheme: dark)').matches; };
+cardStyle='stack'; cardTheme='ember';
+try{ cardStyle=localStorage.getItem('kb_style')||'stack'; }catch(e){}
+if (STUDIO){ cardStyle='stack'; addEventListener('DOMContentLoaded',()=>{ const b=document.createElement('div'); b.textContent='studio mode'; b.style.cssText='position:fixed;top:10px;left:50%;transform:translateX(-50%);z-index:99;font:11px ui-monospace,monospace;color:#1a120a;background:#ff8a3d;border-radius:999px;padding:5px 12px;opacity:.9'; document.body.appendChild(b); }); }
+document.addEventListener('click', e=>{ if(!e.target.closest('#themeBtn')) return;
+  const t=pageDark()?'light':'dark'; document.documentElement.dataset.theme=t; try{localStorage.setItem('kb_page_theme',t)}catch(_){} });
+async function loadCardIcons(){
+  const d=window.__share; if(!d) return;
+  await Promise.all((d.coins||[]).slice(0,8).map(async c=>{ if(c.icon && !(c.icon in iconCache)) iconCache[c.icon]=await imgFromUrl(c.icon); }));
+  try{ await Promise.race([Promise.all(['900 40px Unbounded','700 40px Unbounded','500 20px "JetBrains Mono"'].map(f=>document.fonts.load(f))), new Promise(r=>setTimeout(r,3000))]); }catch(e){}
+}
+const CARD_GLOW='halftone';
+const hexA=(h,a)=>{ const n=parseInt(h.slice(1),16); return `rgba(${n>>16&255},${n>>8&255},${n&255},${a})`; };
+const TIERS=[
+  {key:'C', name:'C', min:0},
+  {key:'B', name:'B', min:500},
+  {key:'A', name:'A', min:3000},
+  {key:'S', name:'S', min:10000},
+];
+const tierOf=usd=>{ let i=0; TIERS.forEach((t,k)=>{ if ((usd||0)>=t.min) i=k; }); return {...TIERS[i], i, next:TIERS[i+1]||null}; };
+const TIER_TH=['<$500','$500–3k','$3k–10k','$10k+'];
+const TIERS_ON=false;
+function renderTier(total){
+  if (!TIERS_ON){ $('tierNext').innerHTML=''; $('result').classList.remove('tierS'); $('postBig').classList.remove('hidden'); return; }
+  const t=tierOf(total), el=$('tiers');
+  el.innerHTML=TIERS.map((x,k)=>`<div class="${k===t.i?'on':k<t.i?'done':''}" title="${x.name}-tier · ${TIER_TH[k]}"><b>${x.name}</b><i style="width:${14+k*7}px"></i></div>`).reverse().join('');
+  $('tierNext').innerHTML = `<b>${t.name}-tier</b>` + (t.next ? ` <span class="tn">· $${Math.ceil(t.next.min-total).toLocaleString('en-US')} to ${t.next.name}</span>` : ` <span class="tn">· top tier</span>`);
+  $('result').classList.toggle('tierS', !t.next);
+  $('postBig').classList.remove('hidden');
+}
+document.addEventListener('click', e=>{ if (e.target.closest('#postBig')) shareCard(); });
+function drawCard(){
+  const d=window.__share, TR=tierOf(d.total), T={...(CARD_THEMES[cardTheme]||CARD_THEMES.day), ...(window.__tierTheme&&cardTheme==='ember'&&TR.T||{})};
+  const W=1200,H=675,S=2,c=document.createElement('canvas'); c.width=W*S; c.height=H*S; const x=c.getContext('2d');
+  x.scale(S,S); x.imageSmoothingEnabled=true; x.imageSmoothingQuality='high';
+  const U=(w,s)=>`${w} ${s}px Unbounded, "Inter Tight", sans-serif`, M=s=>`500 ${s}px "JetBrains Mono", monospace`;
+  const round=(X,Y,w,h,r)=>{ x.beginPath(); x.moveTo(X+r,Y); x.arcTo(X+w,Y,X+w,Y+h,r); x.arcTo(X+w,Y+h,X,Y+h,r); x.arcTo(X,Y+h,X,Y,r); x.arcTo(X,Y,X+w,Y,r); x.closePath(); };
+  const fit=(t,max)=>{ while(x.measureText(t).width>max && t.length>2) t=t.slice(0,-2)+'…'; return t; };
+  const coinDot=(cx,cy,R,cn,i,ring)=>{
+    x.save(); x.beginPath(); x.arc(cx,cy,R,0,7); x.closePath();
+    const im=cn.icon && iconCache[cn.icon];
+    if (im){ x.clip(); const s=Math.max(2*R/im.width,2*R/im.height); x.drawImage(im,cx-im.width*s/2,cy-im.height*s/2,im.width*s,im.height*s); }
+    else { x.fillStyle=COIN_COLORS[i%COIN_COLORS.length]; x.fill(); x.fillStyle='#fff'; x.textAlign='center'; x.font=U(900,Math.max(13,Math.round(R*0.3)));
+      x.fillText(cn.sym.replace(/[^A-Za-z0-9]/g,'').slice(0,4).toUpperCase(),cx,cy+R*0.15); x.textAlign='left'; }
+    x.strokeStyle='rgba(255,246,234,.16)'; x.lineWidth=1.5; x.beginPath(); x.arc(cx,cy,R-.75,0,7); x.stroke();
+    x.restore(); if(ring){ x.strokeStyle=ring; x.lineWidth=6; x.beginPath(); x.arc(cx,cy,R+3,0,7); x.stroke(); }
+  };
+  const avatar=(cx,cy,R)=>{
+    x.save(); x.beginPath(); x.arc(cx,cy,R,0,7); x.closePath();
+    if (pfp){ x.clip(); const s=Math.max(2*R/pfp.width,2*R/pfp.height); x.drawImage(pfp,cx-pfp.width*s/2,cy-pfp.height*s/2,pfp.width*s,pfp.height*s); }
+    else { x.fillStyle=T.avatar; x.fill(); x.fillStyle=T.primary; x.font=U(900,Math.round(R*0.8)); x.textAlign='center'; x.fillText((pfpHandle[0]||'?').toUpperCase(),cx,cy+R*0.3); x.textAlign='left'; }
+    x.restore(); x.strokeStyle=T.primary; x.lineWidth=4; x.beginPath(); x.arc(cx,cy,R+2,0,7); x.stroke();
+  };
+  const logo=(X,Y,s)=>{
+    x.save(); x.translate(X,Y); x.scale(s/52,s/52); x.strokeStyle=T.primary; x.lineWidth=7; x.lineCap='round'; x.lineJoin='round';
+    x.stroke(new Path2D('M40 14A18 18 0 1 0 44 30')); x.stroke(new Path2D('M30 12l12 2-2 12'));
+    x.fillStyle=T.dot; x.beginPath(); x.arc(26,26,6,0,7); x.fill(); x.restore();
+  };
+  const tierLadder=(xr,y0)=>{ const gold=!TR.next, acc=gold?'#ffc94d':T.primary;
+    TIERS.map((t,k)=>k).reverse().forEach((k,row)=>{ const y=y0+row*20, bw=16+k*9, cur=k===TR.i, done=k<TR.i;
+      x.fillStyle=cur?acc:done?hexA(T.text,.30):hexA(T.text,.10); round(xr-bw,y+7,bw,4,2); x.fill();
+      x.font=U(900,cur?17:12); x.textAlign='right'; x.fillStyle=cur?acc:done?hexA(T.text,.45):hexA(T.text,.18); x.fillText(TIERS[k].name,xr-bw-10,y+(cur?15:13)); });
+    x.textAlign='left'; };
+  const who = pfpHandle ? '@'+pfpHandle : short(d.wallet||'');
+  const coins=(d.coins||[]).filter(c=>c.usd>=0.01);
+  x.fillStyle=T.bg; x.fillRect(0,0,W,H);
+  const glow=(cx,cy,r,a)=>{ const g=x.createRadialGradient(cx,cy,0,cx,cy,r); g.addColorStop(0,hexA(T.primary,a)); g.addColorStop(1,hexA(T.primary,0)); x.fillStyle=g; x.fillRect(0,0,W,H); };
+  const GV = window.__cardGlow || CARD_GLOW;
+  if (GV==='number'){
+    x.save(); x.translate(W/2, cardStyle==='stack'?460:400); x.scale(1,.34); const g=x.createRadialGradient(0,0,0,0,0,520); g.addColorStop(0,hexA(T.primary,.22)); g.addColorStop(1,hexA(T.primary,0)); x.fillStyle=g; x.fillRect(-W,-H*3,W*2,H*6); x.restore(); }
+  else if (GV==='sides'){
+    for (const [cx] of [[-60],[W+60]]){ const g=x.createRadialGradient(cx,H*.62,0,cx,H*.62,430); g.addColorStop(0,hexA(T.primary,.20)); g.addColorStop(1,hexA(T.primary,0)); x.fillStyle=g; x.fillRect(0,0,W,H); } }
+  else if (GV==='grid'){
+    for (let gx=20; gx<W; gx+=28) for (let gy=20; gy<H; gy+=28){ const dx=(gx-W/2)/(W/2), dy=(gy-H/2)/(H/2), a=Math.max(0,.20-.16*(dx*dx+dy*dy)); if (a<=0) continue; x.fillStyle=hexA(T.text,a); x.fillRect(gx,gy,2,2); } }
+  else if (GV==='bokeh'){
+    const cs=(window.__share?.coins||[]).slice(0,5), spots=[[120,120,260],[W-140,110,230],[80,H-60,220],[W-90,H-80,280],[W/2+300,H/2,170]];
+    x.save(); x.filter='blur(60px)'; spots.forEach(([cx,cy,r],i)=>{ const cn=cs[i]; const im=cn?.icon&&iconCache[cn.icon]; x.globalAlpha=.30;
+      if (im) x.drawImage(im,cx-r,cy-r,r*2,r*2); else { x.fillStyle=COIN_COLORS[i%COIN_COLORS.length]; x.beginPath(); x.arc(cx,cy,r,0,7); x.fill(); } }); x.restore(); x.globalAlpha=1; }
+  else if (GV==='grain'){
+    const g=x.createLinearGradient(0,0,W,H); g.addColorStop(0,hexA(T.primary,.13)); g.addColorStop(.55,hexA(T.primary,0)); x.fillStyle=g; x.fillRect(0,0,W,H);
+    const n=x.createImageData(W*2,H*2); for (let i=0;i<n.data.length;i+=4){ const v=Math.random()*255; n.data[i]=n.data[i+1]=n.data[i+2]=v; n.data[i+3]=14; } const oc=document.createElement('canvas'); oc.width=W*2; oc.height=H*2; oc.getContext('2d').putImageData(n,0,0); x.drawImage(oc,0,0,W,H); }
+  else if (GV==='rings'){
+    x.save(); for (let r=110; r<1100; r+=46){ x.strokeStyle=hexA(T.primary, Math.max(0,.16-r/7500)); x.lineWidth=1.5; x.beginPath(); x.arc(W/2,250,r,0,7); x.stroke(); } x.restore(); }
+  else if (GV==='mark'){
+    x.save(); x.globalAlpha=.07; x.translate(W-330,H/2-40); const sc=720/52; x.scale(sc,sc); x.strokeStyle=T.primary; x.lineWidth=7; x.lineCap='round'; x.lineJoin='round';
+    x.stroke(new Path2D('M40 14A18 18 0 1 0 44 30')); x.stroke(new Path2D('M30 12l12 2-2 12')); x.fillStyle=T.primary; x.beginPath(); x.arc(26,26,6,0,7); x.fill(); x.restore(); x.globalAlpha=1; }
+  else if (GV==='txwall'){
+    const B='123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz'; let seed=7; const rnd=()=>(seed=(seed*16807)%2147483647)/2147483647;
+    x.save(); x.font='500 13px "JetBrains Mono", monospace'; for (let y=24; y<H; y+=22){ let line=''; while (line.length<150) line+=Array.from({length:44},()=>B[Math.floor(rnd()*B.length)]).join('')+'   ';
+      const dy=Math.abs(y-H/2)/(H/2); x.fillStyle=hexA(T.text,.035+.05*dy); x.fillText(line,-((y*37)%300),y); } x.restore(); }
+  else if (GV==='halftone'){
+    const zones = cardStyle==='stack'
+      ? (()=>{ x.font=M(20); const sw=Math.min(W-160, x.measureText(earnedOn(d.plats.slice(0,3).map(p=>p.name))).width); return [[W/2-sw/2-6,524,W/2+sw/2+6,552]]; })()
+      : [[52,436,620,468],[930,540,1150,620]];
+    const calm=(gx,gy)=>{ let f=1; for (const [a,b,c2,d2] of zones){ const dx=Math.max(a-gx,0,gx-c2), dy=Math.max(b-gy,0,gy-d2); f=Math.min(f, Math.min(1,Math.hypot(dx,dy)/28)); } return f; };
+    for (let gx=0; gx<W+20; gx+=18) for (let gy=0; gy<H+20; gy+=18){ const t=Math.max(0,((gx/W)+(gy/H))/2-.35)/.65; const r=t*7*calm(gx,gy); if (r<.4) continue; x.fillStyle=hexA(T.primary,.10+.12*t); x.beginPath(); x.arc(gx,gy,r,0,7); x.fill(); } }
+  else if (GV==='aurora'){
+    x.save(); x.filter='blur(80px)'; [[200,40,'#ff8a3d',.30],[620,-20,'#8a4dff',.26],[1000,60,'#2aa198',.22],[W/2,H+40,'#ff8a3d',.18]].forEach(([cx,cy,c,a])=>{ x.globalAlpha=a; x.fillStyle=c; x.beginPath(); x.ellipse(cx,cy,340,160,0,0,7); x.fill(); }); x.restore(); x.globalAlpha=1; }
+  else if (GV==='topo'){
+    x.save(); x.lineWidth=1.3; for (let k=0;k<26;k++){ x.strokeStyle=hexA(T.primary,.05+.05*(k%5===0)); x.beginPath(); for (let px=0; px<=W; px+=8){ const y=k*30-60+Math.sin(px/170+k*.55)*28+Math.sin(px/67+k)*9; px?x.lineTo(px,y):x.moveTo(px,y); } x.stroke(); } x.restore(); }
+  else if (GV==='candles'){
+    let seed=3; const rnd=()=>(seed=(seed*16807)%2147483647)/2147483647; let v=H-40; x.save();
+    for (let cx=16; cx<W; cx+=26){ const up=rnd()>.33, body=10+rnd()*34, nv=v+(up?-1:1)*body*.55; const top=Math.min(v,nv), h=Math.max(4,Math.abs(nv-v));
+      const a=.06+.10*(cx/W); x.fillStyle=up?hexA('#5ee6a8',a):hexA('#ff6b6b',a*.8); x.fillRect(cx,top,14,h); x.fillRect(cx+6,top-8-rnd()*10,2,h+16+rnd()*10); v=Math.max(H*.38,Math.min(H-20,nv-(cx/W)*1.4)); }
+    x.restore(); }
+  else if (GV==='sparkle'){
+    let seed=11; const rnd=()=>(seed=(seed*16807)%2147483647)/2147483647; x.save();
+    for (let i=0;i<70;i++){ const px=rnd()*W, py=rnd()*H, r=2+rnd()*9, a=.10+rnd()*.28; if (Math.abs(px-W/2)<300 && py>180 && py<560) continue;
+      x.fillStyle=hexA(i%4?T.primary:T.text,a); x.beginPath(); x.moveTo(px,py-r); x.quadraticCurveTo(px,py,px+r,py); x.quadraticCurveTo(px,py,px,py+r); x.quadraticCurveTo(px,py,px-r,py); x.quadraticCurveTo(px,py,px,py-r); x.fill(); } x.restore(); }
+  else if (GV==='horizon'){
+    const g=x.createLinearGradient(0,H-150,0,H); g.addColorStop(0,hexA(T.primary,0)); g.addColorStop(1,hexA(T.primary,.16)); x.fillStyle=g; x.fillRect(0,H-150,W,150);
+    const l=x.createLinearGradient(0,0,W,0); l.addColorStop(0,hexA(T.primary,0)); l.addColorStop(.5,hexA(T.primary,.9)); l.addColorStop(1,hexA(T.primary,0)); x.fillStyle=l; x.fillRect(0,H-3,W,3); }
+  const CC=(i)=>{ const cn=(window.__share?.coins||[])[i]; return COIN_COLORS[i%COIN_COLORS.length]; };
+  if (GV==='rings2'){
+    const g=x.createRadialGradient(W/2,250,0,W/2,250,420); g.addColorStop(0,hexA(T.primary,.14)); g.addColorStop(1,hexA(T.primary,0)); x.fillStyle=g; x.fillRect(0,0,W,H);
+    for (let k=0,r=90; r<1100; k++, r+=38){ const f=Math.max(0,1-r/900); x.strokeStyle=hexA(T.primary,(k%4===0?.30:.12)*f); x.lineWidth=k%4===0?2.4:1.2; x.beginPath(); x.arc(W/2,250,r,0,7); x.stroke(); } }
+  else if (GV==='ringsCorner'){
+    for (let k=0,r=60; r<1500; k++, r+=34){ x.strokeStyle=hexA(T.primary,Math.max(0,.26-r/5200)); x.lineWidth=k%3===0?3:1.3; x.beginPath(); x.arc(W+40,H+40,r,0,7); x.stroke(); }
+    const g=x.createRadialGradient(W,H,0,W,H,380); g.addColorStop(0,hexA(T.primary,.20)); g.addColorStop(1,hexA(T.primary,0)); x.fillStyle=g; x.fillRect(0,0,W,H); }
+  else if (GV==='ringsReed'){
+    x.save(); x.lineCap='round'; for (let k=0,r=120; r<1000; k++, r+=44){ const n=Math.round(r*0.55), a=Math.max(0,.30-r/3000), len=6+k*0.6;
+      x.strokeStyle=hexA(T.primary,a); x.lineWidth=1.6; x.beginPath(); for (let i=0;i<n;i++){ const t=i/n*Math.PI*2+k*.07; x.moveTo(W/2+Math.cos(t)*r,250+Math.sin(t)*r); x.lineTo(W/2+Math.cos(t)*(r+len),250+Math.sin(t)*(r+len)); } x.stroke(); } x.restore(); }
+  else if (GV==='ringDots'){
+    for (let k=0,r=110; r<1100; k++, r+=30){ const n=Math.round(r*2*Math.PI/16), dr=Math.max(0,4.2-r/220); if (dr<.5) break; x.fillStyle=hexA(T.primary,.10+.16*(dr/4.2));
+      x.beginPath(); for (let i=0;i<n;i++){ const t=i/n*Math.PI*2+k*.13, px=W/2+Math.cos(t)*r, py=250+Math.sin(t)*r; x.moveTo(px+dr,py); x.arc(px,py,dr,0,7); } x.fill(); } }
+  else if (GV==='htRadial'){
+    for (let gx=0; gx<W+20; gx+=16) for (let gy=0; gy<H+20; gy+=16){ const d=Math.hypot(gx-W/2,(gy-250)*1.25), t=Math.max(0,1-d/560); const r=t*6.5; if (r<.5) continue; x.fillStyle=hexA(T.primary,.07+.16*t); x.beginPath(); x.arc(gx,gy,r,0,7); x.fill(); } }
+  else if (GV==='htBottom'){
+    for (let gx=0; gx<W+20; gx+=16) for (let gy=0; gy<H+20; gy+=16){ const t=Math.max(0,(gy/H-.5)/.5)**1.4; const r=t*7; if (r<.5) continue; x.fillStyle=hexA(T.primary,.05+.12*t); x.beginPath(); x.arc(gx+((gy/16)%2)*8,gy,r,0,7); x.fill(); } }
+  else if (GV==='htSun'){
+    const rays=28; for (let k=0;k<rays;k++){ const t0=k/rays*Math.PI*2; if (k%2) continue;
+      for (let d=150; d<1200; d+=17){ const w=Math.floor(d*Math.PI/rays/17); for (let j=-w;j<=w;j++){ const t=t0+j*17/d; const px=W/2+Math.cos(t)*d, py=250+Math.sin(t)*d*.9; if (px<-10||px>W+10||py<-10||py>H+10) continue;
+        const r=Math.max(0,4.4-d/300); if (r<.5) continue; x.fillStyle=hexA(T.primary,.10+.12*(r/4.4)); x.beginPath(); x.arc(px,py,r,0,7); x.fill(); } } } }
+  else if (GV==='htCoins'){
+    const a=CC(0), b=CC(1);
+    for (let gx=0; gx<W+20; gx+=18) for (let gy=0; gy<H+20; gy+=18){ const t1=Math.max(0,1-Math.hypot(gx,gy)/620), t2=Math.max(0,1-Math.hypot(W-gx,H-gy)/620);
+      for (const [t,col] of [[t1,a],[t2,b]]){ const r=t*7.5; if (r<.5) continue; x.fillStyle=hexA(col,.12+.22*t); x.beginPath(); x.arc(gx,gy,r,0,7); x.fill(); } } }
+  if (GV==='whale'){
+    const g=x.createRadialGradient(W/2,300,0,W/2,300,560); g.addColorStop(0,'rgba(255,190,70,.20)'); g.addColorStop(1,'rgba(255,190,70,0)'); x.fillStyle=g; x.fillRect(0,0,W,H);
+    for (let k=0,r=100; r<1100; k++, r+=40){ x.strokeStyle=`rgba(255,201,77,${Math.max(0,(k%3===0?.26:.10)*(1-r/1000))})`; x.lineWidth=k%3===0?2:1; x.beginPath(); x.arc(W/2,250,r,0,7); x.stroke(); }
+    let seed=5; const rnd=()=>(seed=(seed*16807)%2147483647)/2147483647;
+    for (let i=0;i<46;i++){ const px=rnd()*W, py=rnd()*H, r=3+rnd()*10; if (Math.abs(px-W/2)<330 && py>150) continue; x.fillStyle=`rgba(255,${210+rnd()*40|0},120,${.25+rnd()*.45})`;
+      x.beginPath(); x.moveTo(px,py-r); x.quadraticCurveTo(px,py,px+r,py); x.quadraticCurveTo(px,py,px,py+r); x.quadraticCurveTo(px,py,px-r,py); x.quadraticCurveTo(px,py,px,py-r); x.fill(); }
+    const f=x.createLinearGradient(0,0,W,H); ['#fff3c4','#ffc94d','#b8741a','#ffe08a','#ff9d3d','#fff3c4'].forEach((c,i,a)=>f.addColorStop(i/(a.length-1),c));
+    x.strokeStyle=f; x.lineWidth=10; round(5,5,W-10,H-10,22); x.stroke(); x.strokeStyle='rgba(255,230,160,.35)'; x.lineWidth=1.5; round(18,18,W-36,H-36,14); x.stroke(); }
+  if (STUDIO && window.kbTease) return window.kbTease({x, c, W, H, S, T, U, M, coins, round, coinDot, avatar, logo, hexA, COIN_COLORS, pfpHandle});
+  if (cardStyle==='stack'){
+    x.font=U(700,26); const hw=x.measureText(who).width; x.font=M(18); const tw=x.measureText('held and got paid').width;
+    let sx=(W-(60+14+hw+14+tw))/2; avatar(sx+30,84,28); x.fillStyle=T.text; x.font=U(700,26); x.fillText(who,sx+74,94);
+    x.fillStyle=T.muted; x.font=M(18); x.fillText('held and got paid',sx+74+hw+14,93);
+    const n=Math.min(7,coins.length), R=62, step=R*2-30, fw=step*(n-1)+R*2, dy=[14,4,-6,-12,-6,4,14];
+    const mid=(n-1)/2, slots=[], byDist=[...Array(n).keys()].sort((a,b)=>Math.abs(a-mid)-Math.abs(b-mid)||a-b);
+    byDist.forEach((slot,k)=>slots[slot]=k);
+    const drawOrder=[...Array(n).keys()].sort((a,b)=>Math.abs(b-mid)-Math.abs(a-mid));
+    for (const s of drawOrder){ const k=slots[s]; const cx=(W-fw)/2+R+s*step, cy=250+(dy[Math.round(s*6/Math.max(1,n-1))]||0);
+      coinDot(cx,cy,R,coins[k],k,T.bg); x.fillStyle=T.text; x.font=U(700,17); x.textAlign='center'; x.fillText('$'+Math.round(coins[k].usd).toLocaleString('en-US'),cx,cy+R+30); x.textAlign='left'; }
+    if (window.__tierTheme && TR.key==='whale' && cardTheme==='ember'){ const gg=x.createLinearGradient(0,400,0,505); gg.addColorStop(0,'#fff3c4'); gg.addColorStop(.5,'#ffc94d'); gg.addColorStop(1,'#d98a1e'); x.fillStyle=gg; x.shadowColor='rgba(255,180,60,.45)'; x.shadowBlur=30; } else x.fillStyle=T.primary;
+    x.font=U(900,122); x.textAlign='center'; x.fillText(fmtUsd(d.total),W/2,500); x.shadowBlur=0;
+    if (!TIERS_ON){ x.fillStyle=T.muted; x.font=M(20); x.fillText(fit(earnedOn(d.plats.slice(0,3).map(p=>p.name)),W-160),W/2,545); } else { x.font=M(20); const tg=TR.name+'-tier', sp='  ·  ', rest=fit(earnedOn(d.plats.slice(0,3).map(p=>p.name)),W-320);
+      x.font=U(900,19); const tw=x.measureText(tg).width; x.font=M(20); const sw=x.measureText(sp).width, rw=x.measureText(rest).width; let lx=(W-(tw+sw+rw))/2; x.textAlign='left';
+      x.fillStyle=!TR.next?'#ffc94d':T.primary; x.font=U(900,19); x.fillText(tg,lx,546); x.fillStyle=T.muted; x.font=M(20); x.fillText(sp+rest,lx+tw,545); x.textAlign='center'; }
+    x.font=U(900,22); const bw=x.measureText('kickback').width;
+    const bx=(W-(34+10+bw))/2; x.textAlign='left'; logo(bx,610,34); x.fillStyle=T.text; x.font=U(900,22); x.fillText('kickback',bx+44,636);
+    return c;
+  }
+  avatar(104,108,44); x.fillStyle=T.text; x.font=U(700,28); x.fillText(fit(who,380),168,104); x.fillStyle=T.muted; x.font=M(17); x.fillText('verified on-chain',168,134);
+  x.fillStyle=T.muted; x.font=M(21); x.fillText('my coins kicked back',60,300);
+  x.fillStyle=T.primary; let fs=118; x.font=U(900,fs); const tot=fmtUsd(d.total);
+  while (x.measureText(tot).width>520 && fs>60){ fs-=6; x.font=U(900,fs); } x.fillText(tot,52,300+fs*0.95);
+  if (!TIERS_ON){ x.fillStyle=T.muted; x.font=M(17); x.fillText(`${d.payouts} payouts · ${coins.length} coins · ${d.chains||1} chain${(d.chains||1)>1?'s':''}`,60,300+fs*0.95+44); } else { const yy=300+fs*0.95+44, tg=TR.name+'-tier'; x.font=U(900,17); const tw=x.measureText(tg).width; x.fillStyle=!TR.next?'#ffc94d':T.primary; x.fillText(tg,60,yy+1);
+      x.fillStyle=T.muted; x.font=M(17); x.fillText(`  ·  ${d.payouts} payouts · ${coins.length} coins · ${d.chains||1} chain${(d.chains||1)>1?'s':''}`,60+tw,yy); }
+  logo(60,588,34); x.fillStyle=T.text; x.font=U(900,22); x.fillText('kickback',104,614);
+  const top=coins.slice(0,4), rh=106, gap=14, y0=(H-(top.length*rh+(top.length-1)*gap))/2;
+  top.forEach((cn,i)=>{ const X=640, Y=y0+i*(rh+gap), w=500;
+    x.fillStyle=T.card; round(X,Y,w,rh,24); x.fill();
+    coinDot(X+58,Y+rh/2,34,cn,i,null);
+    x.fillStyle=T.text; x.font=U(700,24); x.fillText(fit(cn.sym,190),X+112,Y+48);
+    x.fillStyle=T.muted; x.font=M(15); x.fillText(fit(cn.from?('for holding '+cn.from):cn.platform,230),X+112,Y+76);
+    x.fillStyle=T.text; x.font=U(900,28); x.textAlign='right'; x.fillText('$'+Math.round(cn.usd).toLocaleString('en-US'),X+w-24,Y+64); x.textAlign='left'; });
+  if (coins.length>4){ x.fillStyle=T.muted; x.font=M(16); x.textAlign='right'; x.fillText(`+ ${coins.length-4} more coins`,1140,y0+top.length*(rh+gap)+16); x.textAlign='left'; }
+  return c;
+}
+function renderCardPreview(){ const c=drawCard(); $('cardPrev').src=c.toDataURL('image/png');
+  document.querySelectorAll('[data-cstyle]').forEach(b=>b.classList.toggle('on',b.dataset.cstyle===cardStyle));
+  document.querySelectorAll('[data-ctheme]').forEach(b=>b.classList.toggle('on',b.dataset.ctheme===cardTheme)); return c; }
+function shareCard(){
+  if(!window.__share) return;
+  try{ const h=localStorage.getItem('pr_handle'); if(h && !$('xHandle').value) $('xHandle').value=h; }catch(e){}
+  $('shareModal').classList.remove('hidden'); renderCardPreview(); needHandle();
+  Promise.all([pfp?null:loadPfp($('xHandle').value), loadCardIcons()]).then(()=>{ renderCardPreview(); needHandle(true); });
+}
+function needHandle(focus){
+  const need=!pfp; $('pfpNeed').classList.toggle('hidden',!need); document.querySelector('.pfp-row').classList.toggle('need',need);
+  if (need && focus && !$('xHandle').value) $('xHandle').focus();
+}
+document.addEventListener('click', e=>{
+  const s=e.target.closest('[data-cstyle]'), t=e.target.closest('[data-ctheme]');
+  if (s){ cardStyle=s.dataset.cstyle; try{localStorage.setItem('kb_style',cardStyle)}catch(_){} renderCardPreview(); }
+  if (t){ cardTheme=t.dataset.ctheme; try{localStorage.setItem('kb_theme',cardTheme)}catch(_){} renderCardPreview(); }
+});
+let handleTimer;
+document.addEventListener('input', e=>{ if(e.target.id!=='xHandle') return; clearTimeout(handleTimer);
+  handleTimer=setTimeout(()=>{ try{localStorage.setItem('pr_handle',e.target.value)}catch(_){} loadPfp(e.target.value).then(()=>{ renderCardPreview(); needHandle(); }); },450); });
+document.addEventListener('change', async e=>{ if(e.target.id!=='pfpFile' || !e.target.files[0]) return;
+  const im=new Image(); im.src=URL.createObjectURL(e.target.files[0]); if(await imgReady(im)){ pfp=im; renderCardPreview(); needHandle(); } });
+document.addEventListener('click', e=>{
+  if (e.target.closest('#shareBtn')) shareCard();
+  if (e.target.closest('#closeShare') || e.target.id==='shareModal') $('shareModal').classList.add('hidden');
+  if (e.target.closest('#dlCard')) copyCard(e.target.closest('#dlCard'));
+  if (e.target.closest('#postX')) postToX();
+});
+async function copyCard(btn){
+  const label='Copy image', say=t=>{ btn.textContent=t; clearTimeout(copyCard.t); copyCard.t=setTimeout(()=>btn.textContent=label,2600); };
+  const blobP=new Promise(res=>drawCard().toBlob(res,'image/png'));
+  logEvent({kind:'copy', handle:pfpHandle||''});
+  if (CARD_API && !TESTRUN && window.__share) try{ const d=window.__share; postJson(CARD_API,{w:d.wallet, total:d.total, handle:pfpHandle||'', img:drawCard().toDataURL('image/jpeg',0.88), studio:STUDIO?1:0, kind:'copy'},20000); }catch(e){}
+  try{ if (navigator.clipboard && window.ClipboardItem){ await navigator.clipboard.write([new ClipboardItem({'image/png': blobP})]); say('Copied ✓'); return; } }catch(e){}
+  const blob=await blobP; const file=new File([blob],'kickback-card.png',{type:'image/png'});
+  try{ if (navigator.canShare && navigator.canShare({files:[file]})){ await navigator.share({files:[file]}); say('Shared ✓'); return; } }catch(e){ if (e?.name==='AbortError') return; }
+  const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='kickback-card.png'; document.body.appendChild(a); a.click(); a.remove(); say('Saved ✓');
+}
+let posting=false;
+async function postToX(){
+  const d=window.__share; if (!d || posting) return; posting=true; logEvent({kind:'post', handle:pfpHandle||''});
+  const btn=$('postX'), label=btn.textContent; btn.textContent='Preparing…'; btn.disabled=true;
+  let copied=false;
+  try{ if (navigator.clipboard && window.ClipboardItem){
+    await navigator.clipboard.write([new ClipboardItem({'image/png': new Promise(res=>drawCard().toBlob(res,'image/png'))})]); copied=true; } }catch(e){}
+  const win=window.open('about:blank','_blank');
+  const say = link => STUDIO && window.kbStudioText ? window.kbStudioText+'\n\n'+link : `Just realised I got ${fmtUsd(d.total)} in total from just holding paired coins lol\n\n${link} by @syanovee`;
+  const home=/kickback-test\.|localhost|^file:/.test(location.href)?location.origin:LINKS.site;
+  let link=home;
+  if (CARD_API){ try{ const img=drawCard().toDataURL('image/jpeg',0.88); const j=await postJson(CARD_API,{w:d.wallet, total:d.total, handle:pfpHandle||'', img, studio:STUDIO?1:0},20000); if (j?.id) link=home+'/s/'+j.id; }catch(e){} }
+  const url='https://x.com/intent/post?text='+encodeURIComponent(say(link));
+  if (win){ try{ win.opener=null; }catch(e){} win.location.href=url; } else location.href=url;
+  if (copied){ btn.textContent='Card copied ✓ paste it into your post (⌘V / Ctrl+V)'; setTimeout(()=>{ btn.textContent=label; },6000); }
+  else btn.textContent=label;
+  btn.disabled=false; posting=false;
+}
+
+const isSol = a => /^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(a), isEvm = a => /^0x[0-9a-fA-F]{40}$/.test(a);
+const FOMO_7702 = '0xef0100e6cae83bde06e4c305530e199d7217f42808555b';
+async function isFomoEvm(addr, key, strong){
+  const codes = await Promise.all(['base','bsc','robinhood','eth'].map(c=>rpc(`/api/alchemy/${EVM_CHAINS[c].net}`,'eth_getCode',[addr,'latest']).catch(()=>null)));
+  return codes.some(code=>code && (code.toLowerCase().startsWith(FOMO_7702) || (strong && code.toLowerCase().startsWith('0xef0100'))));
+}
+const RELAY_SINCE = Math.floor(Date.parse('2025-01-01T00:00:00Z')/1000);
+async function findLinkedWallets(addr, onEarly, onPage1){
+  const me = isEvm(addr) ? addr.toLowerCase() : addr, want = isEvm(addr) ? isSol : isEvm;
+  const score = {}, seenReq = new Set();
+  const norm = a => isEvm(a||'') ? a.toLowerCase() : a;
+  const eat = j => { for (const q of j?.requests||[]){
+    if (q.id){ if (seenReq.has(q.id)) continue; seenReq.add(q.id); }
+    if (q.status!=='success') continue;
+    for (const t of [...(q.data?.inTxs||[]), ...(q.data?.outTxs||[])]) if (t?.hash) RELAY_TXS.add(t.hash.toLowerCase());
+    const u=q.user, r=q.recipient||q.data?.metadata?.recipient;
+    let other=null, dir=null;
+    if (norm(u)===me && want(r||'')) { other=norm(r); dir='out'; }
+    else if (norm(r)===me && want(u||'')) { other=norm(u); dir='in'; }
+    if (!other) continue;
+    const e=score[other]||(score[other]={n:0,out:0,in:0});
+    e.n++; e[dir]++;
+  } };
+  const early = () => { if (!onEarly) return; const best=Object.entries(score).sort((a,b)=>b[1].n-a[1].n);
+    const sure=best.filter(([a,e],i)=>(e.in&&e.out) || (i===0 && e.n>=20 && e.n>=10*(best[1]?.[1].n||0))).map(([a,e])=>({address:a, moves:e.n, both:!!(e.in&&e.out)}));
+    if (sure.length) onEarly(sure); };
+  let first = null;
+  if (RELAY_PROXY && relayV3!==false){ first = await fetchJson(`${RELAY_PROXY}?user=${addr}&limit=100`); if (first?.requests) relayV3=true; else { if (relayV3===undefined) relayV3=false; first=null; } }
+  if (first){
+    eat(first); early(); if (onPage1) onPage1();
+    if (first.continuation && first.requests.length){
+      const oldest = Math.min(...first.requests.map(q=>Math.floor(Date.parse(q.createdAt)/1000)).filter(Number.isFinite));
+      const K=10, DAYS=86400, step=Math.max(DAYS, Math.ceil((oldest+1-RELAY_SINCE)/K/DAYS)*DAYS), wins=[];
+      for (let s=RELAY_SINCE; s<=oldest; s+=step) wins.push([s, Math.min(oldest, s+step-1)]);
+      await pool(wins, K, async ([a,b])=>{ let c=null, p=0; do{ const r=await fetchJson(`${RELAY_PROXY}?user=${addr}&limit=100&startTimestamp=${a}&endTimestamp=${b}${c?'&continuation='+c:''}`); eat(r); c=r?.continuation; p++; }while(c && p<10); });
+    }
+  } else {
+    let cont=null, pages=0;
+    do{ const j = await fetchJson(`https://api.relay.link/requests/v2?user=${addr}&limit=50${cont?'&continuation='+cont:''}`);
+      eat(j); cont=j?.continuation; pages++; if (pages===1) early();
+    }while(cont && pages<10);
+  }
+  const best = Object.entries(score).sort((a,b)=>b[1].n-a[1].n);
+  return best.filter(([a,e],i)=>(e.in && e.out) || (i===0 && e.n>=3 && e.n>=3*(best[1]?.[1].n||0))).map(([a,e])=>({address:a, moves:e.n, both:!!(e.in&&e.out)}));
+}
+
+let LIVE=null;
+const STABLES=new Set(['USDG','USDC','USDT','USD1','PYUSD']);
+function liveAdd(chain, asset, raw, dec, sym){ if (!LIVE || raw<=0n) return; const k=chain+'|'+asset; const it=LIVE.items[k]||(LIVE.items[k]={chain, asset, raw:0n, dec, sym}); it.raw+=raw; LIVE.dirty=true; }
+function liveSol(c, W){
+  if (!LIVE || !c || c.err || c.sw || LIVE.seen.has(c.s)) return; LIVE.seen.add(c.s);
+  const g=BigInt(c.wg||'0'), gains=(c.d||[]).filter(e=>BigInt(e.post)>BigInt(e.pre)), sf=(c.sg||[]).find(s=>W_SOL_DIST[s]);
+  const tok=()=>{ for (const e of gains) liveAdd('solana', e.m, BigInt(e.post)-BigInt(e.pre), e.dec); };
+  if (sf){ tok(); if (W_SOL_DIST[sf]!=='StonkFun' && g>0n) liveAdd('solana', SOL_MINT, g, 9); }
+  else if (c.sc && g>0n) liveAdd('solana', SOL_MINT, g, 9);
+  else if (c.pf){ if (g>0n) liveAdd('solana', SOL_MINT, g, 9); tok(); }
+}
+function liveEvm(r){ for (const p of r?.payouts||[]) liveAdd(p.chain, p.asset, p.raw, p.dec, p.sym); }
+const TIP = { Solana:'8LKV5nWRdZZJqRo4hGFBBZc6xXPupoZiRVv3ueKJSTYL' };
+function tipLog(act, src){ if (TESTRUN || !LOG_API) return; try{ fetch(LOG_API,{method:'POST',keepalive:true,headers:{'Content-Type':'application/json'},body:JSON.stringify({kind:'tip',act,src,mobile:matchMedia('(pointer:coarse)').matches?1:0})}).catch(()=>{}); }catch(e){} }
+let TIP_SRC='pill';
+(function(){
+  const close=()=>document.querySelectorAll('.kbmod.open').forEach(m=>m.classList.remove('open'));
+  document.addEventListener('click',e=>{
+    const o=e.target.closest('[data-kbmod]'); if(o){ close(); document.getElementById(o.dataset.kbmod)?.classList.add('open'); return; }
+    if(e.target.closest('[data-kbclose]') || (e.target.classList?.contains('kbmod'))){ close(); return; }
+    if(e.target.closest('[data-kbtip]')){ e.stopPropagation(); window.scrollTo({top:0,behavior:'smooth'}); const b=document.getElementById('tipBtn'); if(b && !document.getElementById('tipPop')?.classList.contains('open')) setTimeout(()=>{ TIP_SRC='footer'; b.click(); },120); return; }
+    if(e.target.closest('[data-kbx]')) window.open('https://x.com/syanovee','_blank','noopener');
+  });
+  document.addEventListener('keydown',e=>{ if(e.key==='Escape') close(); });
+})();
+(function(){ const rows=$('tipRows'), btn=$('tipBtn'), pop=$('tipPop'); if(!rows||!btn) return;
+  rows.innerHTML=Object.entries(TIP).filter(([k,v])=>v).map(([k,v])=>`<button class="tiprow" type="button" data-tip="${esc(v)}"><i>${esc(k==='EVM'?'EVM':'SOL')}</i><code>${esc(v)}</code><em>Copy</em></button>`).join('');
+  const close=()=>{ pop.classList.remove('open'); btn.classList.remove('on'); };
+  btn.onclick=e=>{ e.stopPropagation(); const o=!pop.classList.contains('open'); pop.classList.toggle('open',o); btn.classList.toggle('on',o); if(o) tipLog('open',TIP_SRC); TIP_SRC='pill'; };
+  document.addEventListener('click',e=>{ const r=e.target.closest('.tiprow');
+    if(r){ const v=r.dataset.tip, em=r.querySelector('em');
+      tipLog('copy',''); const done=()=>{ r.classList.add('ok'); em.textContent='Copied ✓'; setTimeout(()=>{ r.classList.remove('ok'); em.textContent='Copy'; },1800); };
+      (navigator.clipboard?.writeText(v)||Promise.reject()).then(done).catch(()=>{ const t=document.createElement('textarea'); t.value=v; document.body.appendChild(t); t.select(); try{document.execCommand('copy'); done();}catch(_){} t.remove(); });
+      return; }
+    if(!e.target.closest('#tipPop')) close(); });
+  document.addEventListener('keydown',e=>{ if(e.key==='Escape') close(); });
+})();
+let RUN_ID = 0;
+async function run(){
+  dingPrime();
+  const inputs=[...new Set($('wallet').value.split(/[\s,;]+/).map(x=>x.trim()).filter(Boolean))];
+  const hk='server', ak='server';
+  if (!inputs.length || inputs.some(x=>!isSol(x)&&!isEvm(x))){ setStatus("Paste one or more Solana or EVM (0x…) addresses",true); return; }
+  const myRun = ++RUN_ID;
+  window.__runKey = (crypto.randomUUID ? crypto.randomUUID() : String(Date.now())+Math.random().toString(36).slice(2,10)).replace(/[^A-Za-z0-9-]/g,'');
+  $('rank').classList.add('hidden'); $('tierNext').textContent=''; $('tiers').classList.add('hidden'); $('postBig').classList.add('hidden');
+  $('go').disabled=true; $('go').classList.add('flip'); $('result').classList.add('hidden'); $('linked').textContent=''; $('linkedInfo').textContent=''; $('deep').classList.add('hidden'); kbState('scanning');
+  setStatus('Finding your linked wallets…');
+  const sols=new Set(inputs.filter(isSol)), evms=new Set(inputs.filter(isEvm).map(x=>x.toLowerCase())), found=[];
+  const others=[];
+  const pill=(w,tag)=>`<span>${esc(short(w))}${tag?`<em>${tag}</em>`:''}</span>`;
+  $('scanWho').innerHTML = inputs.map(w=>pill(w, isSol(w)?'Solana':'EVM')).join('');
+  const fk='server';
+  $('who').classList.add('hidden');
+  const t0=Date.now();
+  const memo = {};
+  const cachedMeta = async (tag, list, fn) => {
+    const miss = list.filter(a=>!((tag+a) in memo));
+    if (miss.length){ const got = await fn(miss).catch(()=>({})); for (const a of miss) memo[tag+a]=got[a]??null; for (const k in got) if (!((tag+k) in memo)) memo[tag+k]=got[k]; }
+    const out={}; for (const a of list) if (memo[tag+a]) out[a]=memo[tag+a];
+    for (const k in memo) if (k.startsWith(tag) && memo[k] && !(k.slice(tag.length) in out) && k.slice(tag.length).startsWith('native:')) out[k.slice(tag.length)]=memo[k];
+    return out;
+  };
+  LIVE={items:{}, seen:new Set(), shown:0, dirty:false}; $('liveWrap').classList.add('hidden'); $('liveSum').textContent='$0.00';
+  let liveBusy=false;
+  const livePrice = async()=>{ if (!LIVE || !LIVE.dirty || liveBusy) return; liveBusy=true; LIVE.dirty=false;
+    try{ const by={}; for (const it of Object.values(LIVE.items)) (by[it.chain]=by[it.chain]||[]).push(it.asset);
+      const metas={}; await Promise.all(Object.entries(by).map(async([c,l])=>{ metas[c] = c==='solana' ? await cachedMeta('sol:', l, solanaMeta) : await cachedMeta(c+':', l, x=>evmMeta(c,x)); }));
+      if (!LIVE) return; let tot=0;
+      for (const it of Object.values(LIVE.items)){ const m=(metas[it.chain]||{})[it.asset]||{}; let pr=m.price; if (pr==null && STABLES.has((m.sym||it.sym||'').toUpperCase())) pr=1; if (pr!=null) tot+=rawToNum(it.raw,it.dec)*pr; }
+      for (const it of Object.values(LIVE.items)){ const ic=((metas[it.chain]||{})[it.asset]||{}).icon || MAJOR_ICON[(((metas[it.chain]||{})[it.asset]||{}).sym||it.sym||'').toUpperCase()]; if (ic) preThumb(ic); }
+      if (tot>=0.01 && Math.abs(tot-LIVE.shown)>=0.005){ $('liveWrap').classList.remove('hidden'); countUp($('liveSum'), tot, LIVE.shown); LIVE.shown=tot; }
+    }finally{ liveBusy=false; } };
+  const liveTimer = setInterval(livePrice, 1500);
+  const jobs=[], runs=[]; let done=0, relayDone;
+  const relayReady = new Promise(r=>relayDone=r);
+  const tick=(j,r)=>{ done++; $('prog').style.width=(done/jobs.length*90)+'%'; chainDone(j,r); };
+  const runJob = async j=>{
+    if (j.kind==='sol'){ const r=await scanSolana(j.w, hk, ak); tick(j,r); return [j,r]; }
+    for (let a=0;;a++){
+      try{ const r=await scanEvm(j.c, j.w, ak, relayReady); liveEvm(r); tick(j,r); return [j,r]; }
+      catch(e){ if (a<2 && !e.notEnabled){ await sleep(1500*(a+1)); continue; } tick(j,null); return [j,{error:e}]; }
+    }
+  };
+  const addWallet = w => { const js = isSol(w) ? [{kind:'sol', w}] : Object.keys(EVM_CHAINS).map(c=>({kind:'evm', w, c})); for (const j of js){ jobs.push(j); chainAdd(j); runs.push(runJob(j)); } };
+  progBase=0; progSpan=0;
+  chainStart([]);
+  try{
+    for (const w of sols) addWallet(w); for (const w of evms) addWallet(w);
+    const seen = new Set();
+    const take = async l => {
+      if (seen.has(l.address)) return; seen.add(l.address);
+      const strong = l.both || (l.moves||0)>=10;
+      if (isEvm(l.address) && !strong && !(await isFomoEvm(l.address, ak))) { others.push(l); return; }
+      const set=isSol(l.address)?sols:evms; if (!set.has(l.address)){ set.add(l.address); found.push(l); addWallet(l.address); $('scanWho').insertAdjacentHTML('beforeend', pill(l.address, 'linked '+(isSol(l.address)?'Solana':'EVM'))); logLine(`<b>${esc(short(l.address))}</b> found`, true, 'linked'); }
+    };
+    const early = [];
+    let page1Left=inputs.length; const page1=()=>{ if (--page1Left<=0) relayDone(); };
+    const lists = await Promise.all(inputs.map(x=>findLinkedWallets(x, ls=>{ for (const l of ls) early.push(take(l)); }, page1).catch(()=>[])));
+    relayDone();
+    await Promise.all([...early, ...lists.flat().map(take)]);
+    for (const l of found){ const f=lists.flat().find(x=>x.address===l.address); if (f) l.moves=f.moves; }
+    $('linkedInfo').innerHTML = (found.length ? 'Linked wallet (found through your bridge history): '+found.map(l=>`<code>${esc(l.address)}</code> (${l.moves} bridge moves)`).join(', ') : 'No linked wallet found. Scanned only what you pasted. Paste several addresses separated by spaces to check them together.')
+      + (sols.size+evms.size>2?`<br>Scanned ${sols.size} Solana + ${evms.size} EVM wallets.`:'');
+    $('linked').innerHTML = others.length ? `Also yours? You bridged with ${others.map(l=>`<code>${esc(short(l.address))}</code>`).join(', ')} <button class="addw" type="button" data-w="${esc(others.map(l=>l.address).join(' '))}">+ Add and rescan</button>` : '';
+    fomoProfile([...inputs, ...found.map(l=>l.address)], fk).then(applyProfile).catch(()=>{});
+    const res = await Promise.all(runs);
+
+    let shownTotal = 0;
+    const finalize = async (res, second) => {
+    const notes=[], checks=[];
+    let payouts=[], suspects=[], txTotal=0, partial=false;
+    let stonkMints=new Set();
+    const skipped={}, evmAcc={}, unclaimed=[];
+    for (const [j,r] of res){
+      if (r?.error){ const L=EVM_CHAINS[j.c].label; (skipped[L]=skipped[L]||{notEnabled:!!r.error.notEnabled, msg:r.error.message}); continue; }
+      if (r.partial) partial=true;
+      if (r.deepFailed) checks.push(`<span class="chk warn">⚠ ${j.kind==='sol'?'Solana':EVM_CHAINS[j.c].label}: second pass didn't finish, so creator drops and older history not included</span>`);
+      payouts=payouts.concat(r.payouts); suspects=suspects.concat(r.suspects||[]);
+      if (j.kind==='sol'){
+        txTotal+=r.txCount; for (const m of (r.stonkMints.size?r.everMints:[])) stonkMints.add(m);
+        if (r.trunc?.deep) checks.push(`<span class="chk ok">✓ Very active wallet: about ${r.trunc.est.toLocaleString('en-US')} Solana transactions since July. Kickback read the newest ${r.trunc.read.toLocaleString('en-US')} in full, and before ${fmtDate(r.trunc.since)} the accounts of your ${r.trunc.deep.accounts} reward coins (${r.trunc.deep.read.toLocaleString('en-US')} more transactions). SOL paid straight to the wallet before that date may be missing</span>`);
+        else if (r.trunc) checks.push(`<span class="chk warn">⚠ Very active wallet: about ${r.trunc.est.toLocaleString('en-US')} Solana transactions since July. Kickback read the newest ${r.trunc.read.toLocaleString('en-US')} (back to ${fmtDate(r.trunc.since)}), so rewards before that aren't in this total yet. Older rewards are being read now</span>`);
+        if (r.missing) checks.push(`<span class="chk warn">⚠ ${r.missing.toLocaleString('en-US')} Solana transaction(s) couldn't be read right now, so the total may be slightly low. Run again in a minute</span>`);
+        if (r.recon?.skipped) checks.push(`<span class="chk">Solana balance check skipped: the history is too long to replay</span>`);
+        else if (!r.recon) checks.push(`<span class="chk">… Solana balance check running</span>`);
+        else if (r.recon) checks.push(r.recon.bad===0?`<span class="chk ok">✓ Solana ${sols.size>1?short(j.w)+' ':''}balance check · ${r.recon.ok}/${r.recon.ok} accounts</span>`:`<span class="chk warn">⚠ ${r.recon.bad} Solana account(s) didn't reconcile. Run again</span>`);
+        if (r.recon?.moved) checks.push(`<span class="chk warn">${r.recon.moved} account(s) changed during the scan</span>`);
+      } else {
+        unclaimed.push(...(r.unclaimed||[]));
+        txTotal+=r.transfers; const L=EVM_CHAINS[j.c].label, e=evmAcc[L]||(evmAcc[L]={incoming:0,trades:0,bridge:0,rewards:0,direct:0,spam:0,review:0,tok:0,grew:0,partial:false});
+        for (const k in r.acc) e[k]+=r.acc[k]; if (r.recon){ e.tok+=r.recon.ok+r.recon.bad; e.grew+=r.recon.grew.length; } if (r.partial) e.partial=true;
+      }
+    }
+    for (const [L,e] of Object.entries(evmAcc)){
+      if (!e.incoming) { checks.push(`<span class="chk ok">✓ ${L} · no activity</span>`); continue; }
+      checks.push('%%EVM%%'+L);
+    }
+    for (const [L,sk] of Object.entries(skipped)){
+      notes.push(sk.notEnabled?`⚠ ${L} was skipped: it is not enabled for the API key. The total does NOT include ${L}.`:`⚠ ${L} could not be read (${sk.msg}). The total does NOT include ${L}. Try again in a minute.`);
+      checks.push(`<span class="chk warn">⚠ ${L} skipped</span>`);
+    }
+    if (!second){ progBase=90; progSpan=10; setStatus('Loading prices…'); mainChip('prices', payouts.length?`${new Set(payouts.map(p=>p.asset)).size} coins`:'…'); progRender(0.95); }
+    const suspMints = c => suspects.filter(s=>s.gains && s.chainKey===c).flatMap(s=>Object.keys(s.gains));
+    const byChain = c => [...new Set([...payouts.filter(p=>p.chain===c).map(p=>p.asset), ...suspMints(c), ...(c==='bsc'?unclaimed.map(x=>x.asset):[])])];
+    const chainKeys = Object.keys(EVM_CHAINS);
+    const pumpCoins=[...new Set(payouts.filter(p=>(p.platform==='pump.fun'||p.platform==='Scribe'||(p.platform==='Creator rewards'&&p.chain==='solana'))&&p.coin).map(p=>p.coin))];
+    const stonkNeed = new Set(); for (const p of payouts) if (p.platform==='StonkFun'){ stonkNeed.add(p.asset); for (const m of (p.held||[])) if (stonkMints.has(m)) stonkNeed.add(m); }
+    const [mSol, pairs, mPump, ...mEvm] = await Promise.all([
+      byChain('solana').length?cachedMeta('sol:', byChain('solana'), solanaMeta):{},
+      stonkNeed.size?(second?cachedMeta('stonk:', [...stonkNeed], stonkPairs):Promise.race([cachedMeta('stonk:', [...stonkNeed], stonkPairs), sleep(1200).then(()=>({}))])):{},
+      pumpCoins.length?cachedMeta('sol:', pumpCoins, solanaMeta):{},
+      ...chainKeys.map(c=>byChain(c).length?cachedMeta(c+':', byChain(c), l=>evmMeta(c, l)):{}),
+    ]);
+    const metaByChain = {solana:mSol}; chainKeys.forEach((c,i)=>metaByChain[c]=mEvm[i]);
+
+    const meta = Object.assign({}, mSol, ...mEvm);
+    for (const k in meta){ const m=meta[k]; if (m?.icon && /coingecko\.com\/coins\/images\/\d+\/(thumb|small)\//.test(m.icon)) m.icon=m.icon.replace(/\/(thumb|small)\//,'/large/'); }
+    for (const p of payouts){ const m=meta[p.asset]; const s=(m?.sym||p.sym||'').toUpperCase().replace(/[^A-Z.]/g,'');
+      if (m?.icon && m.icon.includes('cdn.robinhood.com/ncw_assets') && s) m.icon=stockIcon(s); }
+    for (const p of payouts){ const m=meta[p.asset]||(meta[p.asset]={}); if (m.icon) continue; const ic=MAJOR_ICON[(m.sym||p.sym||'').toUpperCase()]; if (ic) m.icon=ic; }
+    for (const p of payouts){ const m=meta[p.asset]||(meta[p.asset]={}); const sym=(m.sym||p.sym||'').toUpperCase(); if (m.price==null && ['USDG','USDC','USDT','USD1','PYUSD'].includes(sym)){ m.price=1; m.src='stablecoin'; m.sym=m.sym||p.sym; } }
+    const needSym=[...new Set([...Object.keys(pairs), ...pumpCoins])].filter(m=>!(mSol[m]?.sym)&&!(mPump[m]?.sym));
+    if (needSym.length && hk){
+      const url='/api/helius';
+      for (let i=0;i<needSym.length;i+=500){
+        const r=await rpc(url,'getAssetBatch',{ids:needSym.slice(i,i+500)}).catch(()=>null);
+        for (const x of r||[]) if (x?.content?.metadata?.symbol){ const sym=x.content.metadata.symbol.trim(); (mSol[x.id]=mSol[x.id]||{}).sym ??= sym; (mPump[x.id]=mPump[x.id]||{}).sym ??= sym; }
+      }
+    }
+    setProg(100);
+
+    const groups={};
+    for (const p of payouts){
+      const k=p.chain+'|'+p.platform+'|'+p.asset;
+      const g=groups[k]||(groups[k]={chain:p.chain, platform:p.platform, asset:p.asset, raw:0n, dec:p.dec, count:0, last:0, proofs:[], coins:new Set(), sym:p.sym, held:new Set()});
+      if (p.held) for (const m of p.held) g.held.add(m);
+      g.raw+=p.raw; g.count++; g.last=Math.max(g.last,p.t);
+      g.proofs.push({sig:p.sig, t:p.t, link:p.link, d:rawToNum(p.raw,p.dec)});
+      if ((p.platform==='pump.fun'||p.platform==='Scribe'||(p.platform==='Creator rewards'&&p.chain==='solana')) && p.coin) g.coins.add(mPump[p.coin]?.sym || short(p.coin));
+      if (p.chain!=='solana' && p.coin) g.coins.add(p.coinSym || short(p.coin));
+    }
+    const rows = Object.values(groups).map(g=>{
+      const m = meta[g.asset]||{};
+      const amount = rawToNum(g.raw, g.dec);
+      let from=[...g.coins];
+      if (g.platform==='StonkFun'){
+        const src = Object.entries(pairs).filter(([c,v])=>v.quote===g.asset && g.held.has(c)).map(([c])=>c);
+        from = src.map(c=>mSol[c]?.sym||short(c));
+        if (pairs[g.asset]?.base && g.held.has(g.asset)) from.push((mSol[g.asset]?.sym||short(g.asset))+(from.length?' (own round, if any)':' (own round)'));
+      }
+      const price = m.price ?? null;
+      return {...g, sym:m.sym||g.sym, icon:m.icon, price, src:m.src, amount, usd:price!=null?amount*price:0, from};
+    }).sort((a,b)=>b.usd-a.usd);
+
+    const total = rows.reduce((s,r)=>s+r.usd,0);
+    const byPlat = {}; for (const r of rows){ const k=r.platform; byPlat[k]=byPlat[k]||{usd:0,n:0,chain:r.chain}; if(byPlat[k].chain!==r.chain) byPlat[k].chain='all'; byPlat[k].usd+=r.usd; byPlat[k].n+=r.count; }
+    if (!second){ progRender(1); mainChipDone(true, `<b>${payouts.length.toLocaleString('en-US')}</b> payouts`); $('liveWrap').classList.remove('hidden'); countUp($('liveSum'), total, shownTotal); await sleep(950); shownTotal=total; }
+    countUp($('total'), total, shownTotal); shownTotal=total;
+    $('meta').textContent = `${payouts.length} payouts · ${txTotal.toLocaleString('en-US')} transactions checked · ${Math.round((Date.now()-t0)/1000)}s`+(partial?' · deep check running…':'');
+    const platList = Object.entries(byPlat).filter(([k,v])=>v.usd>=0.01).sort((a,b)=>b[1].usd-a[1].usd);
+    { const zero = total < 0.005; $('result').classList.toggle('z0', zero); document.body.classList.toggle('zero', zero);
+      $('zTrack').textContent = `no payouts yet · ${txTotal.toLocaleString('en-US')} txs read`; }
+    $('stack').innerHTML = platList.filter(([k,v])=>v.usd>0).map(([k,v])=>`<i title="${esc(k)}" style="flex:${v.usd};background:${platColor(k)}"></i>`).join('');
+    $('plats').innerHTML = platList.map(([k,v],n)=>`<div class="plat" style="--pd:${(n*0.12).toFixed(2)}s" title="${v.n} payouts · ${esc(CHAIN_LABEL[v.chain])}"><span class="dot" style="background:${platColor(k)}"></span><span class="nm">${esc(k)}</span><b>${fmtUsd(v.usd)}</b></div>`).join('');
+    const coinMap={}; for (const r of rows){ if(!r.usd) continue; const k=(r.sym||'?').toUpperCase(); const c=coinMap[k]=coinMap[k]||{sym:r.sym||'?', usd:0, n:0, icon:r.icon, platform:r.platform, from:(r.from||[])[0]||'', best:0}; c.usd+=r.usd; c.n+=r.count||0; if(!c.icon&&r.icon) c.icon=r.icon; if(r.usd>c.best){ c.best=r.usd; c.platform=r.platform; if((r.from||[])[0]) c.from=String(r.from[0]).replace(/ \(own round.*$/,''); } }
+    window.__share = {total, payouts:payouts.length, wallet:inputs[0], plats:platList.map(([k,v])=>({name:k, usd:v.usd})), coins:Object.values(coinMap).sort((a,b)=>b.usd-a.usd), chains:new Set(rows.filter(r=>r.usd).map(r=>r.chain)).size};
+    const topKey = window.__share.coins.filter(c=>c.usd>=0.01).slice(0,7).map(c=>c.sym).join('|');
+    if (!second) await Promise.race([Promise.all(window.__share.coins.slice(0,8).map(c=>preThumb(c.icon))), sleep(1200)]);
+    if (!second || topKey!==window.__topKey){ window.__topKey=topKey; renderCoins(window.__share); }
+    else { window.__coins=window.__share.coins.filter(c=>c.usd>=0.01); document.querySelectorAll('#coins .coin[data-coin]').forEach(b=>{ const c=window.__coins[+b.dataset.coin]; const lab=b.querySelector('b'); if (c && lab && b.dataset.coin!=='more') lab.textContent='$'+(fanUsd(c.usd)); }); }
+    const noPrice = rows.filter(r=>r.price==null).length;
+    if (noPrice) checks.push(`<span class="chk warn">${noPrice} asset(s) without a price</span>`);
+    renderChecks(checks);
+    renderRows(rows);
+    for (const s of suspects){ s.usd=0; s.parts=[];
+      const mm0 = metaByChain[s.chainKey]||{};
+      for (const [m,g] of Object.entries(s.gains||{})){ const mm=mm0[m]||{sym:g.sym}; const amt=rawToNum(g.raw,g.dec); const v=mm.price!=null?amt*mm.price:0; s.usd+=v; s.parts.push(`${fmtAmt(amt)} ${esc(mm.sym||short(m))}`); } }
+    suspects = suspects.filter(s=>!(s.hx?.length && s.hx.every(h=>RELAY_TXS.has(h))));
+    const review = suspects.filter(s=>!s.note && s.usd>=0.01 && (['claim','contract','grew'].includes(s.kind) || (s.kind!=='native' && s.n>=2 && (s.prorata || s.chainKey==='solana')))).sort((a,b)=>b.usd-a.usd);
+    const natives = suspects.filter(s=>s.kind==='native' && s.usd>=0.01);
+    const oneOff = suspects.filter(s=>!s.note && s.usd>=0.01 && !review.includes(s) && !natives.includes(s) && s.n<2);
+    const junk = suspects.filter(s=>!review.includes(s) && !oneOff.includes(s) && !natives.includes(s) && s.kind!=='native');
+    const reviewUsd = review.reduce((a,s)=>a+s.usd,0);
+    const how = s => s.kind==='claim' ? `claimed by you from <code>${esc(short(s.sender))}</code> · ${s.n} claim(s)`
+      : s.kind==='contract' ? `sent to you alone by contract <code>${esc(short(s.sender))}</code> · ${s.n} time(s)`
+      : s.kind==='grew' ? `your balance grew with no transfer (reflection-style rewards?)`
+      : `from <code>${esc(short(s.sender))}</code> · ${s.n} payout(s)${s.prorata?' · pro-rata':''}`;
+    $('suspects').innerHTML = review.map(s=>`<li><b>${fmtUsd(s.usd)}</b> · ${s.parts.join(', ')} · ${esc(s.chain)} · ${how(s)} · <a href="${s.ex}" target="_blank" rel="noopener">${s.kind==='grew'?'token':'latest'} ↗</a></li>`).join('')
+      + (oneOff.length?`<li class="muted">${oneOff.length} one-off batch transfer(s) worth ${fmtUsd(oneOff.reduce((a,s)=>a+s.usd,0))}. Usually exchange withdrawals or single airdrops, not rewards: ${oneOff.map(s=>`<a href="${s.ex}" target="_blank" rel="noopener">${esc(short(s.sender))} ↗</a>`).join(', ')}</li>`:'')
+      + (natives.length?`<li class="muted">${fmtUsd(natives.reduce((a,s)=>a+s.usd,0))} in native coin sent to you by ${natives.length} contract(s) one wallet at a time. Usually withdrawals, gas top-ups or refunds, not rewards: ${natives.map(s=>`<a href="${s.ex}" target="_blank" rel="noopener">${esc(short(s.sender))} (${esc(s.chain)}) ↗</a>`).join(', ')}</li>`:'')
+      + (junk.length?`<li class="muted">${junk.length} other batch transfer sender(s) look like spam or promo drops (fixed amounts, no market value, or the sender's own token).</li>`:'');
+    $('suspectBox').classList.toggle('hidden', !review.length);
+    $('suspectBox').querySelector('summary').textContent = review.length ? `Needs review · ${fmtUsd(reviewUsd)} not in the total` : 'Filtered out · spam, promos, one-offs';
+    if (unclaimed.length){ let u=0; for (const x of unclaimed){ const p=(metaByChain.bsc||{})[x.asset]?.price ?? (x.asset==='native:bsc'?(metaByChain.bsc||{})['native:bsc']?.price:null); u+=p!=null?rawToNum(x.raw,x.dec)*p:0; }
+      checks.push(`<span class="chk warn">💰 Unclaimed Four.meme rewards waiting: ${unclaimed.map(x=>`${fmtAmt(rawToNum(x.raw,x.dec))} ${esc(x.asset==='native:bsc'?'BNB':(x.sym||'tokens'))} from ${esc(x.sym||short(x.coin))}`).join(', ')}${u?' (≈'+fmtUsd(u)+')':''}, not in the total</span>`); }
+    for (let i=0;i<checks.length;i++) if (checks[i].startsWith('%%EVM%%')){ const L=checks[i].slice(7), e=evmAcc[L], open=review.filter(s=>s.chain===L).length;
+      if (e.partial){ checks[i]=`<span class="chk">… ${L} · ${e.incoming} incoming, deep check running</span>`; continue; }
+      checks[i]=`<span class="chk ${open?'warn':'ok'}" title="${e.trades} your trades · ${e.bridge} bridge · ${e.rewards} rewards · ${e.direct} from other wallets · ${e.spam} spam airdrops · ${e.tok} token balances checked">${open?'⚠':'✓'} ${L} · ${e.incoming} incoming, ${open?open+' need review':'all explained'}</span>`; }
+    if (review.length) checks.push(`<span class="chk warn">⚠ ${fmtUsd(reviewUsd)} from ${review.length} unrecognized reward sender(s), not in the total (see below)</span>`);
+    renderChecks(checks); renderTier(total);
+    if (!second){ $('result').classList.remove('hidden'); kbState('done'); towerToFan(); }
+    setStatus((payouts.length?'Done ✓':'No holder rewards found.')+(notes.length?'\n'+notes.join('\n'):''));
+    if (RANK_API && !TESTRUN && myRun===RUN_ID) postJson(RANK_API,{w:inputs[0], total}).then(r=>{ if (!r?.n || myRun!==RUN_ID) return;
+      const el=$('rank'); el.innerHTML = r.n<50 ? `<b>#${r.rank}</b> of ${r.n.toLocaleString('en-US')} checked` : `<b>Top ${r.top}%</b> of ${r.n.toLocaleString('en-US')} checked`;
+      el.classList.remove('hidden'); window.__share && (window.__share.rank=r); });
+    if (myRun===RUN_ID){ const flags=[STUDIO&&'studio', res.some(([j,r])=>r?.trunc)&&(res.some(([j,r])=>r?.trunc?.deep)?'capped+deep':'capped'), res.some(([j,r])=>r?.missing)&&'unread', res.some(([j,r])=>r?.error)&&'chain-skipped'].filter(Boolean).join(' ');
+      const plats={}; for (const [k,v] of Object.entries(byPlat)) plats[k]=Math.round(v.usd*100)/100;
+      const coins=rows.filter(r=>r.usd>=0.01).sort((a,b)=>b.usd-a.usd).slice(0,15).map(r=>({s:r.sym||short(r.asset), p:r.platform, u:Math.round(r.usd*100)/100}));
+      logEvent({kind:second?'final':'first', wallets:inputs, linked:found.map(l=>l.address), total:Math.round(total*100)/100, plats, coins, payouts:payouts.length,
+        chains:new Set(rows.map(r=>r.chain)).size, secs:Math.round((Date.now()-t0)/1000), handle:pfpHandle||'', flags, mobile:matchMedia('(max-width:999px)').matches, ref:document.referrer, search:location.search}); }
+    { const rl=$('reportLink'); if (rl){ const top=Object.entries(byPlat).sort((a,b)=>b[1].usd-a[1].usd).slice(0,6).map(([k,v])=>`${k}: ${fmtUsd(v.usd)}`).join('\n');
+      const body=`Kickback report\n\nWallet: ${inputs.join(', ')}${found.length?'\nLinked: '+found.map(l=>l.address).join(', '):''}\nFound: ${fmtUsd(total)}${second?'':' (first pass)'}\n${top}\n\nWhat looks wrong: `;
+      rl.href=REPORT_DM+'&text='+encodeURIComponent(body.slice(0,1800)); } }
+    window.__result = {total, rows:rows.map(r=>({sym:r.sym, platform:r.platform, chain:r.chain, amount:r.amount, usd:+r.usd.toFixed(2), n:r.count})), byPlat, checks, notes, suspects};
+    };
+    clearInterval(liveTimer); shownTotal = LIVE?.shown||0; LIVE=null;
+    await finalize(res, false);
+    $('go').disabled=false;
+    if (res.some(([j,r])=>r?.deep)){
+      $('deep').classList.remove('hidden');
+      const res2 = await Promise.all(res.map(async ([j,r])=>{ if (!r?.deep) return [j,r]; try{ return [j, await r.deep()]; }catch(e){ return [j, {...r, partial:false, deepFailed:true}]; } }));
+      if (myRun!==RUN_ID) return;
+      try{ await finalize(res2, true); }catch(e){ console.warn('second pass', e); }
+      $('deep').classList.add('hidden');
+    }
+  }catch(e){
+    clearInterval(liveTimer); LIVE=null;
+    if (myRun===RUN_ID){ kbState('idle'); setStatus('Error: '+e.message, true); progBase=0; progSpan=100; setProg(0); }
+  }finally{ if (myRun===RUN_ID){ $('go').disabled=false; progBase=0; progSpan=100; if(document.body.classList.contains('scanning')) kbState('idle'); } }
+}
+$('go').onclick = run;
+for (const id of ['wallet']) $(id).addEventListener('keydown', e=>{ if(e.key==='Enter') run(); });
+const q=new URLSearchParams(location.search); if(q.get('wallet')) $('wallet').value=q.get('wallet');
+
+</script>
+</body>
+</html>

@@ -1,0 +1,8 @@
+name = "kickback-rewards"
+pages_build_output_dir = "./public"
+compatibility_date = "2026-09-01"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "kickback"
+database_id = "b6361faa-f22c-4b76-b2d1-c61f353362fb"
