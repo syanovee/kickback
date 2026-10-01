@@ -67,16 +67,6 @@ functions/api/card       share cards; functions/s and functions/c serve the link
 
 Runs on Cloudflare Pages Functions with D1. API keys stay on the server; the API only answers requests from the site.
 
-## Running it yourself
-
-You need a Cloudflare account and keys for Helius, Alchemy, Relay and FomoScan.
-
-```
-npx wrangler d1 create kickback        # put the id into wrangler.toml
-cp secrets.example.json secrets.json   # fill in your keys
-bash deploy.sh
-```
-
 ## Privacy
 
 Each scan logs the addresses checked, the totals found, the X handle if one was typed for the share card, country, device type and referrer. IP addresses are not stored.
