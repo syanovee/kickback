@@ -22,6 +22,15 @@ export function solCompact(tx, W){
     const ix = msg.instructions.find(i=>i.programId===PUMP_PROGRAM);
     c.pf = 1; c.pc = (ix?.accounts||[]).find(a=>a.endsWith('pump')) || ix?.accounts?.[2] || null;
   }
+  /* batch payouts: who else got the same token in this tx and how much (owner prefix, raw). Lets us tell which coin's round it was */
+  { const mine = c.d.filter(e=>BigInt(e.post)>BigInt(e.pre)).map(e=>e.m);
+    if (mine.length){ const per={};
+      for (const b of tx.meta.postTokenBalances||[]){ if (b.owner===W || !mine.includes(b.mint)) continue;
+        const p=(tx.meta.preTokenBalances||[]).find(x=>x.accountIndex===b.accountIndex); const g=BigInt(b.uiTokenAmount.amount)-BigInt(p?.uiTokenAmount.amount||'0');
+        if (g>0n){ const k=b.mint+'|'+(b.owner||'').slice(0,8); per[k]=(per[k]||0n)+g; } }
+      const co={}; for (const [k,v] of Object.entries(per)){ const [m,o]=k.split('|'); (co[m]=co[m]||[]).push([o,String(v)]); }
+      for (const m in co){ if (co[m].length<2){ delete co[m]; continue; } co[m].sort((a,b)=>BigInt(b[1])>BigInt(a[1])?1:-1); co[m]=co[m].slice(0,12); }
+      if (Object.keys(co).length) c.co=co; } }
   const gainers = new Set();
   for (const b of tx.meta.postTokenBalances||[]){
     const p=(tx.meta.preTokenBalances||[]).find(x=>x.accountIndex===b.accountIndex);

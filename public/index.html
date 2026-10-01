@@ -620,7 +620,7 @@ const TOKEN_PROGRAMS = ['TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA','TokenzQdB
 const STONK_API = 'https://www.stonkfun.xyz/api/public/v1';
 const stonkUrl = m => '/api/stonk/'+m;
 // reward coins we know, by the token they pay in: label shows instantly, without waiting for StonkFun's API
-const STONK_KNOWN = { '8RVBk8vxLiUHueLUW1f4izFVqN3nWippLhkohKg6EGkS':{sym:'KNOTS', pays:'STONK'} };
+const STONK_KNOWN = { '8RVBk8vxLiUHueLUW1f4izFVqN3nWippLhkohKg6EGkS':{sym:'KNOTS', pays:'STONK', paysMint:'6GmAFSYs4gk3FDao5FzzySQpPZaWsa4rUJHacpMpUNgx'} };
 const RH_API = 'https://robinhoodchain.blockscout.com/api/v2';
 const RELAY_PROXY = '/api/relay';
 let relayV3;
@@ -848,6 +848,15 @@ function solCompact(tx, W){
     const ix = msg.instructions.find(i=>i.programId===PUMP_PROGRAM);
     c.pf = 1; c.pc = (ix?.accounts||[]).find(a=>a.endsWith('pump')) || ix?.accounts?.[2] || null;
   }
+  /* batch payouts: who else got the same token in this tx and how much (owner prefix, raw). Lets us tell which coin's round it was */
+  { const mine = c.d.filter(e=>BigInt(e.post)>BigInt(e.pre)).map(e=>e.m);
+    if (mine.length){ const per={};
+      for (const b of tx.meta.postTokenBalances||[]){ if (b.owner===W || !mine.includes(b.mint)) continue;
+        const p=(tx.meta.preTokenBalances||[]).find(x=>x.accountIndex===b.accountIndex); const g=BigInt(b.uiTokenAmount.amount)-BigInt(p?.uiTokenAmount.amount||'0');
+        if (g>0n){ const k=b.mint+'|'+(b.owner||'').slice(0,8); per[k]=(per[k]||0n)+g; } }
+      const co={}; for (const [k,v] of Object.entries(per)){ const [m,o]=k.split('|'); (co[m]=co[m]||[]).push([o,String(v)]); }
+      for (const m in co){ if (co[m].length<2){ delete co[m]; continue; } co[m].sort((a,b)=>BigInt(b[1])>BigInt(a[1])?1:-1); co[m]=co[m].slice(0,12); }
+      if (Object.keys(co).length) c.co=co; } }
   const gainers = new Set();
   for (const b of tx.meta.postTokenBalances||[]){
     const p=(tx.meta.preTokenBalances||[]).find(x=>x.accountIndex===b.accountIndex);
@@ -885,7 +894,7 @@ function solAnalyze(W, all, initBal){
 
     const sf = signers.find(s=>W_SOL_DIST[s] && !(window.__prDisable||{})[W_SOL_DIST[s]]);
     if (sf){ const plat=W_SOL_DIST[sf];
-      for (const e of tokenGains){ payouts.push({...base, platform:plat, asset:e.mint, raw:e.post-e.pre, dec:e.dec, held:heldBefore}); if (plat==='StonkFun') stonkMints.add(e.mint); }
+      for (const e of tokenGains){ payouts.push({...base, platform:plat, asset:e.mint, raw:e.post-e.pre, dec:e.dec, held:heldBefore, co:c.co?.[e.mint]||null}); if (plat==='StonkFun') stonkMints.add(e.mint); }
       if (plat!=='StonkFun' && solGain>0n) payouts.push({...base, platform:plat, asset:SOL_MINT, raw:solGain, dec:9});
       continue; }
     if (c.sc && solGain>0n && !(window.__prDisable||{}).Scribe){ payouts.push({...base, platform:'Scribe', asset:SOL_MINT, raw:solGain, dec:9, coin:c.sc}); continue; }
@@ -1265,9 +1274,37 @@ async function robinhoodMeta(addrs){
   await pool(addrs, 16, async a=>{ const j=await bsToken(a).catch(()=>null); if (j) info[a]={price:j.exchange_rate!=null?+j.exchange_rate:null, sym:j.symbol, icon:j.icon_url, src:'Blockscout'}; });
   return info;
 }
+/* StonkFun pays many coins' holders in the same token (e.g. KNOTS, HODL, DONK all pay STONK) and the chain doesn't say which coin a payout was for.
+   Each payout tx is one batch of one coin's round, split pro-rata by that coin's holdings, so the same co-recipients get the same ratio
+   to you across that coin's rounds. Payouts that share 2+ co-recipients at a steady ratio are one coin; then we name the coin:
+   the only reward coin held at all of them, or the one whose latest StonkFun round matches the cluster's latest payout. */
+function stonkSplit(payouts, pairs){
+  const byAsset={};
+  for (const p of payouts) if (p.platform==='StonkFun') (byAsset[p.asset]=byAsset[p.asset]||[]).push(p);
+  for (const [asset, ps] of Object.entries(byAsset)){
+    const coins=Object.entries(pairs||{}).filter(([c,v])=>v.quote===asset).map(([c])=>c);
+    if (pairs?.[asset]?.base) coins.push(asset);
+    if (!coins.length) continue;                       // StonkFun hasn't told us who pays in this token: don't guess
+    const cand=p=>coins.filter(c=>c===asset || (p.held||[]).includes(c));
+    // one coin's rounds go to the same holders: payouts sharing 3+ co-recipients are one coin's stream
+    const par=ps.map((_,i)=>i), f=i=>{ while(par[i]!==i){ par[i]=par[par[i]]; i=par[i]; } return i; };
+    const byOwner={}; ps.forEach((p,i)=>{ for (const [o] of (p.co||[])) (byOwner[o]=byOwner[o]||[]).push(i); });
+    const hits=new Map();
+    for (const arr of Object.values(byOwner)) if (arr.length<400) for (let a=0;a<arr.length;a++) for (let b=a+1;b<arr.length;b++){ const k=arr[a]*100000+arr[b]; hits.set(k,(hits.get(k)||0)+1); }
+    for (const [k,n] of hits) if (n>=3){ const x=Math.floor(k/100000), y=k%100000; par[f(x)]=f(y); }
+    const cl={}; ps.forEach((p,i)=>(cl[f(i)]=cl[f(i)]||[]).push(p));
+    const groups=Object.values(cl).map(m=>{ let cs=cand(m[0]); for (const p of m){ const c2=cand(p); cs=cs.filter(c=>c2.includes(c)); } return {m, cs, last:Math.max(...m.map(p=>p.t||0))}; });
+    for (const g of groups) g.pick = g.cs.length===1 ? g.cs[0] : null;
+    // still ambiguous: a coin's latest StonkFun round lands on the cluster whose latest payout is closest (within 15 min)
+    for (const c of coins){ const L=pairs?.[c]?.last; if (!L) continue;
+      const o=groups.filter(g=>!g.pick && g.cs.includes(c)).map(g=>[Math.abs(g.last-L),g]).filter(x=>x[0]<900).sort((a,b)=>a[0]-b[0]);
+      if (o.length && (o.length===1 || o[1][0]-o[0][0]>120)) o[0][1].pick=c; }
+    for (const g of groups) if (g.pick) for (const p of g.m) p.src=g.pick;   // the rest stays a shared row listing every coin
+  }
+}
 async function stonkPairs(mints){
   const out={}; let idx=0;
-  const worker=async()=>{ while(idx<mints.length){ const m=mints[idx++]; const j=await fetchJson(stonkUrl(m)); if(j?.data?.mode==='reward') out[m]={quote:j.data.quote?.mint, base:(j.data.base?.payoutCount||0)>0}; } };
+  const worker=async()=>{ while(idx<mints.length){ const m=mints[idx++]; const j=await fetchJson(stonkUrl(m)); if(j?.data?.mode==='reward') out[m]={quote:j.data.quote?.mint, base:(j.data.base?.payoutCount||0)>0, last:Date.parse(j.data.rewards?.lastPayoutAt||'')/1000||0}; } };
   await Promise.all(Array.from({length:24},worker));
   return out;
 }
@@ -2092,7 +2129,7 @@ async function run(){
     Object.entries(heldCnt).sort((a,b)=>b[1]-a[1]).slice(0,second?150:25).forEach(([m])=>stonkNeed.add(m));
     const [mSol, pairs, mPump, ...mEvm] = await Promise.all([
       byChain('solana').length?cachedMeta('sol:', byChain('solana'), solanaMeta):{},
-      stonkNeed.size?(second?cachedMeta('stonk:', [...stonkNeed], stonkPairs):Promise.race([cachedMeta('stonk:', [...stonkNeed], stonkPairs), sleep(2500).then(()=>({}))])):{},
+      stonkNeed.size?(second?cachedMeta('stonk:', [...stonkNeed], stonkPairs):Promise.race([cachedMeta('stonk:', [...stonkNeed], stonkPairs), sleep(4000).then(()=>({}))])):{},
       pumpCoins.length?cachedMeta('sol:', pumpCoins, solanaMeta):{},
       ...chainKeys.map(c=>byChain(c).length?cachedMeta(c+':', byChain(c), l=>evmMeta(c, l)):{}),
     ]);
@@ -2114,10 +2151,17 @@ async function run(){
     }
     setProg(100);
 
+    stonkSplit(payouts, pairs);   // only once StonkFun answered for every coin held, a partial list would mislabel
+    if (TESTRUN && /[?&]dump\b/.test(location.search)){ try{
+      const dump={wallet:inputs[0], second, pairs, payouts:payouts.filter(p=>p.platform==='StonkFun').map(p=>({sig:p.sig, t:p.t, asset:p.asset, raw:String(p.raw), held:p.held, co:p.co, src:p.src||null}))};
+      let b=document.getElementById('kbDump'); if(!b){ b=document.createElement('a'); b.id='kbDump'; b.style.cssText='position:fixed;left:16px;bottom:16px;z-index:99;background:#ff8a3d;color:#1a120a;padding:12px 18px;border-radius:12px;font:700 14px sans-serif;text-decoration:none'; document.body.appendChild(b); }
+      b.textContent='Download debug ('+(second?'final':'first')+', '+dump.payouts.length+' payouts)'; b.download='kickback-debug-'+(second?'final':'first')+'.json';
+      b.href=URL.createObjectURL(new Blob([JSON.stringify(dump)],{type:'application/json'}));
+    }catch(e){ console.log('dump failed',e); } }
     const groups={};
     for (const p of payouts){
-      const k=p.chain+'|'+p.platform+'|'+p.asset;
-      const g=groups[k]||(groups[k]={chain:p.chain, platform:p.platform, asset:p.asset, raw:0n, dec:p.dec, count:0, last:0, proofs:[], coins:new Set(), sym:p.sym, held:new Set()});
+      const k=p.chain+'|'+p.platform+'|'+p.asset+'|'+(p.src||'');
+      const g=groups[k]||(groups[k]={src:p.src||null, chain:p.chain, platform:p.platform, asset:p.asset, raw:0n, dec:p.dec, count:0, last:0, proofs:[], coins:new Set(), sym:p.sym, held:new Set()});
       if (p.held) for (const m of p.held) g.held.add(m);
       g.raw+=p.raw; g.count++; g.last=Math.max(g.last,p.t);
       g.proofs.push({sig:p.sig, t:p.t, link:p.link, d:rawToNum(p.raw,p.dec)});
@@ -2128,10 +2172,10 @@ async function run(){
       const m = meta[g.asset]||{};
       const amount = rawToNum(g.raw, g.dec);
       let from=[...g.coins];
-      if (g.platform==='StonkFun'){
+      if (g.platform==='StonkFun' && g.src){ from=[mSol[g.src]?.sym||STONK_KNOWN[g.src]?.sym||short(g.src)]; }
+      else if (g.platform==='StonkFun'){
         const src = Object.entries(pairs).filter(([c,v])=>v.quote===g.asset && g.held.has(c)).map(([c])=>c);
         from = src.map(c=>mSol[c]?.sym||STONK_KNOWN[c]?.sym||short(c));
-        const gs=(mSol[g.asset]?.sym||g.sym||'').toUpperCase(); for (const [c,k] of Object.entries(STONK_KNOWN)) if (k.pays===gs && g.held.has(c) && !src.includes(c)) from.unshift(k.sym);
         if (pairs[g.asset]?.base && g.held.has(g.asset)) from.push((mSol[g.asset]?.sym||short(g.asset))+(from.length?' (own round, if any)':' (own round)'));
       }
       const price = m.price ?? null;
@@ -2191,7 +2235,7 @@ async function run(){
       el.classList.remove('hidden'); window.__share && (window.__share.rank=r); });
     if (myRun===RUN_ID){ const flags=[STUDIO&&'studio', res.some(([j,r])=>r?.trunc)&&(res.some(([j,r])=>r?.trunc?.deep)?'capped+deep':'capped'), res.some(([j,r])=>r?.missing)&&'unread', res.some(([j,r])=>r?.error)&&'chain-skipped'].filter(Boolean).join(' ');
       const plats={}; for (const [k,v] of Object.entries(byPlat)) plats[k]=Math.round(v.usd*100)/100;
-      const coins=rows.filter(r=>r.usd>=0.01).sort((a,b)=>b.usd-a.usd).slice(0,15).map(r=>({s:r.sym||short(r.asset), p:r.platform, u:Math.round(r.usd*100)/100}));
+      const coins=rows.filter(r=>r.usd>=0.01).sort((a,b)=>b.usd-a.usd).slice(0,15).map(r=>({s:r.sym||short(r.asset), p:r.platform, u:Math.round(r.usd*100)/100, ...(r.src||(r.from||[]).length===1?{f:String(r.src?(r.from||[])[0]||short(r.src):r.from[0]).replace(/ \(own round.*$/,'')}:{})}));
       logEvent({kind:second?'final':'first', wallets:inputs, linked:found.map(l=>l.address), total:Math.round(total*100)/100, plats, coins, payouts:payouts.length,
         chains:new Set(rows.map(r=>r.chain)).size, secs:Math.round((Date.now()-t0)/1000), handle:pfpHandle||'', flags, mobile:matchMedia('(max-width:999px)').matches, ref:document.referrer, search:location.search}); }
     { const rl=$('reportLink'); if (rl){ const top=Object.entries(byPlat).sort((a,b)=>b[1].usd-a[1].usd).slice(0,6).map(([k,v])=>`${k}: ${fmtUsd(v.usd)}`).join('\n');

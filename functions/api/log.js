@@ -1,7 +1,7 @@
 import { json } from '../_lib/cache.js';
 const isAddr = s => typeof s === 'string' && (/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(s) || /^0x[0-9a-fA-F]{40}$/.test(s));
 const str = (s, n) => typeof s === 'string' ? s.slice(0, n) : '';
-const coinsJson = c => JSON.stringify((Array.isArray(c) ? c : []).slice(0, 15).map(x => ({ s: str(x?.s, 16), p: str(x?.p, 24), u: Math.round(Number(x?.u) * 100) / 100 || 0 })));
+const coinsJson = c => JSON.stringify((Array.isArray(c) ? c : []).slice(0, 15).map(x => ({ s: str(x?.s, 16), p: str(x?.p, 24), u: Math.round(Number(x?.u) * 100) / 100 || 0, ...(x?.f ? { f: str(x.f, 16) } : {}) })));
 const num = (v, max = 1e9) => { const x = Number(v); return Number.isFinite(x) && x >= 0 && x <= max ? x : 0; };
 let ready = false;
 async function init(DB) {
