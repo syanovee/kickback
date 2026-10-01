@@ -2085,7 +2085,9 @@ async function run(){
     const byChain = c => [...new Set([...payouts.filter(p=>p.chain===c).map(p=>p.asset), ...suspMints(c), ...(c==='bsc'?unclaimed.map(x=>x.asset):[])])];
     const chainKeys = Object.keys(EVM_CHAINS);
     const pumpCoins=[...new Set(payouts.filter(p=>(p.platform==='pump.fun'||p.platform==='Scribe'||(p.platform==='Creator rewards'&&p.chain==='solana'))&&p.coin).map(p=>p.coin))];
-    const stonkNeed = new Set(); for (const p of payouts) if (p.platform==='StonkFun'){ stonkNeed.add(p.asset); for (const m of (p.held||[])) if (stonkMints.has(m)) stonkNeed.add(m); }
+    const stonkNeed = new Set(), heldCnt = {}; for (const p of payouts) if (p.platform==='StonkFun'){ stonkNeed.add(p.asset); for (const m of (p.held||[])) if (stonkMints.has(m)) stonkNeed.add(m); else if (!m.endsWith('pump') && m!==SOL_MINT) heldCnt[m]=(heldCnt[m]||0)+1; }
+    /* coins held while StonkFun paid (e.g. KNOTS paying in STONK) are reward coins too: ask StonkFun about the most-held ones */
+    Object.entries(heldCnt).sort((a,b)=>b[1]-a[1]).slice(0,150).forEach(([m])=>stonkNeed.add(m));
     const [mSol, pairs, mPump, ...mEvm] = await Promise.all([
       byChain('solana').length?cachedMeta('sol:', byChain('solana'), solanaMeta):{},
       stonkNeed.size?(second?cachedMeta('stonk:', [...stonkNeed], stonkPairs):Promise.race([cachedMeta('stonk:', [...stonkNeed], stonkPairs), sleep(1200).then(()=>({}))])):{},
