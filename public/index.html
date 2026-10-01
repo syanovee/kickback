@@ -619,6 +619,8 @@ const SOL_IGNORE_SIGNERS = new Set([
 const TOKEN_PROGRAMS = ['TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA','TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb'];
 const STONK_API = 'https://www.stonkfun.xyz/api/public/v1';
 const stonkUrl = m => '/api/stonk/'+m;
+// reward coins we know, by the token they pay in: label shows instantly, without waiting for StonkFun's API
+const STONK_KNOWN = { '8RVBk8vxLiUHueLUW1f4izFVqN3nWippLhkohKg6EGkS':{sym:'KNOTS', pays:'STONK'} };
 const RH_API = 'https://robinhoodchain.blockscout.com/api/v2';
 const RELAY_PROXY = '/api/relay';
 let relayV3;
@@ -2087,10 +2089,10 @@ async function run(){
     const pumpCoins=[...new Set(payouts.filter(p=>(p.platform==='pump.fun'||p.platform==='Scribe'||(p.platform==='Creator rewards'&&p.chain==='solana'))&&p.coin).map(p=>p.coin))];
     const stonkNeed = new Set(), heldCnt = {}; for (const p of payouts) if (p.platform==='StonkFun'){ stonkNeed.add(p.asset); for (const m of (p.held||[])) if (stonkMints.has(m)) stonkNeed.add(m); else if (!m.endsWith('pump') && m!==SOL_MINT) heldCnt[m]=(heldCnt[m]||0)+1; }
     /* coins held while StonkFun paid (e.g. KNOTS paying in STONK) are reward coins too: ask StonkFun about the most-held ones */
-    Object.entries(heldCnt).sort((a,b)=>b[1]-a[1]).slice(0,150).forEach(([m])=>stonkNeed.add(m));
+    Object.entries(heldCnt).sort((a,b)=>b[1]-a[1]).slice(0,second?150:25).forEach(([m])=>stonkNeed.add(m));
     const [mSol, pairs, mPump, ...mEvm] = await Promise.all([
       byChain('solana').length?cachedMeta('sol:', byChain('solana'), solanaMeta):{},
-      stonkNeed.size?(second?cachedMeta('stonk:', [...stonkNeed], stonkPairs):Promise.race([cachedMeta('stonk:', [...stonkNeed], stonkPairs), sleep(1200).then(()=>({}))])):{},
+      stonkNeed.size?(second?cachedMeta('stonk:', [...stonkNeed], stonkPairs):Promise.race([cachedMeta('stonk:', [...stonkNeed], stonkPairs), sleep(2500).then(()=>({}))])):{},
       pumpCoins.length?cachedMeta('sol:', pumpCoins, solanaMeta):{},
       ...chainKeys.map(c=>byChain(c).length?cachedMeta(c+':', byChain(c), l=>evmMeta(c, l)):{}),
     ]);
@@ -2128,7 +2130,8 @@ async function run(){
       let from=[...g.coins];
       if (g.platform==='StonkFun'){
         const src = Object.entries(pairs).filter(([c,v])=>v.quote===g.asset && g.held.has(c)).map(([c])=>c);
-        from = src.map(c=>mSol[c]?.sym||short(c));
+        from = src.map(c=>mSol[c]?.sym||STONK_KNOWN[c]?.sym||short(c));
+        const gs=(mSol[g.asset]?.sym||g.sym||'').toUpperCase(); for (const [c,k] of Object.entries(STONK_KNOWN)) if (k.pays===gs && g.held.has(c) && !src.includes(c)) from.unshift(k.sym);
         if (pairs[g.asset]?.base && g.held.has(g.asset)) from.push((mSol[g.asset]?.sym||short(g.asset))+(from.length?' (own round, if any)':' (own round)'));
       }
       const price = m.price ?? null;
