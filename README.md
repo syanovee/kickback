@@ -1,10 +1,23 @@
-# Kickback
+<p align="center"><a href="https://getkickback.fun"><img src="public/og.png" alt="Kickback" width="760"></a></p>
 
-Kickback shows every holder reward a wallet has received from launchpad coins, with a link to the transaction behind each payout.
+<h1 align="center">Kickback</h1>
 
-Live at [getkickback.fun](https://getkickback.fun). No wallet connect, no signing: paste an address and read.
+<p align="center"><b>Your bags paid you. See how much.</b><br>
+Every holder reward a wallet received from launchpad coins, each with its transaction.</p>
 
+<p align="center">
+  <a href="https://getkickback.fun"><img alt="Live" src="https://img.shields.io/badge/live-getkickback.fun-ff8a3d?style=flat-square"></a>
+  <img alt="Chains" src="https://img.shields.io/badge/chains-Solana%20·%20BNB%20·%20Base%20·%20ETH%20·%20Robinhood-26211c?style=flat-square">
+  <img alt="No wallet connect" src="https://img.shields.io/badge/wallet%20connect-not%20needed-2aa198?style=flat-square">
+  <a href="https://x.com/syanovee"><img alt="X" src="https://img.shields.io/badge/by-@syanovee-000?style=flat-square&logo=x"></a>
+</p>
+
+> [!WARNING]
 > Kickback has no token and no contract address. Any coin using the name is not affiliated.
+
+<p align="center">
+  <img src=".github/desktop.jpg" alt="Kickback on desktop" width="68%">&nbsp;&nbsp;<img src=".github/mobile.jpg" alt="Kickback on mobile" width="24%">
+</p>
 
 ## Why
 
