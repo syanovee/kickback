@@ -198,6 +198,11 @@
   .kbfoot button{all:unset;cursor:pointer;color:var(--muted);border-bottom:1px dashed var(--line2);padding-bottom:1px;transition:color .2s}
   .kbfoot button:hover,.kbfoot button:focus-visible{color:var(--text)}
   .kbfoot i{font-style:normal;opacity:.6}
+  @media (max-width:999px){ body.done main{justify-content:center;padding-top:5vh} body.idle main{justify-content:center;padding-bottom:12vh} body.scanning main{justify-content:center;padding-bottom:6vh}
+    .wrap{position:relative} body.idle .kbfoot,body.idle .mtag,body.idle .noca{position:absolute}
+    .search input,.pfp-row input,.keys input{font-size:16px} .search input{letter-spacing:-.3px} }
+  @media (max-width:999px) and (min-width:400px){ .coins{zoom:1.16} body.done .stage{height:172px} }
+  @media (max-width:399px){ .coins{zoom:1.06} body.done .stage{height:158px} }
   @media (max-width:999px){ body.idle .kbfoot{font-size:10px;gap:3px 8px;bottom:calc(14px + env(safe-area-inset-bottom))} }
   .kbmod{position:fixed;inset:0;z-index:90;display:grid;place-items:center;padding:16px;background:rgba(10,8,6,.62);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);opacity:0;pointer-events:none;transition:opacity .25s var(--ease)}
   .kbmod.open{opacity:1;pointer-events:auto}
@@ -209,7 +214,7 @@
   @media (max-width:560px){ .kbmod{align-items:end;padding:0} .kbmod .bx{border-radius:20px 20px 0 0;padding:22px 20px calc(22px + env(safe-area-inset-bottom));max-height:85vh;transform:translateY(40px)} .kbmod h3{font-size:19px} .kbmod ul{font-size:13.5px} }
   body.idle .noca{display:block;position:fixed;left:16px;right:16px;bottom:calc(16px + env(safe-area-inset-bottom));font:11.5px/1.4 var(--mono);color:var(--dim);text-align:center;z-index:5}
 
-  @media (max-width:999px){ body.idle .mtag{display:flex;align-items:center;justify-content:center;gap:7px;position:fixed;left:0;right:0;bottom:calc(38px + env(safe-area-inset-bottom));font:11px var(--mono);color:var(--dim);pointer-events:none}
+  @media (max-width:999px){ body.idle .mtag{display:flex;align-items:center;justify-content:center;gap:7px;position:absolute;left:0;right:0;bottom:calc(38px + env(safe-area-inset-bottom));font:11px var(--mono);color:var(--dim);pointer-events:none}
     .mtag b{font:900 13px var(--disp);color:var(--text)} .mtag svg{width:16px;height:16px} }
   :root{--z:1}
   @media (min-width:1500px){ :root{--z:1.15} .wrap{zoom:1.15} }
@@ -240,7 +245,7 @@
     .proofs .nm1{font-size:13.5px;line-height:1.3} .proofs .from{font-size:11px;line-height:1.35} .proofs .val b{font-size:13.5px;line-height:1.3} .proofs .val small{font-size:10px;line-height:1.3}
     .proofs #meta{font-size:12px} .proofs #linkedInfo{font-size:11.5px;color:var(--dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:6px}
     .proofs .list{padding-bottom:4px} .proofs .hint{margin:8px 0 0;font-size:11.5px} .proofs .details-in{padding-top:6px} .proofs .checks{margin-top:6px}
-    .coins{zoom:1.3} body.done .stage{height:196px}
+    .coins{zoom:1.5} body.done .stage{height:226px}
     .proofs .details{max-height:none!important;overflow:visible!important}
     #moreBtn{display:none}
     .total{font-size:72px}
@@ -412,7 +417,23 @@
   details.ck{width:100%} details.ck summary{list-style:none;cursor:pointer;display:flex;align-items:center;gap:10px} details.ck summary::-webkit-details-marker{display:none}
   details.ck .more{font:11px var(--mono);color:var(--dim)}
   .ckl{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
-  #linkedInfo{font-size:12px;color:var(--muted);margin-top:10px} #linkedInfo:empty{display:none}
+  /* checks: a quiet list, status shown by a small mark, not colored pills */
+  #checks{display:block;margin-top:12px}
+  details.ckx{border:1px solid var(--line);border-radius:14px;background:rgba(255,255,255,.012);overflow:hidden}
+  details.ckx summary{list-style:none;cursor:pointer;display:flex;align-items:center;gap:10px;padding:10px 12px;font:600 13px var(--sans);color:var(--text)} details.ckx summary::-webkit-details-marker{display:none}
+  details.ckx summary .sm{font:400 12px var(--sans);color:var(--dim);margin-left:auto;display:flex;align-items:center;gap:6px}
+  details.ckx summary .sm svg{transition:transform .35s var(--ease)} details.ckx[open] summary .sm svg{transform:rotate(180deg)}
+  .ckx .cl{border-top:1px solid var(--line);padding:4px 12px 6px}
+  .ckr{display:grid;grid-template-columns:16px 1fr;gap:10px;padding:8px 0;align-items:start}
+  .ckr+.ckr{border-top:1px dashed var(--line)}
+  .ckr b{display:block;font:600 12.5px/1.35 var(--sans);color:var(--text)} .ckr>div>span{display:block;font:400 12px/1.45 var(--sans);color:var(--muted);margin-top:1px}
+  .ckm{width:16px;height:16px;display:grid;place-items:center;margin-top:1px;flex:none}
+  .ckm i{width:7px;height:7px;border-radius:50%;background:var(--dim)}
+  .ckm.warn i{background:var(--warn);box-shadow:0 0 0 3px rgba(255,181,71,.14)}
+  .ckm.ok svg{width:13px;height:13px;color:var(--ok)}
+  .ckm.run i{width:11px;height:11px;background:none;border:1.6px solid var(--line2);border-top-color:var(--acc);animation:ckRot .9s linear infinite}
+  @keyframes ckRot{to{transform:rotate(360deg)}}
+  #linkedInfo{font-size:12px;color:var(--muted);margin-top:10px;line-height:1.5} #linkedInfo:empty{display:none} #linkedInfo code{font-size:11.5px;color:var(--text)}
   .list{margin-top:12px;border-top:1px solid var(--line)}
   .rw{display:grid;grid-template-columns:32px 1fr auto;gap:12px;align-items:center;padding:11px 4px;border-bottom:1px solid var(--line);cursor:pointer;transition:background-color .3s ease}
   .rw:hover{background:var(--soft)}
@@ -428,6 +449,33 @@
   .proof li{display:grid;grid-template-columns:1fr auto auto;gap:14px;font:12px var(--mono);padding:5px 0;color:var(--muted);border-top:1px dashed var(--line)}
   .proof li span:nth-child(2){color:var(--text)} .proof a{color:var(--acc)}
   details.small{border-bottom:1px solid var(--line)}
+  /* a reward paid for holding several coins: the split by coin right under the row */
+  .rw.has-kids{border-bottom:0}
+  .kids{padding:0 4px 8px 48px;border-bottom:1px solid var(--line)}
+  .kid{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(40px,1fr) auto auto;gap:10px;align-items:center;padding:5px 8px;margin:0 -8px;border-radius:9px;cursor:pointer;font-size:12.5px;transition:background-color .25s}
+  .kid:hover{background:var(--soft)}
+  .kid .c{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis} .kid .c.q{font-weight:500;color:var(--muted)}
+  .kid .bar{height:5px;border-radius:3px;background:var(--s2);position:relative;overflow:hidden} .kid .bar i{position:absolute;inset:0 auto 0 0;border-radius:3px}
+  .kid .n{font:11px var(--mono);color:var(--dim);white-space:nowrap} .kid b{font-weight:600;text-align:right;min-width:62px;font-variant-numeric:tabular-nums}
+  /* payouts of a reward open in a window, so the list never grows */
+  .kbov{position:fixed;inset:0;z-index:200;background:rgba(8,6,5,.66);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;padding:16px;opacity:0;pointer-events:none;transition:opacity .3s ease}
+  .kbov.open{opacity:1;pointer-events:auto}
+  .kbmd{width:min(560px,100%);max-height:min(720px,86vh);display:flex;flex-direction:column;background:var(--s1);border:1px solid var(--line2);border-radius:22px;box-shadow:0 40px 90px -30px rgba(0,0,0,.85);transform:translateY(12px) scale(.98);transition:transform .25s var(--ease,ease)}
+  .kbov.open .kbmd{transform:none}
+  .kbmh{display:grid;grid-template-columns:40px 1fr auto 32px;gap:12px;align-items:center;padding:18px 16px 12px 18px}
+  .kbmh .ic{width:40px;height:40px} .kbmh .tot{text-align:right} .kbmh .tot b{display:block;font:800 20px var(--disp,var(--sans));letter-spacing:-.4px;font-variant-numeric:tabular-nums} .kbmh .tot small{font:11px var(--mono);color:var(--dim)}
+  .kbx{all:unset;cursor:pointer;width:32px;height:32px;border-radius:10px;display:grid;place-items:center;color:var(--muted);font-size:20px} .kbx:hover{background:var(--s2);color:var(--text)}
+  .kbch{display:flex;gap:6px;flex-wrap:wrap;padding:0 18px 12px}
+  .kbch button{all:unset;cursor:pointer;font:600 12px var(--sans);color:var(--muted);background:var(--s2);border:1px solid var(--line);border-radius:999px;padding:5px 11px}
+  .kbch button.on{background:var(--acc);border-color:var(--acc);color:var(--acc-ink)}
+  .kbml{flex:1;overflow:auto;overscroll-behavior:contain;padding:0 18px 14px;border-top:1px solid var(--line)}
+  .kbml .pm{font-size:12px;color:var(--muted);padding:10px 0 6px;line-height:1.6}
+  .kbml .qh{font-size:11.5px;color:var(--dim);padding:0 0 8px;line-height:1.45}
+  .kbml ul{margin:0;padding:0;list-style:none}
+  .kbml li{display:grid;grid-template-columns:1fr auto auto;gap:14px;align-items:center;font:12px var(--mono);padding:7px 0;color:var(--muted);border-top:1px dashed var(--line)}
+  .kbml li .s{font-size:10.5px;color:var(--dim);margin-left:8px} .kbml li .a{color:var(--text);text-align:right} .kbml li a{color:var(--acc)}
+  .kbml .more{display:block;width:100%;padding:10px 0;border:0;border-top:1px dashed var(--line);background:none;color:var(--muted);font:12px var(--mono);text-align:left;cursor:pointer} .kbml .more:hover{color:var(--acc)}
+  @media(max-width:600px){ .kbov{align-items:flex-end;padding:0;transition:opacity .4s ease} .kbmd{width:100%;max-height:86vh;max-height:86dvh;border-radius:22px 22px 0 0;border-bottom:0;transform:translateY(102%);transition:transform .55s cubic-bezier(.22,1,.36,1);will-change:transform;padding-bottom:env(safe-area-inset-bottom)} .kbov.open .kbmd{transform:none} .kbmd.drag{transition:none} .kbmd:before{content:'';display:block;width:40px;height:4px;border-radius:2px;background:var(--line2);margin:9px auto -6px;flex:none} .kbmh{padding-top:14px} .kid{grid-template-columns:minmax(0,1fr) auto auto} .kid .bar{display:none} .kids{padding-left:42px} }
   .showall{display:block;width:100%;margin:10px 0 2px;padding:9px;border:1px dashed var(--line2);border-radius:12px;background:none;color:var(--muted);font:500 12px var(--mono);cursor:pointer;transition:color .25s,border-color .25s}
   .showall:hover{color:var(--text);border-color:var(--acc)} .rows-more{animation:kbFade .5s ease both}
   details.small summary{list-style:none;cursor:pointer;display:flex;justify-content:space-between;padding:11px 4px;font-size:13px;color:var(--muted)}
@@ -771,7 +819,16 @@ function logEvent(o){ if (TESTRUN || !LOG_API || !window.__runKey) return;
   const body=JSON.stringify({run:window.__runKey, ...(o.kind==='copy'||o.kind==='post'?{wallets:[window.__share?.wallet].filter(Boolean)}:{}), ...o});
   try{ fetch(LOG_API,{method:'POST',keepalive:true,headers:{'Content-Type':'application/json'},body}).catch(()=>{}); }catch(e){} }
 const SOLSCAN = '/api/solscan';
-async function postJson(url, body, ms=30000){ const ac=new AbortController(), tm=setTimeout(()=>ac.abort(),ms);
+const DIAG={req:0, sigs:0, hit:0, ms:0, colo:''};
+/* test only: keep the last error so a reload doesn't lose it */
+function kbErr(e){ if (!TESTRUN) return; try{ localStorage.setItem('kbLastErr', new Date().toLocaleString()+'\n'+(e?.message||e)+'\n'+String(e?.stack||'').split('\n').slice(0,6).join('\n')); }catch{} }
+if (TESTRUN){ addEventListener('error', ev=>kbErr(ev.error||ev.message)); addEventListener('unhandledrejection', ev=>kbErr(ev.reason));
+  addEventListener('DOMContentLoaded', ()=>{ let t=null; try{ t=localStorage.getItem('kbLastErr'); }catch{} if (!t) return;
+    const b=document.createElement('pre'); b.style.cssText='position:fixed;left:12px;right:12px;bottom:12px;z-index:999;max-height:40vh;overflow:auto;margin:0;padding:12px 14px;background:#2a1418;border:1px solid #5a2430;color:#ffb3bc;font:11px/1.45 monospace;border-radius:12px;white-space:pre-wrap;cursor:pointer';
+    b.textContent='[test] last error (tap to clear)\n'+t; b.onclick=()=>{ try{ localStorage.removeItem('kbLastErr'); }catch{} b.remove(); }; document.body.appendChild(b); }); }
+if (TESTRUN) fetch('/cdn-cgi/trace').then(r=>r.text()).then(t=>{ DIAG.colo=(t.match(/colo=(\w+)/)||[])[1]||''; }).catch(()=>{});
+async function postJson(url, body, ms=30000){ if (url===SOLSCAN){ const t=performance.now(); const j=await postJson0(url, body, ms); DIAG.req++; DIAG.sigs+=body.sigs?.length||0; DIAG.hit+=j?.hit??0; DIAG.ms+=performance.now()-t; return j; } return postJson0(url, body, ms); }
+async function postJson0(url, body, ms=30000){ const ac=new AbortController(), tm=setTimeout(()=>ac.abort(),ms);
   try{ const r=await fetch(url,{method:'POST',signal:ac.signal,headers:{'Content-Type':'application/json',...(NC?{'x-kb-nc':'1'}:{})},body:JSON.stringify(body)}); return r.ok?await r.json():null; }catch(e){ return null; }finally{ clearTimeout(tm); } }
 function solSlices(index, size){
   const bySlot = {}; for (const x of index) (bySlot[x.slot]=bySlot[x.slot]||[]).push(x.sig);
@@ -1280,7 +1337,7 @@ async function robinhoodMeta(addrs){
    the only reward coin held at all of them, or the one whose latest StonkFun round matches the cluster's latest payout. */
 function stonkSplit(payouts, pairs){
   const byAsset={};
-  for (const p of payouts) if (p.platform==='StonkFun') (byAsset[p.asset]=byAsset[p.asset]||[]).push(p);
+  for (const p of payouts) if (p.platform==='StonkFun'){ delete p.src; (byAsset[p.asset]=byAsset[p.asset]||[]).push(p); }
   for (const [asset, ps] of Object.entries(byAsset)){
     const coins=Object.entries(pairs||{}).filter(([c,v])=>v.quote===asset).map(([c])=>c);
     if (pairs?.[asset]?.base) coins.push(asset);
@@ -1313,7 +1370,29 @@ const CHAIN_LABEL = {solana:'Solana', robinhood:'Robinhood Chain', bsc:'BNB Chai
 const PLAT_COLOR = {'StonkFun':'#7b4dff','pump.fun':'#5ee6a8','Pons':'#ff8a3d','Flap':'#e0a800','Four.meme':'#f0b90b','Ember':'#ff6b6b','Scribe':'#a996ff','Coin rewards':'#4cc9f0','Creator rewards':'#ff7ad9'};
 const platColor = p => PLAT_COLOR[p]||'#9aa0a6';
 const MIN_ROW_USD = 2;
+let KB_P=[];
+// rows come split by the coin that paid them; the list shows one line per reward token with that split under it
+function mergeRows(rows){
+  const m=new Map(), key=r=>r.chain+'|'+r.platform+'|'+r.asset;
+  // the same ticker can belong to different coins (clones), so a coin's line shows its mint when its ticker repeats
+  const symN={}; for (const r of rows) if (r.payer){ const k=key(r)+'|'+(r.from[0]||''); symN[k]=(symN[k]||0)+1; }
+  for (const r of rows){ const k=key(r); let g=m.get(k);
+    if (!g){ g={...r, parts:[], proofs:[], usd:0, count:0, amount:0}; m.set(k,g); }
+    const sf = !r.payer && r.platform==='StonkFun';   // StonkFun payouts we couldn't tie to one coin
+    let lab = r.payer ? (r.from[0]||'') : sf ? (r.from.length===2 ? r.from.join(' or ') : r.from.length>2 ? `one of ${r.from.length} coins` : 'not matched') : r.from.join(', ');
+    if (r.payer && symN[k+'|'+lab]>1) lab += ' · '+short(r.payer);
+    const q = sf;
+    const same=g.parts.find(x=>x.lab===lab && x.q===q);
+    if (same){ same.usd+=r.usd||0; same.count+=r.count; } else g.parts.push({lab, q, from:r.from, usd:r.usd||0, count:r.count, payer:r.payer||null});
+    for (const p of r.proofs) g.proofs.push({...p, lab});
+    g.usd+=r.usd||0; g.count+=r.count; g.amount+=r.amount||0;
+  }
+  return [...m.values()].map(g=>{ g.parts.sort((a,b)=>b.usd-a.usd);
+    if (g.parts.length===1){ g.from=g.parts[0].from; g.parts=[]; } else g.from=[...new Set(g.parts.flatMap(p=>p.from))];
+    return g; }).sort((a,b)=>b.usd-a.usd);
+}
 function renderRows(rows){
+  rows=mergeRows(rows); KB_P=rows;
   const big=rows.filter(r=>r.usd>=MIN_ROW_USD), small=rows.filter(r=>!(r.usd>=MIN_ROW_USD));
   const smallUsd=small.reduce((a,r)=>a+r.usd,0);
   const tail = small.length ? `<details class="small"><summary><span>+ ${small.length} smaller reward${small.length>1?'s':''} under $${MIN_ROW_USD}</span><b>${fmtUsd(smallUsd)}</b></summary>${rowHtml(small,big.length)}</details>` : '';
@@ -1323,40 +1402,64 @@ function renderRows(rows){
     : rowHtml(big,0) + tail;
 }
 function rowHtml(rows, off){
-  return rows.map((r,j)=>{ const i=j+off;
-    const id='p'+i, proofs=r.proofs.slice().sort((a,b)=>b.t-a.t).slice(0,PROOFS), sym=r.sym||short(r.asset);
+  return rows.map((r,j)=>{ const i=j+off, sym=r.sym||short(r.asset), multi=r.parts.length>1, top=multi?Math.max(...r.parts.map(p=>p.usd),0.01):1;
+    const sub = multi ? `${r.count} payouts · from ${r.parts.length} sources` : `${r.from.length?'for holding '+r.from.slice(0,3).map(esc).join(', ')+(r.from.length>3?` +${r.from.length-3}`:''):esc(CHAIN_LABEL[r.chain])} · ${r.count} payout${r.count>1?'s':''}`;
     return `
-    <div class="rw" data-target="${id}" style="--ri:${Math.min(i,14)}">
+    <div class="rw${multi?' has-kids':''}" data-p="${i}" style="--ri:${Math.min(i,14)}">
       <div class="ic">${esc(sym.replace(/[^A-Za-z0-9]/g,'').slice(0,3).toUpperCase())}${r.icon?`<img src="${esc(thumb(r.icon))}" alt="" loading="lazy" decoding="async" onerror="this.remove()">`:''}</div>
       <div style="min-width:0"><div class="nm1">${esc(sym)}<span class="tag" style="background:${platColor(r.platform)}">${esc(r.platform)}</span></div>
-        <div class="from">${r.from.length?'for holding '+r.from.slice(0,3).map(esc).join(', ')+(r.from.length>3?` +${r.from.length-3}`:''):esc(CHAIN_LABEL[r.chain])} · ${r.count} payout${r.count>1?'s':''}</div></div>
+        <div class="from">${sub}</div></div>
       <div class="val"><b>${r.price!=null?fmtUsd(r.usd):'<span class="muted">no price</span>'}</b><small>${fmtAmt(r.amount)} ${esc(sym)}</small></div>
-    </div>
-    <div class="proof hidden" id="${id}">
-      <div class="pm">${esc(CHAIN_LABEL[r.chain])} · <code>${esc(short(r.asset))}</code>${r.price!=null?` · ${fmtUsd(r.price)} via ${esc(r.src)}`:''}${r.from.length?` · earned by holding ${r.from.map(esc).join(', ')}`:''}</div>
-      <ul>
-      ${proofs.map(p=>`<li><span>${fmtDT(p.t)}</span><span>+${fmtAmt(p.d)}</span><a href="${p.link}" target="_blank" rel="noopener">${short(p.sig)} ↗</a></li>`).join('')}
-      ${r.count>proofs.length?`<li><span>+ ${r.count-proofs.length} more payouts</span><span></span><span></span></li>`:''}
-      </ul></div>`;
+    </div>${multi?`<div class="kids">${r.parts.map((p,k)=>`<div class="kid" data-p="${i}" data-k="${k}"><span class="c${p.q?' q':''}">${p.q?esc(p.lab):'for '+esc(p.lab||'?')}</span><span class="bar"><i style="width:${Math.max(2,p.usd/top*100)}%;background:${p.q?'var(--dim)':platColor(r.platform)}"></i></span><span class="n">${p.count} payout${p.count>1?'s':''}</span><b>${r.price!=null?fmtUsd(p.usd):''}</b></div>`).join('')}</div>`:''}`;
   }).join('');
 }
+// the payouts window
+const KBOV=document.createElement('div'); KBOV.className='kbov'; KBOV.innerHTML='<div class="kbmd" role="dialog" aria-modal="true"></div>';
+document.addEventListener('DOMContentLoaded',()=>document.body.appendChild(KBOV)); if (document.body) document.body.appendChild(KBOV);
+let KB_CUR=null;
+function kbModal(){
+  const r=KB_P[KB_CUR.i]; if(!r) return; const sym=r.sym||short(r.asset), multi=r.parts.length>1, only=KB_CUR.only;
+  const list=r.proofs.filter(p=>only==null||p.lab===only).sort((a,b)=>b.t-a.t), total=only==null?r.count:(r.parts.find(p=>p.lab===only)?.count||list.length);
+  KBOV.firstChild.innerHTML=`
+   <div class="kbmh"><div class="ic">${esc(sym.replace(/[^A-Za-z0-9]/g,'').slice(0,3).toUpperCase())}${r.icon?`<img src="${esc(thumb(r.icon))}" alt="">`:''}</div>
+     <div style="min-width:0"><div class="nm1">${esc(sym)}<span class="tag" style="background:${platColor(r.platform)}">${esc(r.platform)}</span></div><div class="from">${r.count} payouts · ${fmtAmt(r.amount)} ${esc(sym)}</div></div>
+     <div class="tot"><b>${r.price!=null?fmtUsd(r.usd):'no price'}</b><small>today's price</small></div><button class="kbx" type="button" data-kbclose aria-label="Close">×</button></div>
+   ${multi?`<div class="kbch"><button type="button" class="${only==null?'on':''}" data-kbonly="">all · ${r.count}</button>${r.parts.map(p=>`<button type="button" class="${only===p.lab?'on':''}" data-kbonly="${esc(p.lab)}">${esc(p.lab||'?')} · ${p.count}</button>`).join('')}</div>`:''}
+   <div class="kbml"><div class="pm">${esc(CHAIN_LABEL[r.chain])} · <code>${esc(short(r.asset))}</code>${r.price!=null?` · ${fmtUsd(r.price)} via ${esc(r.src)}`:''}${!multi&&r.from.length?` · earned by holding ${r.from.map(esc).join(', ')}`:''}</div>
+     ${r.parts.some(p=>p.q)?(()=>{ const cs=[...new Set(r.parts.filter(p=>p.q).flatMap(p=>p.from))]; return `<div class="qh">${cs.length>1?`Some payouts came while you held ${cs.map(esc).join(', ').replace(/, ([^,]*)$/,' and $1')}, which all pay in ${esc(sym)}`:'Some payouts couldn\'t be tied to one coin'}. The chain doesn't say which coin sent them, and we don't guess, so they're listed apart.</div>`; })():''}
+     <ul>${list.slice(0,KB_CUR.show).map(p=>`<li><span>${fmtDT(p.t)}${multi&&only==null&&p.lab?`<span class="s">${esc(p.lab)}</span>`:''}</span><span class="a">+${fmtAmt(p.d)}</span><a href="${p.link}" target="_blank" rel="noopener">${short(p.sig)} ↗</a></li>`).join('')}</ul>
+     ${total>KB_CUR.show && list.length>KB_CUR.show?`<button class="more" type="button" data-kbmore>+ ${total-KB_CUR.show} more payouts</button>`:''}</div>`;
+}
+const kbOpen=(i,only)=>{ KB_CUR={i, only:only??null, show:30}; kbModal(); KBOV.classList.add('open'); document.documentElement.style.overflow='hidden'; };
+const kbClose=()=>{ KBOV.classList.remove('open'); document.documentElement.style.overflow=''; };
 document.addEventListener('click', e=>{
-  const rw=e.target.closest('.rw'); if(!rw || e.target.closest('a')) return;
-  const box=$(rw.dataset.target), opening=box.classList.contains('hidden');
-  if (opening) document.querySelectorAll('.rw').forEach(o=>{ if(o!==rw){ const b=$(o.dataset.target); if(b) b.classList.add('hidden'); } });
-  box.classList.toggle('hidden', !opening);
-  const sc=rw.closest('.proofs .card, #sheetSlot .details');
-  if (opening && sc) requestAnimationFrame(()=>{
-    let y=0, n=rw; while(n && n!==sc && sc.contains(n)){ y+=n.offsetTop; n=n.offsetParent; }
-    if (n!==sc) y=rw.getBoundingClientRect().top-sc.getBoundingClientRect().top+sc.scrollTop;
-    sc.scrollTo({top:Math.max(0,y-8), behavior:'smooth'});
-  });
+  if (e.target.closest('a')) return;
+  const kid=e.target.closest('.kid[data-p]'); if (kid){ const r=KB_P[+kid.dataset.p]; kbOpen(+kid.dataset.p, r?.parts[+kid.dataset.k]?.lab); return; }
+  const rw=e.target.closest('.rw[data-p]'); if (rw){ kbOpen(+rw.dataset.p); return; }
+  if (!KBOV.classList.contains('open')) return;
+  if (e.target===KBOV || e.target.closest('[data-kbclose]')){ kbClose(); return; }
+  const o=e.target.closest('[data-kbonly]'); if (o){ KB_CUR.only=o.dataset.kbonly===''?null:o.dataset.kbonly; KB_CUR.show=30; kbModal(); return; }
+  if (e.target.closest('[data-kbmore]')){ KB_CUR.show+=50; kbModal(); }
 });
+document.addEventListener('keydown', e=>{ if (e.key==='Escape' && KBOV.classList.contains('open')) kbClose(); });
+{ let y0=null, dy=0; const md=()=>KBOV.firstChild;
+  KBOV.addEventListener('touchstart',e=>{ const l=md().querySelector('.kbml'); y0=(e.target.closest('.kbmh,.kbch')||!l||l.scrollTop<=0)?e.touches[0].clientY:null; dy=0; },{passive:true});
+  KBOV.addEventListener('touchmove',e=>{ if (y0==null) return; dy=e.touches[0].clientY-y0; if (dy>0){ md().classList.add('drag'); md().style.transform=`translateY(${dy}px)`; } },{passive:true});
+  KBOV.addEventListener('touchend',()=>{ if (y0==null) return; md().classList.remove('drag'); md().style.transform=''; if (dy>90) kbClose(); y0=null; dy=0; }); }
 document.addEventListener('click', e=>{ if (!e.target.closest('#showAll')) return; $('rowsMore')?.classList.remove('hidden'); $('showAll').remove(); });
 function renderChecks(list){
-  const c=list.filter(x=>!x.startsWith('%%')), warn=c.filter(x=>x.includes('chk warn')).length;
-  const head = warn ? `<span class="chk warn">⚠ ${warn} thing${warn>1?'s':''} to look at</span>` : `<span class="chk ok">✓ Verified on every chain</span>`;
-  $('checks').innerHTML = `<details class="ck"><summary>${head}<span class="more">details</span></summary><div class="ckl">${c.join('')}</div></details>`;
+  const OKI='<svg viewBox="0 0 16 16"><path d="M3 8.5l3 3 7-7" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  const mark=st=>`<span class="ckm ${st}">${st==='ok'?OKI:'<i></i>'}</span>`;
+  const items=list.filter(x=>!x.startsWith('%%')).map(h=>{ const d=document.createElement('div'); d.innerHTML=h; const el=d.firstElementChild||d;
+    const cls=el.className||''; let t=(el.textContent||'').trim(), st=cls.includes('warn')?'warn':cls.includes('ok')?'ok':'idle';
+    if (/^…/.test(t) || /being read now/.test(t)) st='run';
+    t=t.replace(/^(⚠️?|✓|…|💰)\s*/u,'');
+    const m=t.match(/^(.{2,44}?)(?::\s| · )(.+)$/s);
+    return {st, a:m?m[1]:t, b:m?m[2]:'', tip:el.title||''}; });
+  const ord={warn:0,run:1,idle:2,ok:3}; items.sort((x,y)=>ord[x.st]-ord[y.st]);
+  const warn=items.filter(x=>x.st==='warn').length, run=items.filter(x=>x.st==='run').length;
+  const head = warn ? `${mark('warn')}${warn} note${warn>1?'s':''} on this scan` : run ? `${mark('run')}Still checking ${run} thing${run>1?'s':''}` : `${mark('ok')}Verified on every chain`;
+  $('checks').innerHTML = `<details class="ckx"><summary>${head}<span class="sm">${items.length} checks <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></span></summary><div class="cl">${items.map(x=>`<div class="ckr"${x.tip?` title="${esc(x.tip)}"`:''}>${mark(x.st)}<div><b>${esc(x.a)}</b>${x.b?`<span>${esc(x.b)}</span>`:''}</div></div>`).join('')}</div></details>`;
 }
 function countUp(el, to, from=0){
   const t0=performance.now(), dur=900;
@@ -1378,7 +1481,7 @@ document.addEventListener('click', e=>{ const b=e.target.closest('.addw'); if(!b
 const CHAIN_NAME={sol:'Solana', bsc:'BNB', base:'Base', eth:'Ethereum', robinhood:'Robinhood'};
 let chainLeft={}, chainFound={}, foundTotal=0;
 const PROG={sol:null, pct:0};
-function progReset(){ mainChipReset(); PROG.sol=null; PROG.pct=0; const b=$('kbBar'); if (b){ b.style.transition='none'; b.style.width='0%'; void b.offsetWidth; b.style.transition=''; } $('kbLog').innerHTML=''; }
+function progReset(){ mainChipReset(); Object.assign(DIAG,{req:0,sigs:0,hit:0,ms:0}); PROG.sol=null; PROG.pct=0; const b=$('kbBar'); if (b){ b.style.transition='none'; b.style.width='0%'; void b.offsetWidth; b.style.transition=''; } $('kbLog').innerHTML=''; }
 function progRender(extra){
   const keys=Object.keys(chainLeft||{}); if (!keys.length) return;
   const hasSol='sol' in chainLeft, evm=keys.filter(k=>k!=='sol'), wSol=hasSol?(evm.length?0.62:0.92):0, wEvm=evm.length?(0.92-wSol)/evm.length:0;
@@ -2079,13 +2182,13 @@ async function run(){
     relayDone();
     await Promise.all([...early, ...lists.flat().map(take)]);
     for (const l of found){ const f=lists.flat().find(x=>x.address===l.address); if (f) l.moves=f.moves; }
-    $('linkedInfo').innerHTML = (found.length ? 'Linked wallet (found through your bridge history): '+found.map(l=>`<code>${esc(l.address)}</code> (${l.moves} bridge moves)`).join(', ') : 'No linked wallet found. Scanned only what you pasted. Paste several addresses separated by spaces to check them together.')
+    $('linkedInfo').innerHTML = (found.length ? 'Linked wallet '+found.map(l=>`<code title="${esc(l.address)}">${esc(short(l.address))}</code>`).join(', ')+' · found through your bridge history' : 'No linked wallet found. Scanned only what you pasted. Paste several addresses separated by spaces to check them together.')
       + (sols.size+evms.size>2?`<br>Scanned ${sols.size} Solana + ${evms.size} EVM wallets.`:'');
     $('linked').innerHTML = others.length ? `Also yours? You bridged with ${others.map(l=>`<code>${esc(short(l.address))}</code>`).join(', ')} <button class="addw" type="button" data-w="${esc(others.map(l=>l.address).join(' '))}">+ Add and rescan</button>` : '';
     fomoProfile([...inputs, ...found.map(l=>l.address)], fk).then(applyProfile).catch(()=>{});
     const res = await Promise.all(runs);
 
-    let shownTotal = 0;
+    let shownTotal = 0, pairsLate = null, pairsGot = false, pairsMiss = false, secondDone = false;
     const finalize = async (res, second) => {
     const notes=[], checks=[];
     let payouts=[], suspects=[], txTotal=0, partial=false;
@@ -2126,10 +2229,10 @@ async function run(){
     const pumpCoins=[...new Set(payouts.filter(p=>(p.platform==='pump.fun'||p.platform==='Scribe'||(p.platform==='Creator rewards'&&p.chain==='solana'))&&p.coin).map(p=>p.coin))];
     const stonkNeed = new Set(), heldCnt = {}; for (const p of payouts) if (p.platform==='StonkFun'){ stonkNeed.add(p.asset); for (const m of (p.held||[])) if (stonkMints.has(m)) stonkNeed.add(m); else if (!m.endsWith('pump') && m!==SOL_MINT) heldCnt[m]=(heldCnt[m]||0)+1; }
     /* coins held while StonkFun paid (e.g. KNOTS paying in STONK) are reward coins too: ask StonkFun about the most-held ones */
-    Object.entries(heldCnt).sort((a,b)=>b[1]-a[1]).slice(0,second?150:25).forEach(([m])=>stonkNeed.add(m));
+    Object.entries(heldCnt).sort((a,b)=>b[1]-a[1]).slice(0,150).forEach(([m])=>stonkNeed.add(m));
     const [mSol, pairs, mPump, ...mEvm] = await Promise.all([
       byChain('solana').length?cachedMeta('sol:', byChain('solana'), solanaMeta):{},
-      stonkNeed.size?(second?cachedMeta('stonk:', [...stonkNeed], stonkPairs):Promise.race([cachedMeta('stonk:', [...stonkNeed], stonkPairs), sleep(4000).then(()=>({}))])):{},
+      stonkNeed.size?(second?cachedMeta('stonk:', [...stonkNeed], stonkPairs):Promise.race([(pairsLate=cachedMeta('stonk:', [...stonkNeed], stonkPairs)).then(v=>(pairsGot=true,v)), sleep(4000).then(()=>(pairsGot||(pairsMiss=true),{}))])):{},
       pumpCoins.length?cachedMeta('sol:', pumpCoins, solanaMeta):{},
       ...chainKeys.map(c=>byChain(c).length?cachedMeta(c+':', byChain(c), l=>evmMeta(c, l)):{}),
     ]);
@@ -2151,6 +2254,7 @@ async function run(){
     }
     setProg(100);
 
+    if (second==='late' && secondDone) return;
     stonkSplit(payouts, pairs);   // only once StonkFun answered for every coin held, a partial list would mislabel
     if (TESTRUN && /[?&]dump\b/.test(location.search)){ try{
       const dump={wallet:inputs[0], second, pairs, payouts:payouts.filter(p=>p.platform==='StonkFun').map(p=>({sig:p.sig, t:p.t, asset:p.asset, raw:String(p.raw), held:p.held, co:p.co, src:p.src||null}))};
@@ -2161,7 +2265,7 @@ async function run(){
     const groups={};
     for (const p of payouts){
       const k=p.chain+'|'+p.platform+'|'+p.asset+'|'+(p.src||'');
-      const g=groups[k]||(groups[k]={src:p.src||null, chain:p.chain, platform:p.platform, asset:p.asset, raw:0n, dec:p.dec, count:0, last:0, proofs:[], coins:new Set(), sym:p.sym, held:new Set()});
+      const g=groups[k]||(groups[k]={payer:p.src||null, chain:p.chain, platform:p.platform, asset:p.asset, raw:0n, dec:p.dec, count:0, last:0, proofs:[], coins:new Set(), sym:p.sym, held:new Set()});
       if (p.held) for (const m of p.held) g.held.add(m);
       g.raw+=p.raw; g.count++; g.last=Math.max(g.last,p.t);
       g.proofs.push({sig:p.sig, t:p.t, link:p.link, d:rawToNum(p.raw,p.dec)});
@@ -2172,7 +2276,7 @@ async function run(){
       const m = meta[g.asset]||{};
       const amount = rawToNum(g.raw, g.dec);
       let from=[...g.coins];
-      if (g.platform==='StonkFun' && g.src){ from=[mSol[g.src]?.sym||STONK_KNOWN[g.src]?.sym||short(g.src)]; }
+      if (g.platform==='StonkFun' && g.payer){ from=[mSol[g.payer]?.sym||STONK_KNOWN[g.payer]?.sym||short(g.payer)]; }
       else if (g.platform==='StonkFun'){
         const src = Object.entries(pairs).filter(([c,v])=>v.quote===g.asset && g.held.has(c)).map(([c])=>c);
         from = src.map(c=>mSol[c]?.sym||STONK_KNOWN[c]?.sym||short(c));
@@ -2186,7 +2290,7 @@ async function run(){
     const byPlat = {}; for (const r of rows){ const k=r.platform; byPlat[k]=byPlat[k]||{usd:0,n:0,chain:r.chain}; if(byPlat[k].chain!==r.chain) byPlat[k].chain='all'; byPlat[k].usd+=r.usd; byPlat[k].n+=r.count; }
     if (!second){ progRender(1); mainChipDone(true, `<b>${payouts.length.toLocaleString('en-US')}</b> payouts`); $('liveWrap').classList.remove('hidden'); countUp($('liveSum'), total, shownTotal); await sleep(950); shownTotal=total; }
     countUp($('total'), total, shownTotal); shownTotal=total;
-    $('meta').textContent = `${payouts.length} payouts · ${txTotal.toLocaleString('en-US')} transactions checked · ${Math.round((Date.now()-t0)/1000)}s`+(partial?' · deep check running…':'');
+    $('meta').textContent = `${payouts.length} payouts · ${txTotal.toLocaleString('en-US')} transactions checked · ${Math.round((Date.now()-t0)/1000)}s`+(partial?' · deep check running…':'')+(TESTRUN&&DIAG.req?` · [test] cache ${Math.round(DIAG.hit/Math.max(1,DIAG.sigs)*100)}% of ${DIAG.sigs.toLocaleString('en-US')} · ${DIAG.req} req · avg ${Math.round(DIAG.ms/DIAG.req)}ms · ${DIAG.colo||'?'}`:'');
     const platList = Object.entries(byPlat).filter(([k,v])=>v.usd>=0.01).sort((a,b)=>b[1].usd-a[1].usd);
     { const zero = total < 0.005; $('result').classList.toggle('z0', zero); document.body.classList.toggle('zero', zero);
       $('zTrack').textContent = `no payouts yet · ${txTotal.toLocaleString('en-US')} txs read`; }
@@ -2233,9 +2337,9 @@ async function run(){
     if (RANK_API && !TESTRUN && myRun===RUN_ID) postJson(RANK_API,{w:inputs[0], total}).then(r=>{ if (!r?.n || myRun!==RUN_ID) return;
       const el=$('rank'); el.innerHTML = r.n<50 ? `<b>#${r.rank}</b> of ${r.n.toLocaleString('en-US')} checked` : `<b>Top ${r.top}%</b> of ${r.n.toLocaleString('en-US')} checked`;
       el.classList.remove('hidden'); window.__share && (window.__share.rank=r); });
-    if (myRun===RUN_ID){ const flags=[STUDIO&&'studio', res.some(([j,r])=>r?.trunc)&&(res.some(([j,r])=>r?.trunc?.deep)?'capped+deep':'capped'), res.some(([j,r])=>r?.missing)&&'unread', res.some(([j,r])=>r?.error)&&'chain-skipped'].filter(Boolean).join(' ');
+    if (myRun===RUN_ID && second!=='late'){ const flags=[STUDIO&&'studio', res.some(([j,r])=>r?.trunc)&&(res.some(([j,r])=>r?.trunc?.deep)?'capped+deep':'capped'), res.some(([j,r])=>r?.missing)&&'unread', res.some(([j,r])=>r?.error)&&'chain-skipped'].filter(Boolean).join(' ');
       const plats={}; for (const [k,v] of Object.entries(byPlat)) plats[k]=Math.round(v.usd*100)/100;
-      const coins=rows.filter(r=>r.usd>=0.01).sort((a,b)=>b.usd-a.usd).slice(0,15).map(r=>({s:r.sym||short(r.asset), p:r.platform, u:Math.round(r.usd*100)/100, ...(r.src||(r.from||[]).length===1?{f:String(r.src?(r.from||[])[0]||short(r.src):r.from[0]).replace(/ \(own round.*$/,'')}:{})}));
+      const coins=rows.filter(r=>r.usd>=0.01).sort((a,b)=>b.usd-a.usd).slice(0,15).map(r=>({s:r.sym||short(r.asset), p:r.platform, u:Math.round(r.usd*100)/100, ...(r.payer||(r.from||[]).length===1?{f:String(r.payer?(r.from||[])[0]||short(r.payer):r.from[0]).replace(/ \(own round.*$/,'')}:{})}));
       logEvent({kind:second?'final':'first', wallets:inputs, linked:found.map(l=>l.address), total:Math.round(total*100)/100, plats, coins, payouts:payouts.length,
         chains:new Set(rows.map(r=>r.chain)).size, secs:Math.round((Date.now()-t0)/1000), handle:pfpHandle||'', flags, mobile:matchMedia('(max-width:999px)').matches, ref:document.referrer, search:location.search}); }
     { const rl=$('reportLink'); if (rl){ const top=Object.entries(byPlat).sort((a,b)=>b[1].usd-a[1].usd).slice(0,6).map(([k,v])=>`${k}: ${fmtUsd(v.usd)}`).join('\n');
@@ -2246,15 +2350,18 @@ async function run(){
     clearInterval(liveTimer); shownTotal = LIVE?.shown||0; LIVE=null;
     await finalize(res, false);
     $('go').disabled=false;
+    // StonkFun answered after the first result: split rewards by coin now instead of after the deep check
+    if (pairsMiss && pairsLate) pairsLate.then(()=>{ if (myRun===RUN_ID && !secondDone) return finalize(res, 'late'); }).catch(e=>console.warn('late split', e));
     if (res.some(([j,r])=>r?.deep)){
       $('deep').classList.remove('hidden');
       const res2 = await Promise.all(res.map(async ([j,r])=>{ if (!r?.deep) return [j,r]; try{ return [j, await r.deep()]; }catch(e){ return [j, {...r, partial:false, deepFailed:true}]; } }));
       if (myRun!==RUN_ID) return;
-      try{ await finalize(res2, true); }catch(e){ console.warn('second pass', e); }
+      secondDone=true; try{ await finalize(res2, true); }catch(e){ console.warn('second pass', e); }
       $('deep').classList.add('hidden');
     }
   }catch(e){
     clearInterval(liveTimer); LIVE=null;
+    kbErr(e);
     if (myRun===RUN_ID){ kbState('idle'); setStatus('Error: '+e.message, true); progBase=0; progSpan=100; setProg(0); }
   }finally{ if (myRun===RUN_ID){ $('go').disabled=false; progBase=0; progSpan=100; if(document.body.classList.contains('scanning')) kbState('idle'); } }
 }

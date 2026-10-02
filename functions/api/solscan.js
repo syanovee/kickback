@@ -18,7 +18,7 @@ export async function onRequestPost(ctx) {
   };
   const miss = [];
   await Promise.all(sigs.map(async s => { const hit = await getCached(ctx, TAG, txKey(s)); if (hit) { try { const r = JSON.parse(hit).result; if (r) { out[s] = solCompact(r, W); return; } } catch {} } miss.push(s); }));
-  if (!miss.length) return json({ txs: out, cached: sigs.length });
+  if (!miss.length) return json({ txs: out, cached: sigs.length, hit: sigs.length });
 
   if (b.src === 'h' && miss.length >= 8 && Number.isInteger(b.lo) && Number.isInteger(b.hi)) {
     let tk = null, pages = 0;
@@ -46,5 +46,5 @@ export async function onRequestPost(ctx) {
     }));
   }
   ctx.waitUntil(Promise.all(puts));
-  return json({ txs: out });
+  return json({ txs: out, hit: sigs.length - miss.length });
 }
