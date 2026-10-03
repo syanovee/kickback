@@ -12,7 +12,10 @@ export async function onRequestPost({ request, env }) {
   const rnd = crypto.getRandomValues(new Uint8Array(8)); const id = [...rnd].map(x => ABC[x % ABC.length]).join('');
   await env.DB.exec('CREATE TABLE IF NOT EXISTS cards (id TEXT PRIMARY KEY, w TEXT NOT NULL, total REAL NOT NULL, handle TEXT, img BLOB NOT NULL, t INTEGER NOT NULL)');
   try { await env.DB.exec("ALTER TABLE cards ADD COLUMN kind TEXT"); } catch {}
-  await env.DB.prepare('INSERT INTO cards (id, w, total, handle, img, t, kind) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)')
-    .bind(id, b.w, Math.round(total * 100) / 100, handle, bytes, Math.floor(Date.now() / 1000), b?.studio ? 'studio' : b?.kind === 'copy' ? 'copy' : '').run();
+  try { await env.DB.exec("ALTER TABLE cards ADD COLUMN test INTEGER"); } catch {}
+  // cards made on the test site still work (links, previews) but stay out of the admin
+  const test = /(^|\.)getkickback\.fun$/.test(new URL(request.url).hostname) ? 0 : 1;
+  await env.DB.prepare('INSERT INTO cards (id, w, total, handle, img, t, kind, test) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)')
+    .bind(id, b.w, Math.round(total * 100) / 100, handle, bytes, Math.floor(Date.now() / 1000), b?.studio ? 'studio' : b?.kind === 'copy' ? 'copy' : b?.kind === 'knots' ? 'knots' : '', test).run();
   return json({ id });
 }
