@@ -3,7 +3,8 @@
 //   in that time (they held all week), and divide what each got by what it holds. The median is the reward per held
 //   token per week; those wallets and their payout txs are the proof.
 // Seeds (coin -> distributor -> one payout tx) come from scans, see functions/api/log.js.
-// pump.fun is left out on purpose: its payouts go to wallets the creator picked to share fees with, not to holders.
+// pump.fun Holder Rewards (since Sep 2026) pay many times an hour, weighted by size and hold time, so the share per token is not
+// the same for everyone: we keep every sample (balance, reward) and the page reads the rate for the amount you enter.
 const NET = { bsc: 'bnb-mainnet', base: 'base-mainnet', eth: 'eth-mainnet', robinhood: 'robinhood-mainnet' };
 const DEX = { bsc: 'bsc', base: 'base', eth: 'ethereum', robinhood: 'robinhood', solana: 'solana' };
 const WEEK = 7 * 86400;
@@ -167,17 +168,114 @@ export function seedEngine({ HELIUS, ALCHEMY, log }) {
     return finish(s, samples, winH, isSol ? 'SOL' : null, dec, rows.reduce((a, r) => a + r.raw, 0n), { coin, asset });
   }
 
+  // ---- pump.fun Holder Rewards
+  const isDist = t => (t?.meta?.logMessages || []).some(l => l.includes('DistributeFeeToHolders'));
+  async function measurePump(s) {
+    const coin = s.coin, now = Math.floor(Date.now() / 1000);
+    // 1. a few recent distributions: what they pay in and who got paid
+    const recv = new Map(); let asset = null, tk, n = 0;
+    for (let p = 0; p < 15 && n < 15; p++) {
+      const o = { transactionDetails: 'full', encoding: 'jsonParsed', maxSupportedTransactionVersion: 1, limit: 100, sortOrder: 'desc' }; if (tk) o.paginationToken = tk;
+      const r = await sol('getTransactionsForAddress', [coin, o]);
+      for (const t of r?.data || []) {
+        if (!isDist(t)) continue; n++;
+        const keys = t.transaction.message.accountKeys.map(k => k.pubkey), signer = keys[0];
+        for (const b of t.meta.postTokenBalances || []) { const q = (t.meta.preTokenBalances || []).find(x => x.accountIndex === b.accountIndex); const d = BigInt(b.uiTokenAmount.amount) - BigInt(q?.uiTokenAmount.amount || '0'); if (d > 0n && b.owner !== signer) { asset = asset || b.mint; if (b.mint === asset) recv.set(b.owner, b.uiTokenAmount.decimals); } }
+        keys.forEach((k, i) => { if (i && k !== signer && t.meta.postBalances[i] > t.meta.preBalances[i] && !asset) { asset = 'So11111111111111111111111111111111111111112'; } if (i && asset === 'So11111111111111111111111111111111111111112' && t.meta.postBalances[i] > t.meta.preBalances[i]) recv.set(k, 9); });
+      }
+      tk = r?.paginationToken; if (!tk) break;
+    }
+    if (!n) return { note: 'no holder rewards found' };
+    // fee sharing (the creator picks up to ~10 wallets) runs through the same instruction as Holder Rewards: few fixed receivers give it away
+    if (n >= 8 && recv.size < 15) return { note: 'pump.fun fee sharing: pays wallets the creator picked, not holders' };
+    const isSolPay = asset === 'So11111111111111111111111111111111111111112', dec = recv.values().next().value ?? 6;
+    // 2. per wallet: a day of its own payouts, and no buying or selling in that day
+    // payouts counted over the last day; the wallet must not have bought or sold for a whole week (hold time changes the share),
+    // and must hold $50+ (pump.fun pays nothing under $20, and tiny wallets are all noise)
+    const samples = [], winS = 24 * 3600, start = now - winS, quiet = now - 3 * 86400;   // no trades for 3 days
+    const px = (await dex('solana', coin))?.price || 0;
+    // the biggest holders first (they rarely trade), then whoever got paid lately
+    const bigs = (await sol('getTokenLargestAccounts', [coin]).catch(() => null))?.value || [];
+    const owners = bigs.length ? ((await sol('getMultipleAccounts', [bigs.map(b => b.address), { encoding: 'jsonParsed' }]).catch(() => null))?.value || []).map(a => a?.data?.parsed?.info?.owner).filter(Boolean) : [];
+    const cands = [...new Set([...owners.filter(o => recv.has(o)), ...recv.keys()])];
+    let seen = 0, zero = 0;
+    for (const w of cands.slice(0, 120)) {
+      const coinAccs = (await sol('getTokenAccountsByOwner', [w, { mint: coin }, { encoding: 'jsonParsed' }]).catch(() => null))?.value || [];
+      const bal = coinAccs.reduce((a, x) => a + (+x.account.data.parsed.info.tokenAmount.uiAmount || 0), 0);
+      if (!(bal > 0) || coinAccs.length !== 1 || (px && bal * px < 50)) continue;
+      const ata = coinAccs[0].pubkey;
+      let paid = 0n, clean = true, cnt = 0, last = null, tk2, pages = 0, perTok = 0;
+      // SOL payouts land in the wallet: the coin account must stay untouched for 3 days (hold time changes the share).
+      // Coin payouts land in the coin account, and every payout tx shows the balance right before it,
+      // so each round is measured on its own (payout / balance at that moment) and trading in between does not matter
+      const where = isSolPay ? w : ata;
+      do {
+        const o = { transactionDetails: 'full', encoding: 'jsonParsed', maxSupportedTransactionVersion: 1, limit: 100, sortOrder: 'desc', filters: { blockTime: { gte: isSolPay ? start : start }, status: 'succeeded' } }; if (tk2) o.paginationToken = tk2;
+        const r = await sol('getTransactionsForAddress', [where, o]); pages++;
+        for (const t of r?.data || []) {
+          const keys = t.transaction.message.accountKeys.map(k => k.pubkey);
+          if (isDist(t)) {
+            if (isSolPay) { const i = keys.indexOf(w); if (i > 0) { const d = t.meta.postBalances[i] - t.meta.preBalances[i]; if (d > 0) { paid += BigInt(d); cnt++; last = last || t; } } }
+            else for (const b of t.meta.postTokenBalances || []) {
+              if (b.owner !== w || b.mint !== asset) continue;
+              const q = (t.meta.preTokenBalances || []).find(x => x.accountIndex === b.accountIndex), pre = +(q?.uiTokenAmount.uiAmount || 0);
+              const d = BigInt(b.uiTokenAmount.amount) - BigInt(q?.uiTokenAmount.amount || '0'); if (d <= 0n) continue;
+              const x = Number(d) / 10 ** dec;
+              if (pre <= 0 || x > pre * 0.01) { clean = false; continue; }   // a round paying 1%+ of the bag is not a holder share
+              paid += d; cnt++; perTok += x / pre; last = last || t;
+            }
+          } else if (isSolPay && keys.includes(ata)) { clean = false; break; }
+        }
+        tk2 = r?.paginationToken;
+      } while ((clean || !isSolPay) && tk2 && pages < 25);
+      if (tk2) continue;                          // could not see the whole day: skip rather than guess
+      if (isSolPay && clean) { const sg = await sol('getSignaturesForAddress', [ata, { limit: 1 }]).catch(() => null); if (sg?.[0]?.blockTime >= quiet) clean = false; }
+      const got = Number(paid) / 10 ** dec;
+      if (process.env.YDEBUG) console.log('   [dbg] pump wallet', w, 'bal', bal, 'paid 24h', got, 'payouts', cnt, clean ? 'clean' : isSolPay ? 'traded' : 'odd round', isSolPay ? '' : 'per token ' + perTok.toExponential(3));
+      if (!clean) continue;
+      if (isSolPay) { seen++; if (!cnt) zero++; }
+      if (cnt < 3) continue;
+      const winH = (now - start) / 3600;
+      // coin payouts: the summed per-round share, put back on today's bag so got/bal is that share
+      samples.push({ w, bal, got: (isSolPay ? got : perTok * bal) * 168 / winH, n: cnt, sig: last.transaction.signatures[0], t: last.blockTime });
+      if (samples.length >= 14) break;
+    }
+    // pump.fun pays SOL to some holders and skips others of the same size: if many clean big holders got nothing today, no single number is honest
+    if (process.env.YDEBUG) console.log('   [dbg] clean holders', seen, 'paid nothing today', zero);
+    if (seen >= 6 && zero >= seen * 0.3) return { note: 'pays some holders and skips others of the same size' };
+    const r = await finish({ ...s, platform: 'pump.fun' }, samples, 168, isSolPay ? 'SOL' : null, dec, 0n, { coin, asset });
+    if (r.stat) {
+      // bigger bags can get a different share: keep a curve only when the wallets really differ, smoothed so one wallet can't bend it
+      const k = r._kept.map(x => [x.bal, x.rate]).sort((a, b) => a[0] - b[0]);
+      if (k.length >= 6 && r.stat.hi > r.stat.lo * 1.5) r.stat.curve = k.map((x, i) => [x[0], median(k.slice(Math.max(0, i - 1), i + 2).map(y => y[1]))]);
+      r.stat.note = 'size and hold time change the share';
+    }
+    delete r._kept;
+    return r;
+  }
+
   async function finish(s, samples, winH, qsym, qdec, totalRaw, ids) {
     if (samples.length < 3) return { note: 'not enough wallets that held all week to measure' };
     for (const x of samples) x.rate = x.got / x.bal;
+    // one odd wallet (a fee share, a bot, a wallet that just moved) must not move the number: drop anything 4x off the middle
+    const m0 = median(samples.map(x => x.rate));
+    const kept = samples.filter(x => x.rate <= m0 * 4 && x.rate >= m0 / 4);
+    if (process.env.YDEBUG) console.log('   [dbg] rates', samples.map(x => x.rate.toExponential(2)).join(' '), 'kept', kept.length);
+    if (kept.length < 3) return { note: 'not enough wallets that held all week to measure' };
+    if (samples.length - kept.length > samples.length / 3) return { note: 'payouts differ too much between wallets to give one number' };   // a third of the wallets way off: no middle to trust
+    samples = kept;
     const rate = median(samples.map(x => x.rate)), scale = 168 / Math.max(winH, 1);
+    const lo = q(samples.map(x => x.rate), 0.25), hi = q(samples.map(x => x.rate), 0.75);
+    if (hi > lo * 4) return { note: 'payouts differ too much between wallets to give one number' };
     const meta = await dex(s.chain, ids.coin), qp = await quotePrice(s.chain, ids.asset);
     let qsymbol = qsym, qicon = null;
     if (!qsymbol) { const d = await dex(s.chain, ids.asset); qsymbol = d?.symbol || null; qicon = d?.icon || null; }
-    return {
+    // a yearly return in the thousands of percent is a measuring error, not a number to show
+    if (meta?.price && qp && rate * scale * qp / meta.price * 52 > 30) return { note: 'payouts differ too much between wallets to give one number' };
+    return { _kept: samples,
       coin: { chain: s.chain, platform: s.platform, symbol: meta?.symbol ?? null, name: meta?.name ?? null, icon: meta?.icon ?? null, quote_mint: ids.asset, quote_symbol: qsymbol, quote_dec: qdec, quote_icon: qicon, pool: meta?.pool ?? null, mcap: meta?.mcap ?? null, status: 'ok' },
       stat: { ts: Math.floor(Date.now() / 1000), per7d: rate * scale, rate, win_h: +winH.toFixed(2), win_raw: totalRaw.toString(), n: samples.length,
-        lo: q(samples.map(x => x.rate), 0.25) * scale, hi: q(samples.map(x => x.rate), 0.75) * scale,
+        lo: lo * scale, hi: hi * scale,
         proofs: samples.sort((a, b) => b.bal - a.bal).slice(0, 5).map(x => ({ w: x.w, bal: x.bal, got: x.got, n: x.n, sig: x.sig, t: x.t })), price: meta?.price ?? null, qprice: qp, note: '' },
     };
   }
@@ -215,6 +313,15 @@ export function seedEngine({ HELIUS, ALCHEMY, log }) {
     return null;
   }
   async function discoverSol(coin) {
+    // pump.fun Holder Rewards coins: the coin's own txs carry DistributeFeeToHolders
+    let dt = null, tk0;
+    for (let p = 0; p < 8 && !dt; p++) {      // busy coins: a distribution can be a few hundred trades back
+      const o = { transactionDetails: 'full', encoding: 'jsonParsed', maxSupportedTransactionVersion: 1, limit: 100, sortOrder: 'desc' }; if (tk0) o.paginationToken = tk0;
+      const rr = await sol('getTransactionsForAddress', [coin, o]).catch(e => { if (process.env.YDEBUG) console.log('   [dbg] page error', e.message); return null; });
+      dt = (rr?.data || []).find(isDist);
+      if (process.env.YDEBUG) console.log('   [dbg] pump page', p, (rr?.data || []).length, 'txs', dt ? 'found' : ''); tk0 = rr?.paginationToken; if (!tk0) break;
+    }
+    if (dt || coin.endsWith('pump')) return { chain: 'solana', coin, platform: 'pump.fun', distributor: null, asset: '', sig: dt?.transaction.signatures[0] || null };
     // creator-run rewards: the wallet that made the coin sends batches to many holders
     const first = await sol('getTransactionsForAddress', [coin, { transactionDetails: 'full', encoding: 'jsonParsed', maxSupportedTransactionVersion: 1, limit: 1, sortOrder: 'asc' }]).catch(() => null);
     const creator = first?.data?.[0]?.transaction?.message?.accountKeys?.find(k => k.signer)?.pubkey;
@@ -232,7 +339,7 @@ export function seedEngine({ HELIUS, ALCHEMY, log }) {
     return null;
   }
   const measureSeed = async function measureSeed(s) {
-    if (s.platform === 'pump.fun') return { note: 'pump.fun pays wallets the creator picked, not holders' };
+    if (s.platform === 'pump.fun') return measurePump(s);
     return s.chain === 'solana' ? measureSol(s) : measureEvm(s);
   };
   measureSeed.discover = (chain, coin) => chain === 'solana' ? discoverSol(coin) : discoverEvm(coin);

@@ -237,7 +237,7 @@ async function main() {
         log('  ' + x.chain, x.platform, x.key.slice(0, 8), m.coin ? `$${m.coin.symbol} ${m.stat.n} wallets, per token/wk ${m.stat.per7d.toExponential(3)} ${m.coin.quote_symbol}, $1K/wk ${m.stat.price && m.stat.qprice ? '$' + (1000 / m.stat.price * m.stat.per7d * m.stat.qprice).toFixed(2) : '?'}` : m.note);
         if (m.coin) { out.coins.push({ mint: x.key, ...m.coin }); out.stats.push({ mint: x.key, ...m.stat }); if (m.stat.price) out.prices.push([x.key, NOW_H, m.stat.price, m.stat.qprice || null]); }
         else { out.coins.push({ mint: x.key, chain: x.chain, platform: x.platform, status: known.get(x.key)?.status === 'ok' ? 'ok' : 'ok' });
-          if (!(known.get(x.key)?.stat_elig > 0)) out.stats.push({ mint: x.key, ts: Math.floor(Date.now() / 1000), note: m.note }); }
+          if (!(known.get(x.key)?.stat_elig > 0) || /differ too much|skips others/.test(m.note)) out.stats.push({ mint: x.key, ts: Math.floor(Date.now() / 1000), note: m.note }); }
         sd++; if (sd % 10 === 0) { log(`other platforms ${sd}/${due.length}`); await flush(); }
       } catch (e) { log('seed skip', x.chain, x.platform, x.key, e.message); }
     } }));
