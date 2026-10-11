@@ -10,7 +10,8 @@
 //    and divide: reward per token. The median over those wallets is the number, and they are the proof.
 // 3. Reward per token x what the coin paid this week / what it paid in that window = reward per token per week.
 const SITE = (process.env.SITE || 'https://getkickback.fun').replace(/\/$/, '');
-const KEY = process.env.YIELD_KEY, HELIUS = process.env.HELIUS_KEY;
+const KEY = process.env.YIELD_KEY, HELIUS = process.env.HELIUS_KEY, ALCHEMY = process.env.ALCHEMY_KEY;
+import { seedEngine } from './yield-seeds.mjs';
 const BUDGET = (+process.env.MAX_MIN || 45) * 60e3, T0 = Date.now();
 const ONLY = (process.env.ONLY || '').split(',').filter(Boolean);
 const SF = 'https://www.stonkfun.xyz';
@@ -54,10 +55,10 @@ const q = (a, p) => { const s = [...a].sort((x, y) => x - y); return s.length ? 
 let out = { coins: [], hours: [], stats: [], prices: [] };
 const clean = o => Object.fromEntries(Object.entries(o).filter(([, v]) => v !== undefined));
 async function flush(prune = false) {
-  if (!out.coins.length && !out.hours.length && !out.stats.length && !out.prices.length && !prune) return;
+  if (!out.coins.length && !out.hours.length && !out.stats.length && !out.prices.length && !(out.seeds || []).length && !prune) return;
   const b = out; out = { coins: [], hours: [], stats: [], prices: [] };
   for (let i = 0; i < Math.max(1, b.hours.length, b.prices.length); i += 3000)
-    await site('POST', { coins: i ? [] : b.coins.map(clean), stats: i ? [] : b.stats.map(clean), hours: b.hours.slice(i, i + 3000), prices: b.prices.slice(i, i + 3000), prune: prune && i === 0 });
+    await site('POST', { coins: i ? [] : b.coins.map(clean), stats: i ? [] : b.stats.map(clean), seeds: i ? [] : (b.seeds || []), hours: b.hours.slice(i, i + 3000), prices: b.prices.slice(i, i + 3000), prune: prune && i === 0 });
 }
 
 // the payout ledger of one coin, newest first, until `untilMs`; rows newer than `newestMs` are skipped
@@ -165,6 +166,7 @@ async function price7dAgo(pool, mint, now) {
 async function main() {
   const st = await site('GET');
   const known = new Map(st.coins.map(c => [c.mint, c]));
+  const measureSeed = seedEngine({ HELIUS, ALCHEMY, log });
   log(`site has ${known.size} coins`);
   // 1. every StonkFun coin that paid holders in the last 8 days, with its running total
   const listMs = Date.now(), active = [];
@@ -207,10 +209,43 @@ async function main() {
   // coins someone searched for that are not active StonkFun coins
   for (const k of known.values()) if (k.status === 'pending' && !activeSet.has(k.mint)) {
     const t = k.chain === 'solana' ? (await get(`${SF}/api/public/v1/tokens/${k.mint}`).catch(() => null))?.data?.token : null;
-    out.coins.push({ mint: k.mint, status: t ? (t.mode === 'reward' ? 'quiet' : 'no-rewards') : 'unsupported', symbol: t?.symbol ?? null, name: t?.name ?? null, platform: t ? 'StonkFun' : null });
+    if (t) { out.coins.push({ mint: k.mint, status: t.mode === 'reward' ? 'quiet' : 'no-rewards', symbol: t.symbol ?? null, name: t.name ?? null, platform: 'StonkFun' }); continue; }
+    // not StonkFun: look for its distributor on-chain, then measure it like a scanned coin
+    let seed = null; try { seed = await measureSeed.discover(k.chain, k.mint); } catch (e) { log('discover failed', k.mint, e.message); }
+    if (!seed) { out.coins.push({ mint: k.mint, status: 'unsupported' }); log('  searched', k.mint, 'no holder payouts found'); continue; }
+    out.seeds = (out.seeds || []).concat([seed]);
+    try {
+      const m = await measureSeed(seed);
+      log('  searched', seed.chain, seed.platform, k.mint, m.coin ? `$${m.coin.symbol} ${m.stat.n} wallets` : m.note);
+      if (m.coin) { out.coins.push({ mint: k.mint, ...m.coin }); out.stats.push({ mint: k.mint, ...m.stat }); }
+      else { out.coins.push({ mint: k.mint, chain: seed.chain, platform: seed.platform, status: 'ok' }); out.stats.push({ mint: k.mint, ts: Math.floor(Date.now() / 1000), note: m.note }); }
+    } catch (e) { log('  searched', k.mint, 'measure failed', e.message); }
   }
   await flush();
-  // 3. backfill new coins and measure: searched coins first, then the ones paying the most wallets
+  // 3. every other platform: coins people scanned, measured from their distributor's payouts (tools/yield-seeds.mjs)
+  if (ALCHEMY || HELIUS) {
+    const byCoin = new Map();
+    for (const x of st.seeds || []) { const k = x.chain === 'solana' ? x.coin : x.coin.toLowerCase(); if (!byCoin.has(k) || (x.n || 0) > (byCoin.get(k).n || 0)) byCoin.set(k, { ...x, key: k }); }
+    const due = [...byCoin.values()].filter(x => { if (ONLY.length && !ONLY.includes(x.key)) return false; const k = known.get(x.key); return !k?.stat_ts || Date.now() / 1000 - k.stat_ts > 20 * 3600 || (k.searches > 0 && !(k.stat_elig > 0) && Date.now() / 1000 - k.stat_ts > 3000) || process.env.FORCE; })
+      .sort((a, b) => (known.get(b.key)?.searches || 0) - (known.get(a.key)?.searches || 0) || (b.n || 0) - (a.n || 0));
+    log(`other platforms: ${due.length} of ${byCoin.size} scanned coins to measure`);
+    const seedEnd = Date.now() + Math.min(18 * 60e3, left() / 2);
+    let si = 0, sd = 0;
+    await Promise.all([0, 1, 2].map(async () => { for (let x; Date.now() < seedEnd && (x = due[si++]);) {
+      try {
+        const m = await measureSeed(x);
+        log('  ' + x.chain, x.platform, x.key.slice(0, 8), m.coin ? `$${m.coin.symbol} ${m.stat.n} wallets, per token/wk ${m.stat.per7d.toExponential(3)} ${m.coin.quote_symbol}, $1K/wk ${m.stat.price && m.stat.qprice ? '$' + (1000 / m.stat.price * m.stat.per7d * m.stat.qprice).toFixed(2) : '?'}` : m.note);
+        if (m.coin) { out.coins.push({ mint: x.key, ...m.coin }); out.stats.push({ mint: x.key, ...m.stat }); if (m.stat.price) out.prices.push([x.key, NOW_H, m.stat.price, m.stat.qprice || null]); }
+        else { out.coins.push({ mint: x.key, chain: x.chain, platform: x.platform, status: known.get(x.key)?.status === 'ok' ? 'ok' : 'ok' });
+          if (!(known.get(x.key)?.stat_elig > 0)) out.stats.push({ mint: x.key, ts: Math.floor(Date.now() / 1000), note: m.note }); }
+        sd++; if (sd % 10 === 0) { log(`other platforms ${sd}/${due.length}`); await flush(); }
+      } catch (e) { log('seed skip', x.chain, x.platform, x.key, e.message); }
+    } }));
+    await flush();
+    log(`other platforms: ${sd} measured`);
+  }
+  if (process.env.SEEDS_ONLY) { await flush(true); log('done (other platforms only)'); return; }
+  // 4. backfill new coins and measure: searched coins first, then the ones paying the most wallets
   todo.sort((a, b) => ((b.k?.searches || 0) - (a.k?.searches || 0)) || ((b.r.walletsPaid || 0) - (a.r.walletsPaid || 0)));
   log(`${todo.length} to measure, ${Math.round(left() / 60e3)} min budget`);
   const measured = [];
