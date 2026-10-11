@@ -3,8 +3,8 @@
 //   SITE=https://kickback-test.pages.dev YIELD_KEY=... HELIUS_KEY=... node tools/yield-job.mjs
 //
 // How a coin is measured (StonkFun for now):
-// 1. Every payout a coin made is in StonkFun's payout ledger, one row per wallet with its tx.
-//    We keep an hourly total of it for the last 7 days (backfilled once, then topped up from the running total).
+// 1. StonkFun keeps a running total of what each coin paid. We read it every hour and keep the difference per hour,
+//    so after a week we have the exact 7 days. Until then the last day of the payout ledger stands in, scaled to a week.
 // 2. Payouts are split by balance, so every holder gets the same amount per token.
 //    We take wallets that were paid in every round of the last day, read their balance on-chain,
 //    and divide: reward per token. The median over those wallets is the number, and they are the proof.
@@ -104,8 +104,10 @@ async function balanceOf(owner, mint) {
   return (r?.value || []).reduce((s, a) => s + (+a.account.data.parsed.info.tokenAmount.uiAmount || 0), 0);
 }
 
-async function measure(r, rows0, listMs) {
+const MIN_MCAP = +process.env.MIN_MCAP || 30000;
+async function measure(r, rows0, listMs, searched) {
   const meta = (await get(`${SF}/api/public/v1/tokens/${r.mint}`))?.data?.token;
+  if (!searched && (meta?.market?.marketCapUsd || 0) < MIN_MCAP) return { meta, note: 'market cap under $30K, measured when someone looks it up' };
   const qm = r.asset.mint, dec = r.asset.decimals;
   // a day of payouts; a slow coin gets up to a week, so the window has a few rounds in it
   const sigs = a => new Set(a.map(x => x.sig)).size;
@@ -186,11 +188,16 @@ async function main() {
       last_payout: Math.floor(Date.parse(r.lastPayoutAt) / 1000), holders: r.walletsPaid ?? null };
     if (k?.cum && k.since_h != null && k.status === 'ok') {
       const d = BigInt(r.distributedRaw) - BigInt(k.cum);
-      if (d < 0n) { todo.push({ r, base, k, re: true }); continue; }        // the ledger was rebuilt: read it again
       if (d > 0n) out.hours.push([r.mint, NOW_H, d.toString(), 'add']);
-      out.coins.push({ ...base, cum: r.distributedRaw, cum_ts: Math.floor(listMs / 1000) });
-      if (!k.stat_ts || Date.now() / 1000 - k.stat_ts > 20 * 3600 || process.env.FORCE) todo.push({ r, base, k });
-    } else todo.push({ r, base, k, re: true });
+      // a total that went down means StonkFun rebuilt its ledger: start counting again from here
+      out.coins.push({ ...base, cum: r.distributedRaw, cum_ts: Math.floor(listMs / 1000), ...(d < 0n ? { since_h: NOW_H + 1 } : {}) });
+      const age = Date.now() / 1000 - (k.stat_ts || 0);
+      if (!k.stat_ts || age > 20 * 3600 || (k.searches > 0 && !(k.stat_elig > 0) && age > 3000) || process.env.FORCE) todo.push({ r, base, k });
+    } else {
+      // first time we see it: remember its running total now, hourly differences start next hour
+      out.coins.push({ ...base, status: 'ok', cum: r.distributedRaw, cum_ts: Math.floor(listMs / 1000), since_h: NOW_H + 1 });
+      todo.push({ r, base, k });
+    }
   }
   // prices every hour for every coin we track, so the calculator and the 7-day price change stay current
   const tracked = active.filter(r => known.get(r.mint)?.status === 'ok');
@@ -205,26 +212,24 @@ async function main() {
   await flush();
   // 3. backfill new coins and measure: searched coins first, then the ones paying the most wallets
   todo.sort((a, b) => ((b.k?.searches || 0) - (a.k?.searches || 0)) || ((b.r.walletsPaid || 0) - (a.r.walletsPaid || 0)));
-  log(`${todo.filter(x => x.re).length} to backfill, ${todo.length} to measure, ${Math.round(left() / 60e3)} min budget`);
+  log(`${todo.length} to measure, ${Math.round(left() / 60e3)} min budget`);
   const measured = [];
   let i = 0, done = 0;
   const worker = async () => {
     for (let x; left() > 4 * 60e3 && (x = todo[i++]);) {
       try {
-        let rows = null, since = x.k?.since_h;
-        if (x.re) { const b = await backfill(x.r, listMs); rows = b.rows; since = b.since; }
-        const m = await measure(x.r, rows, listMs);
+        const m = await measure(x.r, null, listMs, (x.k?.searches || 0) > 0);
         const t = m.meta;
-        out.coins.push({ ...x.base, status: 'ok', cum: x.re ? x.r.distributedRaw : undefined, cum_ts: Math.floor(listMs / 1000), since_h: since,
+        out.coins.push({ mint: x.r.mint, status: 'ok',
           ...(t ? { symbol: t.symbol, name: t.name, icon: abs(t.imageUrl), quote_icon: abs(t.quote?.logoUrl), fee_bps: t.transferFee?.bps || 0, pool: t.pool, mcap: t.market?.marketCapUsd ?? null } : {}) });
         if (m.stat) { m.stat.price = t?.market?.priceUsd || null; measured.push({ stat: m.stat, pool: t?.pool, quote: x.r.asset.mint }); }
-        else if (x.k && !x.k.stat_ts) out.stats.push({ mint: x.r.mint, ts: Math.floor(Date.now() / 1000), note: m.note });
+        else if (!(x.k?.stat_elig > 0)) out.stats.push({ mint: x.r.mint, ts: Math.floor(Date.now() / 1000), note: m.note });   // never replace a good measurement with a failed one
         done++;
         if (done % 10 === 0) { log(`${done}/${todo.length} done`); await flush(); }
       } catch (e) { log('skip', x.r.mint, e.message); }
     }
   };
-  await Promise.all([worker(), worker(), worker()]);
+  await Promise.all([...Array(+process.env.WORKERS || 6)].map(worker));
   // 4. prices: token and reward token now (Jupiter), token a week ago (GeckoTerminal)
   const px = await prices([...new Set(measured.flatMap(m => [m.stat.mint, m.quote]))]);
   for (const m of measured) {
