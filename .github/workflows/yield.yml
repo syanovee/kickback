@@ -27,5 +27,6 @@ jobs:
           SITE: ${{ vars.YIELD_SITE || 'https://getkickback.fun' }}
           YIELD_KEY: ${{ secrets.YIELD_KEY }}
           HELIUS_KEY: ${{ secrets.HELIUS_KEY }}
+          ALCHEMY_KEY: ${{ secrets.ALCHEMY_KEY }}
           ONLY: ${{ github.event.inputs.only }}
           MAX_MIN: '45'
