@@ -1,0 +1,31 @@
+# Measures what holding each coin pays (the bag calculator at /calc). Runs every hour.
+name: yield
+on:
+  schedule:
+    - cron: '17 * * * *'
+  workflow_dispatch:
+    inputs:
+      only:
+        description: 'Only these mints (comma separated), for testing'
+        required: false
+concurrency:
+  group: yield
+  cancel-in-progress: false
+jobs:
+  measure:
+    runs-on: ubuntu-latest
+    timeout-minutes: 55
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: tools
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: node tools/yield-job.mjs
+        env:
+          SITE: ${{ vars.YIELD_SITE || 'https://getkickback.fun' }}
+          YIELD_KEY: ${{ secrets.YIELD_KEY }}
+          HELIUS_KEY: ${{ secrets.HELIUS_KEY }}
+          ONLY: ${{ github.event.inputs.only }}
+          MAX_MIN: '45'
