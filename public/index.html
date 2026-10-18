@@ -885,6 +885,9 @@
     html:not(.kn) .coin.more b{visibility:hidden}
     html:not(.kn) .coin.more{margin-left:-6px}
   }
+  html:not(.kn) .rw2 .twin{font:500 12px var(--sans);color:var(--dim);margin-left:6px}
+  html:not(.kn) .showall{padding-left:0!important;font:600 14px var(--sans)!important;color:var(--muted)!important}
+  html:not(.kn) #linkedInfo{font:500 13px var(--sans);color:var(--dim)} html:not(.kn) #linkedInfo code{font:600 13px var(--sans);color:var(--muted)}
 </style>
 </head>
 <body class="idle">
@@ -2002,10 +2005,11 @@ function heldFor(r){ const labs=r.parts.length>1 ? [...new Set(r.parts.flatMap(p
 function kickIcons(root){ setTimeout(()=>(root||document).querySelectorAll('img[data-raw]').forEach(im=>{ if (!(im.complete && im.naturalWidth) && im.dataset.raw && im.src!==im.dataset.raw) im.src=im.dataset.raw; }),2500); }
 function rowHtml2(rows, off){
   const mx=Math.max(...(KB_P||[]).map(x=>x.usd||0),0.01);
-  return rows.map((r,j)=>{ const i=j+off, sym=r.sym||short(r.asset), w=r.price!=null?Math.max(2,r.usd/mx*100):0;
+  const dup={}; for (const x of (KB_P||[])){ const t=(x.sym||'').toUpperCase(); (dup[t]=dup[t]||new Set()).add(x.asset); }
+  return rows.map((r,j)=>{ const i=j+off, sym=r.sym||short(r.asset), w=r.price!=null?Math.max(2,r.usd/mx*100):0, twin=dup[(r.sym||'').toUpperCase()]?.size>1;
     return `<div class="rw rw2" data-p="${i}" style="--ri:${Math.min(i,14)}">
       <div class="ic">${esc(sym.replace(/[^A-Za-z0-9]/g,'').slice(0,3).toUpperCase())}${r.icon?`<img src="${esc(thumb(r.icon))}" data-raw="${esc(r.icon)}" alt="" loading="lazy" decoding="async" onerror="if(this.dataset.raw&&this.src!==this.dataset.raw){this.src=this.dataset.raw}else this.remove()">`:''}</div>
-      <div class="nmw"><div class="nm1">${esc(tk(sym))}${issuer(r)?`<span class="iss">${issuer(r)}</span>`:''}</div><div class="from">${heldFor(r)}</div></div>
+      <div class="nmw"><div class="nm1">${esc(tk(sym))}${twin?`<span class="twin">${esc(short(r.asset))}</span>`:''}</div><div class="from">${heldFor(r)}</div></div>
       <div class="bar2"><i style="width:${w}%;--bc:${i===0?'var(--acc)':i<3?'#c96a2e':'#7a5b45'}"></i></div>
       <div class="val"><b>${r.price!=null?fmtUsd(r.usd):'<span class="muted">no price</span>'}</b></div><span class="chev">${CHEV}</span></div>`; }).join('');
 }
@@ -3241,7 +3245,7 @@ async function run(){
     relayDone();
     await Promise.all([...early, ...lists.flat().map(take)]);
     for (const l of found){ const f=lists.flat().find(x=>x.address===l.address); if (f) l.moves=f.moves; }
-    $('linkedInfo').innerHTML = (!KN && !found.length) ? '' : (found.length ? 'Linked wallet '+found.map(l=>`<code title="${esc(l.address)}">${esc(short(l.address))}</code>`).join(', ')+' · found through your bridge history' : 'No linked wallet found. Scanned only what you pasted. Paste several addresses separated by spaces to check them together.')
+    $('linkedInfo').innerHTML = (!KN && !found.length) ? '' : (found.length ? 'Also scanned '+found.map(l=>`<code title="${esc(l.address)}">${esc(short(l.address))}</code>`).join(', ')+', your linked wallet from bridge history' : 'No linked wallet found. Scanned only what you pasted. Paste several addresses separated by spaces to check them together.')
       + (sols.size+evms.size>2?`<br>Scanned ${sols.size} Solana + ${evms.size} EVM wallets.`:'');
     $('linked').innerHTML = others.length ? `Also yours? You bridged with ${others.map(l=>`<code>${esc(short(l.address))}</code>`).join(', ')} <button class="addw" type="button" data-w="${esc(others.map(l=>l.address).join(' '))}">+ Add and rescan</button>` : '';
     if (!EMBED) fomoProfile([...inputs, ...found.map(l=>l.address)], fk).then(applyProfile).catch(()=>{});
