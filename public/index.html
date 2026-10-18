@@ -6,17 +6,17 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Kickback · your bags paid you</title>
-<meta name="description" content="Paste a wallet and see every holder reward it earned, each with its tx.">
+<meta name="description" content="Drop a wallet and see every reward it got from holding.">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Kickback">
 <meta property="og:title" content="Kickback · your bags paid you">
-<meta property="og:description" content="Holder rewards across Solana, BNB, Base, Ethereum and Robinhood. Every payout with its tx.">
+<meta property="og:description" content="Drop a wallet and see every reward it got from holding. Solana, BNB, Base, Ethereum and Robinhood.">
 <meta property="og:url" content="https://getkickback.fun/">
 <meta property="og:image" content="https://getkickback.fun/og.png">
 <meta property="og:image:width" content="1200"><meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="Kickback · your bags paid you">
-<meta name="twitter:description" content="Holder rewards across Solana, BNB, Base, Ethereum and Robinhood. Every payout with its tx.">
+<meta name="twitter:description" content="Drop a wallet and see every reward it got from holding. Solana, BNB, Base, Ethereum and Robinhood.">
 <meta name="twitter:image" content="https://getkickback.fun/og.png">
 <meta name="theme-color" content="#141210">
 <script>document.documentElement.classList.add("fl");setTimeout(()=>document.documentElement.classList.remove("fl"),2500)</script>
@@ -44,10 +44,11 @@
   .wrap{max-width:620px;margin:0 auto;padding:18px 16px 20px;min-height:100vh;min-height:100dvh;display:flex;flex-direction:column}
   main{flex:1;display:flex;flex-direction:column}
 
-  .top{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+  .top{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;position:relative;z-index:30}
   .brand{display:flex;align-items:center;gap:10px;font-family:var(--disp);font-weight:900;font-size:18px;letter-spacing:-.02em;cursor:pointer}
   .mark{width:28px;height:28px;display:block;transition:transform .6s var(--ease)} .brand:hover .mark{transform:rotate(-40deg)}
   .nav{display:flex;align-items:center;gap:8px}
+.nav a.navcalc{width:auto;height:38px;display:flex;align-items:center;padding:0 14px;border-radius:12px;border:1px solid var(--line2);color:var(--text);font-weight:600;font-size:14px;text-decoration:none;white-space:nowrap}
   .nav a{width:38px;height:38px;border-radius:12px;display:grid;place-items:center;color:var(--muted);border:1px solid transparent;
     transition:color .35s var(--ease),background-color .35s var(--ease),border-color .35s var(--ease),transform .35s var(--ease)}
   .nav a svg{width:18px;height:18px;display:block}
@@ -55,7 +56,7 @@
   .tipbtn{width:38px;height:38px;display:grid;place-items:center;border-radius:12px;border:1px solid transparent;background:none;color:var(--muted);cursor:pointer;padding:0;transition:color .35s var(--ease),background-color .35s var(--ease),border-color .35s var(--ease),transform .35s var(--ease)}
   .tipbtn svg{width:19px;height:19px;display:block;transition:transform .35s var(--ease)}
   .tipbtn:hover,.tipbtn.on{color:var(--acc);background:var(--s2);border-color:var(--line2);transform:translateY(-2px)} .tipbtn:hover svg{transform:scale(1.12)}
-  .tiptip{position:absolute;right:0;top:calc(100% + 6px);font:500 11px var(--mono);color:var(--muted);white-space:nowrap;opacity:0;transform:translateY(-3px);transition:opacity .2s,transform .2s;pointer-events:none}
+  .tiptip{position:absolute;right:0;top:calc(100% + 6px);z-index:31;font:500 11px var(--mono);color:var(--text);background:var(--s2);border:1px solid var(--line2);border-radius:8px;padding:5px 9px;box-shadow:0 8px 20px rgba(0,0,0,.4);white-space:nowrap;opacity:0;transform:translateY(-3px);transition:opacity .2s,transform .2s;pointer-events:none}
   .tipw:hover .tiptip{opacity:1;transform:none} .tipbtn.on~.tiptip{opacity:0}
   .tippop{position:absolute;right:0;top:calc(100% + 8px);width:270px;max-width:calc(100vw - 32px);background:var(--s1);border:1px solid var(--line2);border-radius:16px;padding:12px;box-shadow:0 24px 50px -20px rgba(0,0,0,.8);z-index:60;opacity:0;transform:translateY(-6px);pointer-events:none;transition:opacity .25s var(--ease),transform .25s var(--ease);display:flex;flex-direction:column;gap:4px}
   .tippop.open{opacity:1;transform:none;pointer-events:auto}
@@ -268,22 +269,18 @@
   .dcap{color:var(--muted);font-size:14px;text-align:center;margin:14px 6px 0;font-weight:500}
   /* wall: real cards people posted on X, each linked to its post */
   .demo .kbwall{display:none} .demo.haswall .dcard,.demo.haswall .dcap{display:none} .demo.haswall .kbwall{display:block}
-  .whd{display:flex;align-items:center;justify-content:space-between;gap:10px;font:500 12px var(--mono);color:var(--dim);margin-bottom:6px}
-  .whd .live{display:flex;align-items:center;gap:8px} .whd .live i{width:7px;height:7px;border-radius:50%;background:var(--acc);box-shadow:0 0 0 4px rgba(255,138,61,.15);animation:wPulse 2s ease-in-out infinite} .whd b{color:var(--muted);font-weight:500}
-  @keyframes wPulse{50%{box-shadow:0 0 0 7px rgba(255,138,61,0)}}
-  .wview{position:relative;height:min(600px,calc(100vh / var(--z) - 230px));margin:0 -40px;perspective:1300px;overflow:hidden;-webkit-mask:linear-gradient(transparent,#000 16%,#000 84%,transparent),linear-gradient(90deg,transparent,#000 9%,#000 91%,transparent);-webkit-mask-composite:source-in;mask:linear-gradient(transparent,#000 16%,#000 84%,transparent),linear-gradient(90deg,transparent,#000 9%,#000 91%,transparent);mask-composite:intersect}
-  .wtilt{position:absolute;inset:-12% 6%;display:grid;grid-template-columns:1fr 1fr;gap:14px;transform:rotateX(18deg) rotateY(-14deg) rotateZ(6deg);transform-style:preserve-3d}
-  .wcol{display:flex;flex-direction:column;gap:14px;animation:wUp var(--wd,30s) linear infinite;will-change:transform} .wcol.dn{animation-name:wDn}
-  .wview:hover .wcol{animation-play-state:paused}
-  @keyframes wUp{from{transform:translateY(0)}to{transform:translateY(calc(-50% - 7px))}}
-  @keyframes wDn{from{transform:translateY(calc(-50% - 7px))}to{transform:translateY(0)}}
-  @media (prefers-reduced-motion:reduce){ .wcol{animation:none} }
-  .wc{position:relative;display:block;border-radius:12px;overflow:hidden;border:1px solid rgba(255,246,234,.10);box-shadow:0 18px 40px -18px rgba(0,0,0,.8);transition:border-color .25s,transform .35s var(--ease),box-shadow .35s}
-  .wc:hover{border-color:rgba(255,138,61,.6);transform:translateZ(40px) scale(1.04);box-shadow:0 26px 60px -20px rgba(255,138,61,.35)}
-  .wc>img{display:block;width:100%;aspect-ratio:16/9;object-fit:cover;background:#0d0a08}
-  .wc .t{position:absolute;left:6px;right:6px;bottom:6px;display:flex;align-items:center;gap:6px;padding:3px 8px 3px 3px;border-radius:999px;background:rgba(16,12,9,.82);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);font:500 10.5px var(--mono);color:var(--muted);border:1px solid rgba(255,246,234,.08);width:max-content;max-width:calc(100% - 12px)}
-  .wc .t b{font:700 11px var(--sans);color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap} .wc .t img{width:16px;height:16px;flex:none;border-radius:50%;object-fit:cover;background:#2a211b} .wc .t em{font-style:normal;color:var(--acc);flex:none}
-  .whd .xl{width:12px;height:12px;fill:currentColor;opacity:.8}
+  .kbw{background:#141210;border:1px solid var(--line2);border-radius:20px;overflow:hidden;box-shadow:0 30px 60px -30px rgba(0,0,0,.8)}
+  .kbw .feat{position:relative;display:block;aspect-ratio:16/9;background:#0d0a08}
+  .kbw .feat{overflow:hidden;perspective:900px} .kbw .feat img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;transition:opacity .17s ease,transform .3s cubic-bezier(.2,.8,.2,1)} .kbw .feat.sw img{opacity:0;transform:rotateX(-12deg) translateY(8px) scale(.97)} .kbw .feat .bdg{transition:opacity .26s ease,transform .3s ease} .kbw .feat.sw .bdg{opacity:0;transform:translateY(-4px)}
+  .kbw .bdg{padding:3px 10px;border-radius:999px;background:#ffc94d;color:#1a120a;font:800 12px var(--sans);letter-spacing:0;text-transform:none;transition:opacity .15s ease} .kbw .bdg.sw{opacity:.25} .kbw .whd.wtop{padding:12px 14px 11px 12px;border-bottom:1px solid var(--line2)}
+  .kbw .whd{display:flex;align-items:center;justify-content:space-between;padding:13px 18px 9px;font:500 11px var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--dim)}
+  .kbw .whd span{display:flex;align-items:center;gap:6px} .kbw .whd .xl{width:11px;height:11px;fill:currentColor;opacity:.8}
+  .wrow{display:grid;grid-template-columns:14px 30px minmax(0,1fr) auto;align-items:center;gap:12px;padding:11px 18px;border-top:1px solid var(--line2);color:var(--text);text-decoration:none;transition:background .2s}
+  .wrow:hover,.wrow.on{background:rgba(255,138,61,.07)}
+  .wrow i{font:500 12px var(--mono);color:var(--dim);font-style:normal}
+  .wrow img{width:30px;height:30px;border-radius:50%;object-fit:cover;background:#2a211b}
+  .wrow .nm{display:flex;align-items:baseline;gap:6px;min-width:0} .wrow b{font:700 14px var(--sans);overflow:hidden;text-overflow:ellipsis;white-space:nowrap} .wrow .nm span{font:500 12px var(--mono);color:var(--dim);flex:none}
+  .wrow em{font:900 16px Unbounded,var(--sans);color:var(--acc);font-style:normal}
   .kblog{display:flex;flex-direction:column;align-items:center;gap:3px;min-height:74px;margin-top:2px}
   .lg{display:flex;align-items:center;gap:7px;font:11.5px var(--mono);color:var(--dim);animation:lgIn .45s var(--ease) both;transition:opacity .4s}
   .lg:nth-last-child(n+3){opacity:.45} .lg:last-child{color:var(--muted)}
@@ -363,6 +360,11 @@
   .who .fomo{font:500 10px var(--mono);color:var(--muted);border:1px solid var(--line2);border-radius:5px;padding:1px 5px}
   .eyebrow{font:500 11px var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
   .total-row{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin:6px 0 12px}
+  .tot-wrap{display:flex;align-items:flex-end;gap:14px;flex-wrap:wrap;min-width:0}
+  .wk{display:flex;flex-direction:column;gap:2px;padding:0 0 6px 14px;border-left:1px solid var(--line2);line-height:1.15;animation:wkIn .6s var(--ease) both}
+  .wk b{font:700 17px var(--sans);color:#4ade80;letter-spacing:-.01em} .wk span{font:500 11.5px var(--mono);color:var(--muted)} .wk.hidden{display:none}
+  @keyframes wkIn{from{opacity:0;transform:translateX(-6px)}}
+  @media (max-width:560px){ .wk{padding-bottom:3px} .wk b{font-size:15px} }
   .total{font-family:var(--disp);color:var(--acc);font-size:52px;line-height:1;font-weight:900;letter-spacing:-.05em;font-variant-numeric:tabular-nums}
   .share{background:var(--s2);color:var(--text);border:1px solid var(--line2);height:40px;font-weight:600;display:flex;align-items:center;gap:8px;transition:border-color .3s var(--ease),transform .3s var(--ease)}
   .share:hover{border-color:var(--acc);transform:translateY(-1px)}
@@ -371,10 +373,18 @@
   .stats .stl{display:flex;align-items:center;gap:6px;white-space:nowrap}
   .howl{color:var(--muted);text-decoration:none;white-space:nowrap;transition:color .25s} .howl:hover{color:var(--acc)}
   body:not(.idle) .stats{display:none}
+  .wallm{display:none} @media (max-width:999px){ body.idle .wallm{display:block;margin-top:16px} }
+  .wallm .wlh{display:flex;justify-content:space-between;font:500 10.5px var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--dim);margin-bottom:8px}
+  .wallm .wlh .xl{width:10px;height:10px;fill:currentColor;vertical-align:-1px}
+  .wallm .wv{overflow:hidden;-webkit-mask:linear-gradient(90deg,transparent,#000 6%,#000 94%,transparent);mask:linear-gradient(90deg,transparent,#000 6%,#000 94%,transparent)}
+  .wallm .wt{display:flex;gap:8px;width:max-content;animation:wmq var(--wd,22s) linear infinite} .wallm .wv:active .wt{animation-play-state:paused}
+  @keyframes wmq{to{transform:translateX(calc(-50% - 4px))}} @media (prefers-reduced-motion:reduce){ .wallm .wt{animation:none} }
+  .wallm :is(a,.wchip){display:flex;align-items:center;gap:8px;padding:5px 12px 5px 5px;border-radius:999px;background:var(--s1);border:1px solid var(--line2);color:var(--text);text-decoration:none;white-space:nowrap}
+  .wallm :is(a,.wchip) img{width:26px;height:26px;border-radius:50%;object-fit:cover;background:#2a211b} .wallm :is(a,.wchip) i{font:500 11px var(--mono);color:var(--dim);font-style:normal} .wallm :is(a,.wchip) b{font:600 13px var(--sans)} .wallm :is(a,.wchip) em{font:800 13px var(--disp,var(--sans));color:var(--acc);font-style:normal}
   .stats>i{width:7px;height:7px;border-radius:50%;background:var(--ok);box-shadow:0 0 0 0 rgba(126,231,135,.45);animation:stPulse 2s ease-out infinite;margin-right:2px}
   @keyframes stPulse{0%{box-shadow:0 0 0 0 rgba(126,231,135,.45)}70%,100%{box-shadow:0 0 0 7px rgba(126,231,135,0)}}
   .stats b{color:var(--acc);font-weight:600;display:inline-flex;font-variant-numeric:tabular-nums}
-  .od{display:inline-block;height:1.25em;line-height:1.25em;overflow:hidden;vertical-align:bottom}
+  .od{display:inline-block;height:1.25em;line-height:1.25em;overflow:hidden;vertical-align:bottom;transition:width 1.2s cubic-bezier(.16,.84,.24,1)}
   .odr{display:flex;flex-direction:column;transition:transform 1.6s cubic-bezier(.16,.84,.24,1)}
   .odr i{display:block;height:1.25em;font-style:normal;text-align:center}
   .keys{display:none!important}
@@ -441,13 +451,13 @@
   /* checks: a quiet list, status shown by a small mark, not colored pills */
   #checks{display:block;margin-top:12px}
   details.ckx{border:1px solid var(--line);border-radius:14px;background:rgba(255,255,255,.012);overflow:hidden}
-  details.ckx summary{list-style:none;cursor:pointer;display:flex;align-items:center;gap:10px;padding:10px 12px;font:600 13px var(--sans);color:var(--text)} details.ckx summary::-webkit-details-marker{display:none}
+  details.ckx summary{list-style:none;cursor:pointer;display:flex;align-items:center;gap:9px;padding:8px 12px;font:600 12.5px var(--sans);color:var(--text)} details.ckx summary::-webkit-details-marker{display:none}
   details.ckx summary .sm{font:400 12px var(--sans);color:var(--dim);margin-left:auto;display:flex;align-items:center;gap:6px}
   details.ckx summary .sm svg{transition:transform .35s var(--ease)} details.ckx[open] summary .sm svg{transform:rotate(180deg)}
-  .ckx .cl{border-top:1px solid var(--line);padding:4px 12px 6px}
-  .ckr{display:grid;grid-template-columns:16px 1fr;gap:10px;padding:8px 0;align-items:start}
-  .ckr+.ckr{border-top:1px dashed var(--line)}
-  .ckr b{display:block;font:600 12.5px/1.35 var(--sans);color:var(--text)} .ckr>div>span{display:block;font:400 12px/1.45 var(--sans);color:var(--muted);margin-top:1px}
+  .ckx .cl{border-top:1px solid var(--line);padding:6px 12px 8px}
+  .ckr{display:grid;grid-template-columns:14px 1fr;gap:9px;padding:4px 0;align-items:center}
+  .ckr>div{display:flex;align-items:baseline;gap:8px;min-width:0}
+  .ckr b{flex:none;font:600 12px/1.4 var(--sans);color:var(--text)} .ckr>div>span{min-width:0;font:400 11.5px/1.4 var(--sans);color:var(--dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .ckm{width:16px;height:16px;display:grid;place-items:center;margin-top:1px;flex:none}
   .ckm i{width:7px;height:7px;border-radius:50%;background:var(--dim)}
   .ckm.warn i{background:var(--warn);box-shadow:0 0 0 3px rgba(255,181,71,.14)}
@@ -461,6 +471,7 @@
   .ic{width:32px;height:32px;border-radius:50%;background:var(--s2);border:1px solid var(--line);display:grid;place-items:center;font:700 11px var(--sans);color:var(--muted);overflow:hidden;position:relative}
   .ic img{width:100%;height:100%;object-fit:cover;position:absolute;inset:0}
   .nm1{font-weight:600;display:flex;align-items:center;gap:7px;min-width:0}
+  .iss{font:500 10.5px/1 var(--mono,monospace);letter-spacing:.04em;color:var(--dim,#8a7f72);border:1px solid var(--line,#332c25);border-radius:6px;padding:3px 6px;white-space:nowrap}
   .tag{font:500 10px var(--mono);padding:1px 6px;border-radius:5px;color:var(--bg);white-space:nowrap}
   .from{font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .val{text-align:right;font-variant-numeric:tabular-nums} .val b{display:block;font-weight:600} .val small{font:11px var(--mono);color:var(--dim)}
@@ -485,10 +496,21 @@
   .kbov.open .kbmd{transform:none}
   .kbmh{display:grid;grid-template-columns:40px 1fr auto 32px;gap:12px;align-items:center;padding:18px 16px 12px 18px}
   .kbmh .ic{width:40px;height:40px} .kbmh .tot{text-align:right} .kbmh .tot b{display:block;font:800 20px var(--disp,var(--sans));letter-spacing:-.4px;font-variant-numeric:tabular-nums} .kbmh .tot small{font:11px var(--mono);color:var(--dim)}
-  .kbx{all:unset;cursor:pointer;width:32px;height:32px;border-radius:10px;display:grid;place-items:center;color:var(--muted);font-size:20px} .kbx:hover{background:var(--s2);color:var(--text)}
+  .kbmh .kbx{align-self:start;margin-top:-2px} .kbx{all:unset;cursor:pointer;width:32px;height:32px;border-radius:10px;display:grid;place-items:center;color:var(--muted);font-size:20px} .kbx:hover{background:var(--s2);color:var(--text)}
   .kbch{display:flex;gap:6px;flex-wrap:wrap;padding:0 18px 12px}
   .kbch button{all:unset;cursor:pointer;font:600 12px var(--sans);color:var(--muted);background:var(--s2);border:1px solid var(--line);border-radius:999px;padding:5px 11px}
   .kbch button.on{background:var(--acc);border-color:var(--acc);color:var(--acc-ink)}
+  .kbday{padding:12px 18px 12px;border-top:1px solid var(--line)}
+  .kbday .bars{display:flex;align-items:stretch;justify-content:space-between;gap:3px;height:76px}
+  .kbday .bars b{flex:1;max-width:36px;position:relative;cursor:pointer;display:block;min-width:1px} .kbday .bars b i{position:absolute;left:0;right:0;bottom:0;display:block;background:var(--acc);border-radius:2px 2px 0 0;transform-origin:bottom;animation:knGrow .7s cubic-bezier(.2,.8,.2,1) both;transition:opacity .2s}
+  .kbday .bars:hover b i{opacity:.4} .kbday .bars b:hover i,.kbday .bars b.on i{opacity:1}
+  .kbday .ax{display:flex;justify-content:space-between;font:500 11px var(--mono);color:var(--dim);margin-top:6px}
+  .kbday .tip{display:flex;justify-content:space-between;gap:10px;margin-top:6px;font:500 12.5px var(--sans);color:var(--muted);min-height:18px} .kbday .tip b{color:var(--text);font-weight:600}
+  .kbhold{all:unset;box-sizing:border-box;cursor:pointer;width:100%;margin:2px 0 12px;display:grid;grid-template-columns:96px 1fr 16px;gap:12px;align-items:center;padding:8px 12px 8px 8px;border:1px solid var(--line2);border-radius:14px;background:var(--s2,rgba(255,255,255,.02))}.kbhold:hover{border-color:var(--primary,#ff8a3d)}.kbhold img{width:96px;aspect-ratio:16/9;border-radius:8px;background:#141210;display:block;object-fit:cover}.kbhold b{display:block;font-weight:600;font-size:13.5px;line-height:1.3}.kbhold small{display:block;font-size:12px;color:var(--muted);margin-top:2px}.kbhold i{font-style:normal;color:var(--muted);font-size:20px}
+  .kbsh{display:inline-flex;align-items:center;gap:6px;margin:8px 0 0 auto;height:auto;padding:5px 11px 5px 9px;border-radius:999px;background:transparent;border:1px solid var(--line2);color:var(--muted);font:600 11.5px var(--sans);cursor:pointer;transition:color .2s,border-color .2s,background .2s} .kbsh svg{width:13px;height:13px} .kbsh:hover{color:var(--acc);border-color:rgba(255,138,61,.55);background:rgba(255,138,61,.06)} .kbmh .tot{display:flex;flex-direction:column;align-items:flex-end}
+  .coinpick{display:flex;gap:6px;overflow-x:auto;padding:2px 0 10px;scrollbar-width:none} .coinpick.hidden{display:none}
+  .coinpick button{flex:none;display:flex;align-items:center;gap:7px;height:auto;padding:6px 11px 6px 6px;border-radius:999px;background:var(--s2);border:1px solid var(--line2);color:var(--text);font:600 12.5px var(--sans)}
+  .coinpick button img{width:20px;height:20px;border-radius:50%} .coinpick button b{color:var(--muted);font-weight:500} .coinpick button.on{border-color:var(--acc);background:rgba(255,138,61,.1)}
   .kbml{flex:1;overflow:auto;overscroll-behavior:contain;padding:0 18px 14px;border-top:1px solid var(--line)}
   .kbml .pm{font-size:12px;color:var(--muted);padding:10px 0 6px;line-height:1.6}
   .kbml .qh{font-size:11.5px;color:var(--dim);padding:0 0 8px;line-height:1.45}
@@ -527,8 +549,10 @@
   .sheet-top{display:flex;justify-content:space-between;align-items:center} .sheet .x{background:none;color:var(--muted);font-size:22px;padding:0 6px;height:30px}
   #cardPrev{width:100%;border-radius:10px;border:1px solid var(--line);aspect-ratio:16/9;background:var(--bg)}
   .pfp-row{display:flex;gap:8px} .pfp-row input{flex:1;min-width:0;background:var(--bg);border:1px solid var(--line2);color:var(--text);border-radius:10px;padding:10px 12px;font:13px var(--mono);outline:none} .pfp-row input:focus{border-color:var(--acc)}
+  @media (max-width:600px){ .sheet{overflow-x:hidden} .pfp-row{flex-wrap:wrap} .pfp-row input{flex:1 1 100%;padding:12px} .pfp-row .up{flex:1 1 0;justify-content:center;height:42px} .seg{width:100%} .seg button{flex:1;padding:0 6px} }
   .pfp-need{font-size:13px;color:var(--text);background:var(--soft);border:1px solid rgba(255,138,61,.35);border-radius:10px;padding:9px 12px}
   .pfp-row.need input{border-color:var(--acc);box-shadow:0 0 0 4px var(--soft)}
+  #hideW{background:none;font:500 13px var(--sans);height:auto;border:1px solid var(--line2);border-radius:10px} #hideW.on{border-color:var(--acc);color:var(--acc)}
   .up{display:flex;align-items:center;padding:0 14px;border:1px solid var(--line2);border-radius:10px;font-size:13px;color:var(--text);cursor:pointer;white-space:nowrap} .up:hover{border-color:var(--acc)}
   .sheet-actions{display:flex;gap:8px} .sheet-actions button{flex:1;height:44px} .sheet-actions .ghost{background:var(--s2);color:var(--text);border:1px solid var(--line2)}
 
@@ -659,6 +683,208 @@
   @keyframes kbTurn{0%,62%{transform:rotate(0)}100%{transform:rotate(-360deg)}}
   @keyframes knBlink{50%{opacity:.25}} .knb{white-space:nowrap} .knres .pw{flex-wrap:wrap}
   @media (max-width:560px){ .knst b{font-size:17px} .knst em{font-size:10px;letter-spacing:.08em} html.kn h1{font-size:27px} .knres .v{font-size:40px} html.kn #result{padding:20px} html.kn .knb svg{width:38px;height:38px} html.kn .knb .mark{width:34px;height:34px} html.kn .knhero{width:104px;height:104px;margin-bottom:24px} }
+  html.emb body{visibility:hidden}
+  /* home, cleaned up: flat background, no glow, no caps labels, no dots */
+  html:not(.kn) body{background:var(--bg)}
+  html:not(.kn) .chains{display:none}
+  html:not(.kn) .stats{font:500 15px var(--sans);color:var(--muted)} html:not(.kn) .stats>i{display:none} html:not(.kn) .stats b{color:var(--text);font-weight:700}
+  html:not(.kn) .stats .stl{gap:5px}
+  html:not(.kn) .howl{font:600 14px var(--sans)}
+  html:not(.kn) body.idle .kbfoot{font:500 13px/1.4 var(--sans);gap:4px 20px} html:not(.kn) .kbfoot button{border-bottom:0} html:not(.kn) .kbfoot i{display:none}
+  .kbw2 h3{margin:0 0 6px;font:600 15px var(--sans);color:var(--muted)}
+  .kbw2 .wrow{grid-template-columns:16px 40px minmax(0,1fr) auto;gap:14px;padding:14px 0;border-top:1px solid var(--line);background:none}
+  .kbw2 .wrow:hover{background:none} .kbw2 .wrow:hover b{color:var(--acc)}
+  .kbw2 .wrow img{width:40px;height:40px}
+  .kbw2 .wrow i{font:600 13px var(--sans)}
+  .kbw2 .wrow .nm{flex-direction:column;align-items:flex-start;gap:2px} .kbw2 .wrow b{font-size:16px} .kbw2 .wrow .nm span{font:500 13px var(--sans);color:var(--dim)}
+  .kbw2 .wrow em{font-size:20px;letter-spacing:-.5px}
+  html:not(.kn) .wallm .wlh{font:600 13px var(--sans);letter-spacing:0;text-transform:none;color:var(--muted)}
+  html:not(.kn) .search input::placeholder{font-family:var(--sans);letter-spacing:0}
+  .kbw2 .feat2{position:relative;display:block;aspect-ratio:16/9;margin:44px 0 22px;isolation:isolate}
+  .kbw2 .feat2 img,.kbw2 .feat2 .bk{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:16px;border:1px solid rgba(255,246,234,.1);background:#0d0a08}
+  .kbw2 .feat2 img.fr{z-index:2}
+  .kbw2 .feat2 img.gh{z-index:3;opacity:0;pointer-events:none}
+  .kbw2 .feat2 img:not([src]){display:none}
+  .kbw2 .feat2 .bk{background:#1c1916 center/cover}
+  .kbw2 .feat2 .bk1{transform:translateY(-22px) scale(.92);filter:brightness(.6);z-index:1}
+  .kbw2 .feat2 .bk2{transform:translateY(-42px) scale(.84);filter:brightness(.35);z-index:0}
+  .kbw2 .wrow{position:relative} .kbw2 div.wrow{cursor:default} .kbw2 .feat2[aria-disabled]{cursor:default}
+  .kbw2 .wrow::after{content:"";position:absolute;left:0;bottom:-1px;height:1px;width:0;background:var(--acc);opacity:.8}
+  .kbw2 .wrow.run::after{animation:kbrun 3.5s linear forwards} .kbw2 .wrow.hold::after{animation-play-state:paused}
+  @keyframes kbrun{to{width:100%}}
+  .kbw2 .pf{position:relative;width:40px;height:40px;border-radius:50%;background:#2a211b;display:grid;place-items:center;font:700 15px var(--sans);color:var(--muted);overflow:hidden}
+  .kbw2 .pf img{position:absolute;inset:0;width:100%;height:100%;border-radius:50%;object-fit:cover}
+  .kbw2 .wrow.on b{color:var(--acc)}
+  @media (min-width:1000px){
+    html:not(.kn) .wrap{max-width:1400px;padding-left:32px;padding-right:32px}
+    html:not(.kn) body.idle main{column-gap:64px;grid-template-columns:minmax(0,1fr) min(460px,40%)}
+    html:not(.kn) body.idle h1{font-size:clamp(44px,3.7vw,54px)}
+    html:not(.kn) body.idle .demo{width:min(460px,40%)}
+    html:not(.kn) .kbw2 .feat2{margin-bottom:30px}
+    html:not(.kn) .kbw2 h3{margin-bottom:10px}
+    html:not(.kn) .kbw2 .wrow{padding:13px 0}
+    html:not(.kn) .nav{margin-right:-10px}
+  }
+  @media (min-width:1300px){
+    /* both halves sit as one centered group: text 640 + gap 80 + cards up to 560 */
+    html:not(.kn) body.idle main{column-gap:80px;grid-template-columns:640px minmax(0,560px);justify-content:center}
+    html:not(.kn) body.idle h1{font-size:clamp(46px,3.6vw,52px)}
+    html:not(.kn) body.idle .hero .sub{max-width:none}
+    html:not(.kn) body.idle .demo{grid-column:2 / 3;width:auto;left:0;right:0}
+  }
+  @media (min-width:1000px){ html:not(.kn) body.idle .demo.haswall{top:calc(50% - 32px)} }
+  html:not(.kn) .stats{align-items:flex-end;padding-top:20px}
+  html:not(.kn) .stats .stl{gap:0}
+  html:not(.kn) .stats .sc{display:flex;flex-direction:column;gap:8px;padding-right:32px;margin-right:32px;border-right:1px solid var(--line2)}
+  html:not(.kn) .stats .sc:last-child{padding-right:0;margin-right:0;border-right:0}
+  html:not(.kn) .stats .sc b{font:900 28px/1.1 var(--disp);color:var(--text);letter-spacing:-.5px}
+  html:not(.kn) .stats .sc>span{font:500 14px var(--sans);color:var(--muted)}
+  html:not(.kn) .stats .howl{padding-bottom:1px}
+  @media (max-width:560px){ html:not(.kn) .stats{flex-wrap:wrap;row-gap:14px} html:not(.kn) .stats .howl{flex-basis:100%} html:not(.kn) .stats .sc b{font-size:22px} html:not(.kn) .stats .sc{padding-right:18px;margin-right:18px} html:not(.kn) .stats .sc>span{font-size:13px} }
+  @media (max-width:999px){ .hero .sub .dbr{display:none} }
+  /* legal popups: plain list, rows split by hairlines, no bold lead-ins */
+  .kbmod h3{margin-bottom:6px}
+  .kbmod ul{list-style:none;padding:0;font:15px/1.55 var(--sans)}
+  .kbmod li{margin:0;padding:12px 0;border-top:1px solid var(--line)} .kbmod li:first-child{border-top:0}
+  .kbmod li a{color:var(--text);text-decoration:none;font-weight:600} .kbmod li a:hover{color:var(--acc)}
+  .kbmod .x{font:500 16px var(--sans);top:22px;right:24px}
+  @media (min-width:1000px) and (max-height:800px){ html:not(.kn) .kbw2 .feat2{margin-top:38px;margin-bottom:22px} html:not(.kn) .kbw2 .wrow{padding:10px 0} html:not(.kn) .kbw2 h3{margin-bottom:6px} }
+  /* results, cleaned up (main site): left the total, right the coins as bars; a coin opens in the right panel */
+  html:not(.kn) #result{padding:26px 30px 22px}
+  html:not(.kn) #result .eyebrow{font:600 15px var(--sans);letter-spacing:0;text-transform:none;color:var(--muted)}
+  html:not(.kn) #result .total-row{margin:4px 0 10px}
+  html:not(.kn) #result .total{font-size:92px;letter-spacing:-.03em}
+  html:not(.kn) #result .tot-wrap{align-items:center;gap:22px}
+  html:not(.kn) #result .wk{display:block;border-left:1px solid var(--line2);padding:2px 0 2px 20px;font:500 15px/1.5 var(--sans);color:var(--muted);animation:none}
+  html:not(.kn) #result .wk b{font:700 20px var(--sans);color:#5ee6a8} html:not(.kn) #result .wk span{display:block;font:500 15px var(--sans);color:var(--muted)}
+  html:not(.kn) #result .stack{display:none}
+  html:not(.kn) #result .plats{display:block;font:500 14px var(--sans);color:var(--dim);margin:0} html:not(.kn) #result .plats b{color:var(--muted);font-weight:700}
+  html:not(.kn) #result .rank{font:500 13px var(--sans);color:var(--dim)}
+  html:not(.kn) #result .postbig{height:56px;font-size:16px}
+  html:not(.kn) .dhead{display:flex;justify-content:space-between;align-items:baseline;font:600 15px var(--sans);letter-spacing:0;text-transform:none;color:var(--muted)}
+  html:not(.kn) .dhead .hint{font:500 12.5px var(--sans);color:var(--dim)}
+  html:not(.kn) #meta,html:not(.kn) #checks{display:none}
+  html:not(.kn) #linkedInfo:empty{display:none}
+  html:not(.kn) .proofs .card{background:var(--s1);border:1px solid var(--line);box-shadow:none;border-radius:22px;padding:18px 22px 16px}
+  @media (min-width:1000px){ html:not(.kn) body.done:not(.zero) main{grid-template-columns:minmax(0,1fr) min(480px,38%)} html:not(.kn) body.done:not(.zero) .proofs{width:min(480px,38%)} }
+  html:not(.kn) #result .btnrow{display:flex;gap:10px;align-items:center;margin-top:20px}
+  html:not(.kn) #result .btnrow .postbig{margin:0;flex:1}
+  html:not(.kn) #result .btnrow .againbtn{margin:0;height:56px;padding:0 26px;border:1px solid var(--line2);border-radius:14px;background:var(--s2);color:var(--text);font:700 16px var(--sans);order:0}
+  html:not(.kn) .rw.rw2,html:not(.kn) .proofs .rw.rw2,html:not(.kn) #sheetSlot .rw.rw2,html:not(.kn) details.small .rw.rw2{grid-template-columns:32px minmax(0,1.1fr) minmax(40px,1fr) auto 16px;gap:12px;padding:9px 10px;margin:0 -10px;border:0;border-radius:12px}
+  .rw2:hover{background:var(--s2)} .rw2:hover .chev{color:var(--acc)}
+  .rw2 .nmw{min-width:0} .rw2 .nm1{font:700 15px var(--sans)} .rw2 .from{font:500 12.5px var(--sans);color:var(--dim)}
+  .rw2 .iss{font:600 10.5px var(--sans);color:var(--dim);border:1px solid var(--line2);border-radius:99px;padding:0 6px}
+  .rw2 .bar2{height:8px;border-radius:99px;background:var(--s2);overflow:hidden} .rw2 .bar2 i{display:block;height:100%;border-radius:99px;background:var(--bc)}
+  .rw2 .val b{font:900 15px var(--disp);letter-spacing:-.02em}
+  .rw2 .chev{display:flex;color:var(--dim);transition:color .2s} .rw2 .chev svg{width:16px;height:16px}
+  .proofs .rw2 .ic{width:32px;height:32px;font-size:10px} .proofs .rw2 .nm1{font-size:15px} .proofs .rw2 .from{font-size:12.5px} .proofs .rw2 .val b{font-size:15px}
+  html:not(.kn) .showall{border:0;text-align:left;padding:10px 0 0 44px;font:600 14px var(--sans);color:var(--muted)}
+  html:not(.kn) details.small summary{font:500 13px var(--sans)}
+  .kbov.pane{position:fixed;inset:auto;background:none;backdrop-filter:none;-webkit-backdrop-filter:none;padding:0;align-items:stretch;justify-content:stretch}
+  .kbov.pane .kbmd{width:100%;max-width:none;height:100%;max-height:none;transform:none;border:1px solid var(--line);box-shadow:none;background:var(--s1);border-radius:22px;display:flex;flex-direction:column;padding-top:14px}
+  .kbov.pane .kbback{padding:4px 22px 6px}
+  .kbov.pane .kbx{display:none}
+  .kbback{all:unset;cursor:pointer;font:600 14px var(--sans);color:var(--muted);padding:6px 4px 10px} .kbback:hover{color:var(--acc)}
+  html:not(.kn) .kbmh .tag{background:none!important;border:1px solid var(--line2);color:var(--muted)}
+  html:not(.kn) .coin-tip{display:none}
+  html:not(.kn) .proofs .hint .sep{display:none} html:not(.kn) .proofs .hint .rep{margin-left:18px}
+  html:not(.kn) .proofs .hint{font:500 13px var(--sans)}
+  html:not(.kn) details.small summary{padding:10px 0 4px 44px;color:var(--muted)}
+  html:not(.kn) .kbmh .tag{font:600 11px var(--sans)!important}
+  html:not(.kn) .kbmh .tot small{font:500 12px var(--sans);color:var(--dim)}
+  html:not(.kn) .kbml .pm{font:500 13px var(--sans);color:var(--dim)}
+  html:not(.kn) .call-chip__timer{display:none}
+  html:not(.kn) .call-chip{font-family:var(--sans)}
+  @media (max-width:999px){ html:not(.kn) #result{padding:20px} html:not(.kn) #result .tot-wrap{flex-direction:column;align-items:flex-start;gap:8px} html:not(.kn) #result .wk{border:0;padding:0} html:not(.kn) #result .total{font-size:60px} html:not(.kn) #result .btnrow .postbig{min-width:0;flex:1.4;padding:0 12px} html:not(.kn) #result .btnrow .againbtn{flex:1;padding:0 12px;text-align:center;justify-content:center;display:flex;align-items:center} html:not(.kn) #result .btnrow{width:100%} html:not(.kn) #result .wk,html:not(.kn) #result .wk b{font-size:15px} }
+  /* results: bigger coin fan, quieter total card */
+  @media (min-width:1000px){ html:not(.kn) .coins{zoom:1.9} html:not(.kn) body.done .stage{height:300px} }
+  html:not(.kn) #result{padding:20px 24px 18px}
+  html:not(.kn) #result .total{font-size:68px}
+  html:not(.kn) #result .tot-wrap{gap:18px}
+  html:not(.kn) #result .wk b{font-size:17px} html:not(.kn) #result .wk span{font-size:14px}
+  html:not(.kn) #result .eyebrow{font-size:14px}
+  html:not(.kn) #result .plats{font-size:13px}
+  html:not(.kn) #result .btnrow{margin-top:14px}
+  html:not(.kn) #result .postbig,html:not(.kn) #result .btnrow .againbtn{height:48px;font-size:15px}
+  html:not(.kn) .rw2 .iss{display:none}
+  html:not(.kn) details.small summary{padding-left:0}
+  html:not(.kn) .proofs .hint{margin-top:14px}
+  /* results card: total with the week beside it, then the split by platform */
+  html:not(.kn) #result .tot-wrap{display:flex;flex-direction:row;align-items:center;gap:20px}
+  html:not(.kn) #result .wk{position:static;display:flex;flex-direction:column;gap:2px;border-left:1px solid var(--line2);padding:4px 0 4px 18px;border-radius:0;background:none}
+  html:not(.kn) #result .wk b{font:700 20px var(--sans);color:#5ee6a8} html:not(.kn) #result .wk span{font:500 14px var(--sans);color:var(--muted)}
+  html:not(.kn) #result .wk.hidden{display:none}
+  html:not(.kn) #result .stack{display:flex!important;height:6px;margin:14px 0 12px}
+  html:not(.kn) #result .plats{display:flex!important;flex-wrap:wrap;gap:8px;margin:0}
+  html:not(.kn) #result .plat{font:500 14px var(--sans);padding:6px 12px;background:var(--s2)} html:not(.kn) #result .plat b{font:700 14px var(--sans);color:var(--text)}
+  @media (min-width:1000px){
+    html:not(.kn) body.done:not(.zero) .proofs{top:50%;translate:0 -50%}
+    html:not(.kn) body.done:not(.zero) .proofs .card{height:auto;max-height:calc(100vh / var(--z) - 130px)}
+  }
+  html:not(.kn) .proofs .hint{display:flex;gap:18px;margin:12px 0 0;font:500 13px var(--sans)}
+  html:not(.kn) .proofs .hint a{color:var(--dim)} html:not(.kn) .proofs .hint a:hover{color:var(--acc)}
+  html:not(.kn) #result .tot-wrap{align-items:baseline;gap:16px}
+  html:not(.kn) #result .wk{border:0;padding:0;flex-direction:row;gap:6px;align-items:baseline}
+  html:not(.kn) #result .wk b{font:700 17px var(--sans)} html:not(.kn) #result .wk span{font:500 17px var(--sans);color:var(--muted)}
+  /* results card: last 7 days as a mini chart on the right */
+  html:not(.kn) body #result .total-row{width:100%}
+  html:not(.kn) body #result .tot-wrap{display:flex;justify-content:space-between;align-items:flex-end;width:100%;gap:20px}
+  html:not(.kn) body #result .wk{display:flex;flex-direction:column;align-items:flex-end;gap:8px;border:0;padding:0 0 8px;background:none}
+  html:not(.kn) body #result .wk.hidden{display:none}
+  html:not(.kn) body #result .wk .spk{display:flex;gap:4px;align-items:flex-end;height:56px;cursor:default}
+  html:not(.kn) body #result .wk .spk b{display:flex;align-items:flex-end;justify-content:center;width:22px;height:56px;border-radius:6px;transition:background .2s}
+  html:not(.kn) body #result .wk .spk b:hover{background:rgba(255,246,234,.05)}
+  html:not(.kn) body #result .wk .spk i{display:block;width:14px;height:var(--h);border-radius:4px;background:rgba(255,138,61,.42);transform-origin:bottom;animation:spkUp .9s cubic-bezier(.22,1,.36,1) both;animation-delay:calc(1.2s + var(--dl));transition:background .2s,opacity .2s}
+  html:not(.kn) body #result .wk .spk b.t i{background:var(--acc)}
+  html:not(.kn) body #result .wk .spk b.z i{background:rgba(255,246,234,.14)}
+  html:not(.kn) body #result .wk.hov .spk b:not(.on) i{opacity:.35}
+  html:not(.kn) body #result .wk .spk b.on i{background:var(--acc);opacity:1}
+  html:not(.kn) body #result .wk .spl{font:500 13px var(--sans);color:var(--muted);min-width:170px;text-align:right;transition:color .2s} html:not(.kn) body #result .wk .spl b{font:700 13px var(--sans);color:var(--text)}
+  html:not(.kn) body #result .wk.hov .spl b{color:var(--acc)}
+  @keyframes spkUp{from{transform:scaleY(0);opacity:0}to{transform:none;opacity:1}}
+  @media (max-width:560px){ html:not(.kn) body #result .wk{display:none} }
+  /* coin fan looks (test) */
+  .coin .cback{display:none}
+  .coins.fv1 .coin{transition:transform .8s cubic-bezier(.22,1,.36,1),margin .8s cubic-bezier(.22,1,.36,1);transform-origin:50% 100%}
+  .coins.fv1 .coin:hover .disc,.coins.fv3 .coin:hover .disc{--lift:0px;--sc:1;box-shadow:0 10px 20px -12px var(--shade)}
+  .coins.fv1 .coin.hot b{color:var(--acc)}
+  .coins.fv1 .coin .bob,.coins.fv3 .coin .bob{animation:none}
+  .coins.fv3 .coin .bob{position:relative;display:block}
+  .coins.fv3 .coin .disc{backface-visibility:visible;transition:transform .9s cubic-bezier(.22,1,.36,1),box-shadow .55s,border-color .4s}
+  .coins.fv3 .coin:hover .disc{transform:perspective(420px) rotateY(180deg)}
+  .coins.fv3 .coin .cback{display:grid;place-items:center;position:absolute;left:0;top:0;width:var(--s,58px);height:var(--s,58px);border-radius:50%;border:3px solid var(--bg);background:var(--acc);color:#141210;font:900 calc(var(--s,58px)*.24) var(--disp);
+    transform:perspective(420px) rotateY(-180deg);backface-visibility:hidden;transition:transform .9s cubic-bezier(.22,1,.36,1);pointer-events:none}
+  .coins.fv3 .coin:hover .cback{transform:perspective(420px) rotateY(0)}
+  .coins.fv5 .coin .bob{animation-duration:4.2s}
+  .coins.fv5 .coin .disc{transition:transform .9s cubic-bezier(.22,1,.36,1),box-shadow .9s,border-color .4s}
+  .coins.fv5 .coin:hover .disc{--lift:-22px;--sc:1.22}
+  /* phone pass */
+  @media (max-width:999px){
+    html:not(.kn) body.done main{padding-top:2vh}
+    html:not(.kn) .coins{zoom:1!important} html:not(.kn) body.done .stage{height:150px!important}
+    html:not(.kn) #result .pdraw>div{display:block}
+    html:not(.kn) #result .plats{display:flex!important;flex-direction:row;flex-wrap:wrap;gap:6px}
+    html:not(.kn) #result .plat{display:inline-flex;font-size:13px;padding:5px 10px} html:not(.kn) #result .plat b{font-size:13px}
+    html:not(.kn) #result .stack{margin:12px 0 10px}
+    html:not(.kn) #result .total{font-size:58px}
+    html:not(.kn) #result .btnrow .postbig,html:not(.kn) #result .btnrow .againbtn{height:50px;font-size:15px}
+    html:not(.kn) .morebtn{border:0;height:auto;margin-top:12px;font:600 14px var(--sans);color:var(--muted)}
+    html:not(.kn) .pfp-row input,html:not(.kn) .pfp-row input::placeholder{font-family:var(--sans)}
+    html:not(.kn) .kbmh .from{white-space:normal}
+    html:not(.kn) .kbml ul li,html:not(.kn) .kbml ul li *{font-family:var(--sans)}
+  }
+  html:not(.kn) .pfp-row input,html:not(.kn) .pfp-row input::placeholder{font-family:var(--sans)}
+  /* phone home: title, field, biggest bags. No stats line, no extra logo above the footer */
+  @media (max-width:999px){
+    html:not(.kn) body.idle #stats,html:not(.kn) body.idle .howl,html:not(.kn) body.idle .mtag{display:none!important}
+    html:not(.kn) body.idle .wallm{margin-top:34px}
+    html:not(.kn) .hero .sub .nets{display:none}
+    html:not(.kn) body.done main{padding-top:0;justify-content:center;margin-top:0;min-height:calc(100dvh - 120px)}
+    html:not(.kn) body.done .stage{height:104px!important;margin-bottom:6px}
+    html:not(.kn) .coins{top:6px;left:12px;right:12px;width:auto}
+    html:not(.kn) .coin.more b{visibility:hidden}
+    html:not(.kn) .coin.more{margin-left:-6px}
+  }
 </style>
 </head>
 <body class="idle">
@@ -676,30 +902,31 @@
   <main>
     <section class="hero">
       <h1>Your bags paid you.<br><em>See how much.</em></h1>
-      <p class="sub">Paste any wallet. Every holder reward, each with its tx.</p>
+      <p class="sub">Drop a wallet and see every reward it got from holding.<span class="nets"> <br class="dbr">Solana, BNB, Base, Ethereum and Robinhood.</span></p>
     </section>
 
     <div class="search">
-      <input id="wallet" placeholder="Paste your wallet · Solana or 0x…" autocomplete="off" spellcheck="false">
+      <input id="wallet" placeholder="Paste a wallet" autocomplete="off" spellcheck="false">
       <button id="go" aria-label="Check"><span class="gf">Check</span><span class="gb">Checking…</span></button>
     </div>
     <div class="chains"><span>Solana</span><span>BNB</span><span>Base</span><span>Ethereum</span><span>Robinhood</span></div>
-    <div class="stats hidden" id="stats"><span class="stl"><b id="stTotal"></b><span>found ·</span><b id="stN"></b><span id="stW">wallets</span></span><a class="howl" href="https://github.com/syanovee/kickback#how-we-count" target="_blank" rel="noopener">How it works ↗</a></div>
+    <div class="stats hidden" id="stats"><span class="stl"><span class="sc"><b id="stTotal"></b><span>found so far</span></span><span class="sc"><b id="stN"></b><span id="stW">wallets checked</span></span></span><a class="howl" href="https://github.com/syanovee/kickback#how-we-count" target="_blank" rel="noopener">How it works ↗</a></div>
+    <div class="wallm" id="wallM"></div>
     <div class="mtag"><svg viewBox="0 0 52 52"><path d="M40 14A18 18 0 1 0 44 30" fill="none" stroke="var(--acc)" stroke-width="7" stroke-linecap="round"/><path d="M30 12l12 2-2 12" fill="none" stroke="var(--acc)" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/><circle cx="26" cy="26" r="6" fill="var(--dot)"/></svg><b>kickback</b></div>
     <div class="noca">There is no CA.</div>
     <nav class="kbfoot" aria-label="About Kickback"><button type="button" data-kbtip>No CA</button><i>·</i><button type="button" data-kbmod="kbPriv">Privacy</button><i>·</i><button type="button" data-kbmod="kbDisc">Disclaimer</button><i>·</i><button type="button" data-kbx>@syanovee</button></nav>
-    <div class="kbmod" id="kbPriv" role="dialog" aria-modal="true" aria-label="Privacy"><div class="bx"><button class="x" type="button" data-kbclose>esc ✕</button><h3>Privacy</h3><ul>
-      <li><b>No wallet connection.</b> You paste a public address. Nothing to sign, no access to your funds.</li>
-      <li>We keep simple stats so we can improve Kickback: the addresses checked, what was found, the X handle if you enter one, country and the site you came from.</li>
-      <li><b>No IP addresses</b>, no ad cookies, no tracking across sites.</li>
-      <li>Cards you post or copy are saved so the share link works.</li>
-      <li>Want something removed? DM <b>@syanovee</b> on X.</li></ul></div></div>
-    <div class="kbmod" id="kbDisc" role="dialog" aria-modal="true" aria-label="Disclaimer"><div class="bx"><button class="x" type="button" data-kbclose>esc ✕</button><h3>Disclaimer</h3><ul>
-      <li><b>Not financial advice.</b> Kickback only shows what a wallet has already received. It doesn't tell you what to buy, hold or sell.</li>
-      <li><b>Numbers can be off.</b> Values use today's prices, not the price on the day of each payout. Some rewards may be missing, for example very old ones or ones we can't verify on-chain yet.</li>
-      <li><b>Read-only.</b> We only read public blockchain data. No wallet connection, nothing to sign, no access to funds.</li>
-      <li><b>Not affiliated</b> with StonkFun, pump.fun, Flap, Pons, Ember, Four.meme or any other platform. Names and logos belong to their owners.</li>
-      <li><b>No token.</b> Kickback has no coin and no CA. Anyone offering one is not us.</li></ul></div></div>
+    <div class="kbmod" id="kbPriv" role="dialog" aria-modal="true" aria-label="Privacy"><div class="bx"><button class="x" type="button" data-kbclose aria-label="Close">✕</button><h3>Privacy</h3><ul>
+      <li>You paste a public address. There's nothing to sign and we never touch your funds.</li>
+      <li>We log the addresses checked, what we found, your X handle if you add one, your country and the site that sent you.</li>
+      <li>No IP addresses, no ad cookies, no tracking across sites.</li>
+      <li>Cards you post or copy are saved so the link keeps working.</li>
+      <li>Want something gone? DM <a href="https://x.com/syanovee" target="_blank" rel="noopener">@syanovee</a> on X.</li></ul></div></div>
+    <div class="kbmod" id="kbDisc" role="dialog" aria-modal="true" aria-label="Disclaimer"><div class="bx"><button class="x" type="button" data-kbclose aria-label="Close">✕</button><h3>Disclaimer</h3><ul>
+      <li>This isn't financial advice. Kickback shows what a wallet already got, not what to buy or sell.</li>
+      <li>Totals use today's prices, not the price on the day of each payout. Very old rewards, or ones we can't verify on-chain yet, may be missing.</li>
+      <li>We only read public blockchain data. No wallet connection, nothing to sign.</li>
+      <li>We're not affiliated with StonkFun, pump.fun, Flap, Pons, Ember, Four.meme or any other platform. Names and logos belong to their owners.</li>
+      <li>Kickback has no token and no CA. If someone is selling one, it's not us.</li></ul></div></div>
     <div class="status" id="status"></div>
 
     <div class="stage" id="stage" aria-hidden="true">
@@ -737,7 +964,7 @@
       <div class="who hidden" id="who"><img id="whoImg" alt=""><span id="whoName"></span></div>
       <div class="eyebrow">Holder rewards earned · today's prices</div>
       <div class="total-row">
-        <div class="total" id="total">$0.00</div>
+        <div class="tot-wrap"><div class="total" id="total">$0.00</div><div class="wk hidden" id="wk"></div></div>
         <div class="tiers hidden" id="tiers"></div>
         <button class="share" id="shareBtn" type="button"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M18.9 2H22l-7.6 8.7L23.3 22h-7l-5.5-7.2L4.5 22H1.4l8.1-9.3L1 2h7.2l5 6.6L18.9 2Zm-1.2 18h1.7L7.4 3.9H5.6L17.7 20Z"/></svg>Share</button>
       </div>
@@ -750,7 +977,7 @@
       <button class="postbig hidden" id="postBig" type="button">Post card on X</button>
       <div id="linked"></div>
       <button class="againbtn" id="againBtn" type="button">↺ Check another wallet</button>
-      <button class="morebtn" id="moreBtn" type="button">Details &amp; proofs <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button>
+      <button class="morebtn" id="moreBtn" type="button">All coins and payouts <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button>
       <div class="details" id="details"><div class="details-in">
         <div class="eyebrow dhead">Every payout · with its transaction</div>
         <div id="meta"></div>
@@ -781,12 +1008,14 @@
   <div class="modal hidden" id="shareModal">
     <div class="sheet" role="dialog" aria-label="Share your card">
       <div class="sheet-top"><b>Your card</b><button class="x" id="closeShare" aria-label="Close">×</button></div>
-      <div class="seg-row"><div class="seg"><button type="button" data-cstyle="stack">Coin stack</button><button type="button" data-cstyle="top">Top rewards</button></div></div>
+      <div class="seg-row"><div class="seg"><button type="button" data-cstyle="stack">Coin stack</button><button type="button" data-cstyle="hold" id="holdChip">Hold receipt</button></div></div>
+      <div class="coinpick hidden" id="coinPick"></div>
       <img id="cardPrev" alt="Your Kickback card">
       <div class="pfp-need hidden" id="pfpNeed">Add your X handle so the card shows your pfp and @name instead of a wallet address.</div>
       <div class="pfp-row">
         <input id="xHandle" placeholder="@your_x_handle (adds your pfp)" autocomplete="off" spellcheck="false">
         <label class="up">Upload pfp<input type="file" id="pfpFile" accept="image/*" hidden></label>
+        <button type="button" class="up" id="hideW" title="Hide the wallet address on the card">Hide wallet</button>
       </div>
       <div class="sheet-actions">
         <button class="ghost" id="dlCard" type="button">Copy image</button>
@@ -813,6 +1042,9 @@ const SOL_IGNORE_SIGNERS = new Set([
 const TOKEN_PROGRAMS = ['TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA','TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb'];
 const STONK_API = 'https://www.stonkfun.xyz/api/public/v1';
 const stonkUrl = m => '/api/stonk/'+m;
+// /embed: same scanner, no UI, driven by a partner page through postMessage (see /kickback.js)
+const EMBED = location.pathname.replace(/\/+$/,'')==='/embed'; let EMB_HELIUS=null, EMB_P=null, EMB_CUR=null, EMB_HK=null;
+if (EMBED) document.documentElement.classList.add('emb');
 const KN = document.documentElement.classList.contains('kn'), KN_MINT='8RVBk8vxLiUHueLUW1f4izFVqN3nWippLhkohKg6EGkS', KN_STONK='6GmAFSYs4gk3FDao5FzzySQpPZaWsa4rUJHacpMpUNgx';
 const KN_LOGO='<img class="knlg" src="/kn/logo.png" alt="KNOTS" draggable="false">';
 if (KN) Promise.race([Promise.all(['16px Upheaval','16px Silkscreen','500 16px Barlow'].map(f=>document.fonts.load(f).catch(()=>{}))).then(()=>document.fonts.ready), new Promise(r=>setTimeout(r,1500))]).then(()=>requestAnimationFrame(()=>document.documentElement.classList.remove('knwait')));
@@ -820,7 +1052,7 @@ if (KN) document.addEventListener('DOMContentLoaded', ()=>{
   const sc=document.createElement('div'); sc.className='knscan'; document.body.appendChild(sc);
   const mk=document.querySelector('#home .mark'); $('home').innerHTML=`<span class="knb">${KN_LOGO}<i>×</i>${mk?mk.outerHTML:''}</span>`;
   document.querySelector('.hero h1').innerHTML='How much $STONK<br><em>did you earn?</em>';
-  document.querySelector('.hero .sub').textContent='Paste your wallet to see how much STONK rewards you earned from holding KNOTS, every payout with its tx.';
+  document.querySelector('.hero .sub').textContent='Drop your wallet and see how much $STONK you got from holding $KNOTS.';
   $('wallet').placeholder='Paste your Solana wallet';
   const st=document.createElement('div'); st.className='knst'; st.id='knSt'; $('stats').after(st);
   fetchJson(stonkUrl(KN_MINT)).then(j=>{ const r=j?.data?.rewards; if(!r) return;
@@ -837,10 +1069,10 @@ const knAmt=v=>{ v=+v||0; return v>=100?Math.round(v).toLocaleString('en-US'):v.
 function knRender(rows, total, wallet){
   if (!KN) return; const box=$('knRes'); if (!box) return;
   const mine=rows.filter(r=>r.platform==='StonkFun' && r.payer===KN_MINT);
-  const maybe=rows.filter(r=>r.platform==='StonkFun' && !r.payer && (r.from||[]).some(f=>/^KNOTS\b/.test(f)));
+  const maybe=rows.filter(r=>r.platform==='StonkFun' && !r.payer && (r.from||[]).some(f=>/^\$?KNOTS\b/.test(f)));
   const sum=(a,k)=>a.reduce((s,r)=>s+(+r[k]||0),0), usd=sum(mine,'usd'), amt=sum(mine,'amount'), n=sum(mine,'count'), mUsd=sum(maybe,'usd'), mN=sum(maybe,'count');
   const other=Math.max(0,total-usd-mUsd), all=(/kickback-test\.|localhost/.test(location.host)?location.origin:'https://getkickback.fun')+'/?wallet='+encodeURIComponent(wallet||'')+'&go&from=knots';
-  const oth=rows.filter(r=>r.usd>=1 && !(r.platform==='StonkFun' && (r.payer===KN_MINT || (!r.payer && (r.from||[]).some(f=>/^KNOTS\b/.test(f)))))).sort((a,b)=>b.usd-a.usd);
+  const oth=rows.filter(r=>r.usd>=1 && !(r.platform==='StonkFun' && (r.payer===KN_MINT || (!r.payer && (r.from||[]).some(f=>/^\$?KNOTS\b/.test(f)))))).sort((a,b)=>b.usd-a.usd);
   const othSyms=[...new Set(oth.map(r=>r.sym||'?'))];
   const kb=document.querySelector('.mtag svg')?.outerHTML||'';
   // the deep check found more: keep the card, count it up and say what was added
@@ -981,14 +1213,18 @@ document.addEventListener('click', async e=>{
   let copied=false; try{ if (navigator.clipboard && window.ClipboardItem){ await navigator.clipboard.write([new ClipboardItem({'image/png': new Promise(r=>c.toBlob(r,'image/png'))})]); copied=true; } }catch(err){}
   const win=window.open('about:blank','_blank'); const home=/kickback-test\.|localhost|^file:/.test(location.href)?location.origin:LINKS.site;
   let link=home+'/knots/';
-  if (!TESTRUN || TESTSITE) try{ const j=await postJson(CARD_API,{w:d.wallet, total:Math.round(d.usd*100)/100, handle:pfpHandle||'', img:c.toDataURL('image/jpeg',0.88), kind:'knots'},20000); if (j?.id) link=home+'/s/'+j.id; }catch(err){}
-  const text=`My $KNOTS bag earned me ${'$'+Math.round(d.usd).toLocaleString('en-US')} in $STONK so far 🧦\n\nsee yours: ${link}`;
+  if (!TESTRUN || TESTSITE){ // save the card so the post previews it; retry smaller if the first upload fails
+    const send=img=>postJson(CARD_API,{w:d.wallet, total:Math.round(d.usd*100)/100, handle:pfpHandle||'', img, kind:'knots'},20000).catch(()=>null);
+    let j=await send(c.toDataURL('image/jpeg',0.92));
+    if (!j?.id){ const s2=document.createElement('canvas'); s2.width=1600; s2.height=900; s2.getContext('2d').drawImage(c,0,0,1600,900); j=await send(s2.toDataURL('image/jpeg',0.8)); }
+    if (j?.id) link=home+'/s/'+j.id; }
+  const text=`My $KNOTS bag earned me ${'$'+Math.round(d.usd).toLocaleString('en-US')} in $STONK so far\n\nsee yours: ${link}`;
   const url='https://x.com/intent/post?text='+encodeURIComponent(text);
   if (win){ try{ win.opener=null; }catch(err){} win.location.href=url; } else location.href=url;
   po.textContent=copied?'Card copied ✓ paste it in':label; setTimeout(()=>po.textContent=label,5000); knPosting=false;
 });
 document.addEventListener('click', e=>{ if (!e.target.closest('[data-knopen-any]')) return;
-  const i=KB_P.findIndex(r=>r.platform==='StonkFun' && r.asset===KN_STONK); if (i<0) return; const p=KB_P[i].parts.find(p=>p.q && (p.from||[]).some(f=>/^KNOTS\b/.test(f))); kbOpen(i, p?p.lab:null); });
+  const i=KB_P.findIndex(r=>r.platform==='StonkFun' && r.asset===KN_STONK); if (i<0) return; const p=KB_P[i].parts.find(p=>p.q && (p.from||[]).some(f=>/^\$?KNOTS\b/.test(f))); kbOpen(i, p?p.lab:null); });
 document.addEventListener('click', e=>{ if (e.target.closest('[data-knagain]')){ $('againBtn').click(); return; } if (!e.target.closest('[data-knopen]')) return;
   const i=KB_P.findIndex(r=>r.platform==='StonkFun' && (r.payer===KN_MINT || r.parts.some(p=>p.payer===KN_MINT))); if (i<0) return;
   const p=KB_P[i].parts.find(p=>p.payer===KN_MINT); kbOpen(i, p?p.lab:null); });
@@ -1021,6 +1257,7 @@ const rawToNum = (raw, dec) => Number(BigInt(raw)) / 10**dec;
 let progBase = 0, progSpan = 100;
 const statusLines = {};
 function setStatus(t, err){
+  if (EMBED && EMB_CUR) try{ parent.postMessage({type:'kickback:progress', id:EMB_CUR.id, text:String(t||''), error:!!err}, EMB_CUR.origin); }catch(e){}
   const s=$('status'); const m=/^(Solana|Robinhood Chain|BNB Chain|Ethereum|Base|Monad):/.exec(t||'');
   if (m && !err){ if (s.classList.contains('err')) return;
     statusLines[m[1]]=t; s.textContent=Object.values(statusLines).join('\n'); s.className='status'; return; }
@@ -1204,7 +1441,7 @@ async function solRead(url, W, index, all, onP, aurl, bySig){
     if (onP) onP();
   } };
   const useA = aurl ? await (solAlchemyOk ??= rpc(aurl,'getSlot',[]).then(()=>true).catch(()=>false)) : false;
-  await Promise.all([...Array(16)].map(helius).concat(useA?[...Array(3)].map(alchemy):[]));
+  await Promise.all([...Array(16)].map(helius).concat(useA?[...Array(1)].map(alchemy):[]));
   const missing = index.filter(x=>!all.has(x.sig));
   await pool(missing, 16, async x=>{ const tx=await rpc(url,'getTransaction',[x.sig,{encoding:'jsonParsed',maxSupportedTransactionVersion:0}]).catch(()=>null); if (tx) put(x.sig, solCompact(tx, W)); });
 }
@@ -1295,7 +1532,7 @@ function solAnalyze(W, all, initBal){
   return {payouts, cands, accSum, stonkMints, everMints};
 }
 async function scanSolana(W, key, akey){
-  const url = '/api/helius', aurl = akey ? '/api/alchemy/solana-mainnet' : null;
+  const url = EMB_HELIUS || '/api/helius', aurl = (akey && !EMB_HELIUS) ? '/api/alchemy/solana-mainnet' : null;
   setStatus('Solana: finding token accounts…');
   const accsP = solAccounts(url, W);
   const all = new Map();
@@ -1309,6 +1546,7 @@ async function scanSolana(W, key, akey){
   const [accs, ...miss] = await Promise.all([accsP, ...reads]);
   const missing = miss.reduce((a,b)=>a+(b||0),0);
   const trunc = recent.truncated ? {read:recent.length, est:recent.est, since:recent.cutoff} : null;
+  KB_SOL[W]=all;
   const initBal = {}; for (const a of Object.values(accs)) initBal[a.mint]=(initBal[a.mint]||0n)+a.raw;
   for (const c of all.values()){ if (c.err) continue; for (const e of c.d) initBal[e.m]=(initBal[e.m]||0n)-(BigInt(e.post)-BigInt(e.pre)); }
   const A1 = solAnalyze(W, all, initBal);
@@ -1401,7 +1639,11 @@ async function evmCreatorRewards(ev){
     const coin = held[h].find(tk=>creators[tk] && senders.has(creators[tk]));
     if (coin){ const own = await Promise.all(rows.map(x=>creators[x.token]!==undefined?creators[x.token]:ev.creator(x.token).then(c=>creators[x.token]=c?.toLowerCase()||null).catch(()=>null)));
       if (rows.every((x,k)=>own[k] && senders.has(own[k]))){ const k2=ev.chain+':promo:'+(info[h].from||rows[0].from); const s=suspects[k2]||(suspects[k2]={chain:ev.label, sender:info[h].from||rows[0].from, n:0, ex:ev.link(h), note:'promo airdrop of the sender\'s own token'}); s.n++; continue; } }
-    if (coin){ for (const x of rows) payouts.push({chain:ev.chain, platform:'Creator rewards', asset:x.token, sym:x.sym, raw:x.raw, dec:x.dec, t:x.t, sig:h, link:ev.link(h), coin, coinSym:ev.symOf?.(coin)}); }
+    if (coin){ for (const x of rows) payouts.push({chain:ev.chain, platform:'Creator rewards', asset:x.token, sym:x.sym, raw:x.raw, dec:x.dec, t:x.t, sig:h, link:ev.link(h), coin, coinSym:ev.symOf?.(coin)}); continue; }
+    // a reward tracker paying many holders inside a trade of a coin this wallet held (Uniswap-style tax reward coins)
+    const moved = new Set((info[h]?.rows||[]).map(r=>r.token));
+    const coin2 = held[h].find(tk=>moved.has(tk) && !rows.some(x=>x.token===tk) && !senders.has(tk));
+    if (coin2){ for (const x of rows) payouts.push({chain:ev.chain, platform:'Coin rewards', asset:x.token, sym:x.sym, raw:x.raw, dec:x.dec, t:x.t, sig:h, link:ev.link(h), coin:coin2, coinSym:ev.symOf?.(coin2), distributor:rows[0].from}); }
     else {
       const k=ev.chain+':'+(rows[0].from||'').toLowerCase(); const s=suspects[k]||(suspects[k]={chain:ev.label, chainKey:ev.chain, sender:rows[0].from, n:0, ex:ev.link(h), gains:{}, prorata:false, last:0});
       s.n++; s.prorata = s.prorata || info[h].prorata; if (rows[0].t>s.last){ s.last=rows[0].t; s.ex=ev.link(h); }
@@ -1560,7 +1802,9 @@ async function scanEvm(chain, A, key, relayReady){
   d=0;
   await pool([...new Set(open.map(x=>x.hash))], 16, async h=>{
     const [tx, rc] = await Promise.all([rpc(url,'eth_getTransactionByHash',[h]).catch(()=>null), rpc(url,'eth_getTransactionReceipt',[h]).catch(()=>null)]);
-    txInfo[h] = {from:tx?.from?.toLowerCase(), to:tx?.to?.toLowerCase(), value:BigInt(tx?.value||'0x0'), swap:(rc?.logs||[]).some(l=>SWAP_TOPICS.has(l.topics?.[0]))};
+    const lg = rc?.logs||[];
+    txInfo[h] = {from:tx?.from?.toLowerCase(), to:tx?.to?.toLowerCase(), value:BigInt(tx?.value||'0x0'), swap:lg.some(l=>SWAP_TOPICS.has(l.topics?.[0])),
+      moved:[...new Set(lg.filter(l=>l.topics?.[0]===TRANSFER_TOPIC).map(l=>l.address?.toLowerCase()))], swappers:new Set(lg.filter(l=>SWAP_TOPICS.has(l.topics?.[0])).map(l=>l.address?.toLowerCase()))};
     const ti = txInfo[h];
     if (!ti.swap && (ti.from===a || ti.to===a) && tx?.blockNumber){
       const bn=BigInt(tx.blockNumber); const [b1,b0]=await Promise.all([rpc(url,'eth_getBalance',[a,'0x'+bn.toString(16)]).catch(()=>null), rpc(url,'eth_getBalance',[a,'0x'+(bn-1n).toString(16)]).catch(()=>null)]);
@@ -1568,9 +1812,16 @@ async function scanEvm(chain, A, key, relayReady){
     }
     d++; setStatus(`${L}: checking the rest ${d}`);
   });
+  const divCand = {};
   for (const x of open){
     const tx = txInfo[x.hash]||{};
     const own = myTx.has(x.hash) || tx.from===a || (tx.to===a && tx.from!==x.from);
+    // Uniswap-style reward coins: the coin's tax is swapped to ETH/WETH/a token and its tracker pays holders inside other people's trades of the coin.
+    // So: paid by a contract that is not the pool, in a tx where a coin this wallet held at that moment moved -> that coin's reward.
+    if (!own && isContract[x.from] && !tx.swappers?.has(x.from)){
+      const coin = (tx.moved||[]).find(T=>T!==x.token && T!==x.from && !WRAPPED_NATIVE.has((syms[T]||'').toUpperCase()) && heldAt(T, x.block));
+      if (coin){ (divCand[x.from+'|'+coin] ||= []).push(x); continue; }
+    }
     if (own && (tx.swap || tx.paidNative || (tx.from===a && tx.value>0n))) { acc.trades++; continue; }
     let kind;
     if (own) kind='claim';
@@ -1582,6 +1833,13 @@ async function scanEvm(chain, A, key, relayReady){
     if (!s.hashes.has(x.hash)){ s.n++; s.hashes.add(x.hash); }
     if (x.t>s.last){ s.last=x.t; s.ex=link(x.hash); }
     s.gains[x.token]={raw:(s.gains[x.token]?.raw||0n)+x.raw, dec:x.dec, sym:x.sym};
+  }
+  // a tracker pays again and again; a single one-off from some contract is more likely a trade sent to this wallet
+  for (const [k, xs] of Object.entries(divCand)){
+    const [from, coin] = k.split('|');
+    if (new Set(xs.map(x=>x.hash)).size >= 2){ for (const x of xs){ payouts.push({chain, platform:'Coin rewards', asset:x.token, sym:x.sym, raw:x.raw, dec:x.dec, t:x.t, sig:x.hash, link:link(x.hash), coin, coinSym:await symOf(coin), distributor:from}); acc.rewards++; } }
+    else for (const x of xs){ const kk=chain+':contract:'+from; const s=byKey[kk]||(byKey[kk]={chain:L, chainKey:chain, sender:from, n:0, ex:link(x.hash), gains:{}, prorata:false, last:0, kind:'contract', hashes:new Set()});
+      if (!s.hashes.has(x.hash)){ s.n++; s.hashes.add(x.hash); } if (x.t>s.last){ s.last=x.t; s.ex=link(x.hash); } s.gains[x.token]={raw:(s.gains[x.token]?.raw||0n)+x.raw, dec:x.dec, sym:x.sym}; }
   }
   for (const s of Object.values(byKey)){ s.hx=[...s.hashes]; delete s.hashes; suspects.push(s); if (s.kind==='native') acc.direct++; else acc.review++; }
 
@@ -1639,7 +1897,7 @@ async function solanaMeta(mints){
   for (const [chunk, pairs] of dexs){
     for (const p of (Array.isArray(pairs)?pairs:[])) for (const side of ['baseToken','quoteToken']){
       const m=p[side]?.address; if(!chunk.includes(m)) continue;
-      const c=info[m]||{}; if(!c.sym) c.sym=p[side].symbol;
+      const c=info[m]||{}; if(!c.sym) c.sym=p[side].symbol; if(!c.name && p[side].name) c.name=p[side].name;
       if (side==='baseToken'){ if(!c.icon && p.info?.imageUrl) c.icon=p.info.imageUrl; if(c.price==null && p.priceUsd){ c.price=+p.priceUsd; c.src='DexScreener'; } }
       info[m]=c;
     }
@@ -1647,7 +1905,7 @@ async function solanaMeta(mints){
   const noIcon=mints.filter(m=>!info[m]?.icon), noIconChunks=[];
   for (let i=0;i<noIcon.length;i+=50) noIconChunks.push(noIcon.slice(i,i+50));
   for (const j of await Promise.all(noIconChunks.map(c=>fetchJson('https://lite-api.jup.ag/tokens/v2/search?query='+c.join(','))))){
-    for (const t of (Array.isArray(j)?j:[])) if (info[t.id]!==undefined || noIcon.includes(t.id)){ const c=info[t.id]||{}; if(!c.icon&&t.icon) c.icon=t.icon; if(!c.sym&&t.symbol) c.sym=t.symbol; info[t.id]=c; }
+    for (const t of (Array.isArray(j)?j:[])) if (info[t.id]!==undefined || noIcon.includes(t.id)){ const c=info[t.id]||{}; if(!c.icon&&t.icon) c.icon=t.icon; if(!c.sym&&t.symbol) c.sym=t.symbol; if(!c.name&&t.name) c.name=t.name; info[t.id]=c; }
   }
   if (info[SOL_MINT]) info[SOL_MINT].sym = 'SOL';
   return info;
@@ -1700,7 +1958,7 @@ const CHAIN_LABEL = {solana:'Solana', robinhood:'Robinhood Chain', bsc:'BNB Chai
 const PLAT_COLOR = {'StonkFun':'#7b4dff','pump.fun':'#5ee6a8','Pons':'#ff8a3d','Flap':'#e0a800','Four.meme':'#f0b90b','Ember':'#ff6b6b','Scribe':'#a996ff','Coin rewards':'#4cc9f0','Creator rewards':'#ff7ad9'};
 const platColor = p => PLAT_COLOR[p]||'#9aa0a6';
 const MIN_ROW_USD = 2;
-let KB_P=[];
+let KB_P=[]; const KB_SOL={};   // KB_SOL: wallet -> compact Solana txs of the last scan, for hold receipts   // wallet -> compact Solana txs of the last scan, for hold receipts
 // rows come split by the coin that paid them; the list shows one line per reward token with that split under it
 function mergeRows(rows){
   const m=new Map(), key=r=>r.chain+'|'+r.platform+'|'+r.asset;
@@ -1722,24 +1980,46 @@ function mergeRows(rows){
     return g; }).sort((a,b)=>b.usd-a.usd);
 }
 function renderRows(rows){
-  rows=mergeRows(rows); KB_P=rows;
+  rows=mergeRows(rows); KB_P=rows; HOLD_LIST=null;
   const big=rows.filter(r=>r.usd>=MIN_ROW_USD), small=rows.filter(r=>!(r.usd>=MIN_ROW_USD));
   const smallUsd=small.reduce((a,r)=>a+r.usd,0);
-  const tail = small.length ? `<details class="small"><summary><span>+ ${small.length} smaller reward${small.length>1?'s':''} under $${MIN_ROW_USD}</span><b>${fmtUsd(smallUsd)}</b></summary>${rowHtml(small,big.length)}</details>` : '';
+  const tail = small.length ? `<details class="small"><summary><span>${KN?`+ ${small.length} smaller reward${small.length>1?'s':''} under $${MIN_ROW_USD}`:`+${small.length} more under $${MIN_ROW_USD}`}</span><b>${fmtUsd(smallUsd)}</b></summary>${rowHtml(small,big.length)}</details>` : '';
   const TOP_ROWS=8, head=big.slice(0,TOP_ROWS), rest=big.slice(TOP_ROWS), restUsd=rest.reduce((a,r)=>a+r.usd,0)+smallUsd;
   $('rows').innerHTML = rest.length
-    ? rowHtml(head,0) + `<div class="rows-more hidden" id="rowsMore">${rowHtml(rest,TOP_ROWS)}${tail}</div><button class="showall" id="showAll" type="button">Show all ${big.length+small.length} rewards · ${fmtUsd(restUsd)} more ↓</button>`
+    ? rowHtml(head,0) + `<div class="rows-more hidden" id="rowsMore">${rowHtml(rest,TOP_ROWS)}${tail}</div><button class="showall" id="showAll" type="button">${KN?`Show all ${big.length+small.length} rewards · ${fmtUsd(restUsd)} more ↓`:`+${rest.length+small.length} more coins, ${fmtUsd(restUsd)}`}</button>`
     : rowHtml(big,0) + tail;
+  kickIcons($('rows'));
+}
+// tokenized stocks: several companies issue the same stock on Solana (SpaceX as xStocks' SPCXx and Backpack's SPCX), so name the issuer
+function issuer(r){ const n=(r.name||'')+' '+(r.sym||'');
+  if (/backpack/i.test(n)) return 'Backpack'; if (/xstock/i.test(n) || (/^Xs/.test(r.asset||'') && /x$/i.test(r.sym||''))) return 'xStocks';
+  if (/\bondo\b/i.test(n)) return 'Ondo'; if (/dinari|dshare/i.test(n)) return 'Dinari'; return null; }
+const CHEV='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>';
+// what you held to get this coin, short: "for $GP, $WOW +2"
+function heldFor(r){ const labs=r.parts.length>1 ? [...new Set(r.parts.flatMap(p=>p.q?(p.from||[]):[p.lab]).filter(Boolean))] : (r.from||[]);
+  if (!labs.length) return esc(CHAIN_LABEL[r.chain]||''); return 'for '+labs.slice(0,2).map(esc).join(', ')+(labs.length>2?` +${labs.length-2}`:''); }
+// the icon resizer (wsrv) is sometimes slow: if a coin icon hasn't shown up after 2.5s, load the original instead
+function kickIcons(root){ setTimeout(()=>(root||document).querySelectorAll('img[data-raw]').forEach(im=>{ if (!(im.complete && im.naturalWidth) && im.dataset.raw && im.src!==im.dataset.raw) im.src=im.dataset.raw; }),2500); }
+function rowHtml2(rows, off){
+  const mx=Math.max(...(KB_P||[]).map(x=>x.usd||0),0.01);
+  return rows.map((r,j)=>{ const i=j+off, sym=r.sym||short(r.asset), w=r.price!=null?Math.max(2,r.usd/mx*100):0;
+    return `<div class="rw rw2" data-p="${i}" style="--ri:${Math.min(i,14)}">
+      <div class="ic">${esc(sym.replace(/[^A-Za-z0-9]/g,'').slice(0,3).toUpperCase())}${r.icon?`<img src="${esc(thumb(r.icon))}" data-raw="${esc(r.icon)}" alt="" loading="lazy" decoding="async" onerror="if(this.dataset.raw&&this.src!==this.dataset.raw){this.src=this.dataset.raw}else this.remove()">`:''}</div>
+      <div class="nmw"><div class="nm1">${esc(tk(sym))}${issuer(r)?`<span class="iss">${issuer(r)}</span>`:''}</div><div class="from">${heldFor(r)}</div></div>
+      <div class="bar2"><i style="width:${w}%;--bc:${i===0?'var(--acc)':i<3?'#c96a2e':'#7a5b45'}"></i></div>
+      <div class="val"><b>${r.price!=null?fmtUsd(r.usd):'<span class="muted">no price</span>'}</b></div><span class="chev">${CHEV}</span></div>`; }).join('');
 }
 function rowHtml(rows, off){
-  return rows.map((r,j)=>{ const i=j+off, sym=r.sym||short(r.asset), multi=r.parts.length>1, top=multi?Math.max(...r.parts.map(p=>p.usd),0.01):1;
+  if (!KN) return rowHtml2(rows, off);
+  const dupSym={}; for (const x of (KB_P||[])) { const t=(x.sym||'').toUpperCase(); dupSym[t]=(dupSym[t]||new Set()).add(x.asset); }
+  return rows.map((r,j)=>{ const i=j+off, sym=r.sym||short(r.asset), lbl=tk(sym)+((dupSym[(r.sym||'').toUpperCase()]?.size>1)?' · '+short(r.asset):''), multi=r.parts.length>1, top=multi?Math.max(...r.parts.map(p=>p.usd),0.01):1;
     const sub = multi ? `${r.count} payouts · from ${r.parts.length} sources` : `${r.from.length?'for holding '+r.from.slice(0,3).map(esc).join(', ')+(r.from.length>3?` +${r.from.length-3}`:''):esc(CHAIN_LABEL[r.chain])} · ${r.count} payout${r.count>1?'s':''}`;
     return `
     <div class="rw${multi?' has-kids':''}" data-p="${i}" style="--ri:${Math.min(i,14)}">
       <div class="ic">${esc(sym.replace(/[^A-Za-z0-9]/g,'').slice(0,3).toUpperCase())}${r.icon?`<img src="${esc(thumb(r.icon))}" alt="" loading="lazy" decoding="async" onerror="this.remove()">`:''}</div>
-      <div style="min-width:0"><div class="nm1">${esc(sym)}<span class="tag" style="background:${platColor(r.platform)}">${esc(r.platform)}</span></div>
+      <div style="min-width:0"><div class="nm1">${esc(lbl)}${issuer(r)?`<span class="iss">${issuer(r)}</span>`:''}<span class="tag" style="background:${platColor(r.platform)}">${esc(r.platform)}</span></div>
         <div class="from">${sub}</div></div>
-      <div class="val"><b>${r.price!=null?fmtUsd(r.usd):'<span class="muted">no price</span>'}</b><small>${fmtAmt(r.amount)} ${esc(sym)}</small></div>
+      <div class="val"><b>${r.price!=null?fmtUsd(r.usd):'<span class="muted">no price</span>'}</b><small>${fmtAmt(r.amount)} ${esc(tk(sym))}</small></div>
     </div>${multi?`<div class="kids">${r.parts.map((p,k)=>`<div class="kid" data-p="${i}" data-k="${k}"><span class="c${p.q?' q':''}">${p.q?esc(p.lab):'for '+esc(p.lab||'?')}</span><span class="bar"><i style="width:${Math.max(2,p.usd/top*100)}%;background:${p.q?'var(--dim)':platColor(r.platform)}"></i></span><span class="n">${p.count} payout${p.count>1?'s':''}</span><b>${r.price!=null?fmtUsd(p.usd):''}</b></div>`).join('')}</div>`:''}`;
   }).join('');
 }
@@ -1747,22 +2027,141 @@ function rowHtml(rows, off){
 const KBOV=document.createElement('div'); KBOV.className='kbov'; KBOV.innerHTML='<div class="kbmd" role="dialog" aria-modal="true"></div>';
 document.addEventListener('DOMContentLoaded',()=>document.body.appendChild(KBOV)); if (document.body) document.body.appendChild(KBOV);
 let KB_CUR=null;
+// ---- hold receipt: how long you held the coin that paid, what it paid in that time, and the trade around it
+const STABLE_MINTS=new Set(['EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v','Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB','USD1ttGY1N17NEEHLmELoaybftRBUSErhqYiQzvEmuB','2b1kV6DkPAnxd5ixfnxCpjxmKwqjjaYmCZfHsFu24GXo']);
+let HOLD_CUR=null;
+const fmtDur=s=>{ s=Math.max(60,s); const m=Math.round(s/60); if (m<60) return m+' min'; const h=Math.floor(m/60); if (h<48) return h+'h'+(m%60?' '+(m%60)+'m':''); const d=Math.floor(h/24); return d+'d'+(h%24?' '+(h%24)+'h':''); };
+const tk=t=>'$'+String(t||'?').replace(/^\$/,'');
+function holdFor(r, only){
+  if (!r || r.chain!=='solana' || r.price==null) return null;
+  let mint=null;
+  if (r.platform==='StonkFun'){ const part=only!=null?r.parts.find(p=>p.lab===only):(r.parts.length?null:r); mint=part&&!part.q?(part.payer||null):null; }
+  else if (r.cm && r.cm.size===1) mint=[...r.cm][0];
+  if (!mint) return null;
+  const proofs=(r.proofs||[]).filter(p=>only==null||p.lab===only).filter(p=>p.t).sort((a,b)=>a.t-b.t); if (!proofs.length) return null;
+  const all=Object.values(KB_SOL).find(a=>a.has(proofs[proofs.length-1].sig)); if (!all) return null;
+  const paySig=new Set(proofs.map(p=>p.sig));
+  const txs=[...all.values()].filter(c=>!c.err && c.d.some(e=>e.m===mint)).sort((a,b)=>a.sl-b.sl||a.t-b.t); if (!txs.length) return null;
+  let bal=0n; for (const e of txs[0].d) if (e.m===mint) bal+=BigInt(e.pre);
+  const ivs=[]; let cur=bal>0n?{s:txs[0].t, open:true, steps:[[txs[0].t,bal]], usd:0, ok:false}:null;
+  for (const c of txs){
+    let d=0n; for (const e of c.d) if (e.m===mint) d+=BigInt(e.post)-BigInt(e.pre);
+    const prev=bal; bal+=d;
+    if (prev<=0n && bal>0n) cur={s:c.t, steps:[], usd:0, ok:true};
+    if (!cur) continue;
+    cur.steps.push([c.t, bal>0n?bal:0n]);
+    if (d!==0n){ let st=0; for (const e of c.d) if (STABLE_MINTS.has(e.m)) st+=Number(BigInt(e.post)-BigInt(e.pre))/10**e.dec;
+      if (st) cur.usd+=st; else if (!paySig.has(c.s)) cur.ok=false; }   // coin against a stablecoin in one tx is a trade; anything else (a transfer, a SOL swap) and we don't claim a PnL
+    if (prev>0n && bal<=0n){ cur.e=c.t; ivs.push(cur); cur=null; }
+  }
+  if (cur){ cur.e=null; ivs.push(cur); }
+  // the latest stretch of holding that got paid
+  for (let k=ivs.length-1;k>=0;k--){ const iv=ivs[k], end=iv.e?iv.e+120:Infinity;
+    const ps=proofs.filter(p=>p.t>=iv.s-60 && p.t<=end); if (!ps.length) continue;
+    const amt=ps.reduce((a,p)=>a+(+p.d||0),0), usd=amt*r.price, now=Date.now()/1000, dur=(iv.e||now)-iv.s;
+    const held=coinStats(r).held, coinSym=(r.platform==='StonkFun'?held:(r.from&&r.from[0]))||short(mint);
+    return {mint, coinSym, sym:r.sym||short(r.asset), s:iv.s, e:iv.e, dur, holding:!iv.e, start:!iv.open, ps, amt, usd, perH:dur>0?usd/(dur/3600):0,
+      trade:(iv.e && iv.ok && !iv.open)?iv.usd:null, steps:iv.steps, coinIcon:HELD_ICON[mint]||null};
+  }
+  return null;
+}
+function holdBlock(r, only){
+  const h=holdFor(r, only); if (!h || h.usd<0.01) return '';
+  setTimeout(()=>holdPreview(h),0);
+  // the window already charts the payouts: here just one line with a small preview, the full card opens on tap
+  return `<button type="button" class="kbhold" data-kbhold><img id="kbHoldImg" alt=""><span><b>${fmtUsd(h.usd)} back for holding ${esc(tk(h.coinSym))} ${fmtDur(h.dur)}${h.holding?' so far':''}</b><small>Hold receipt · post it on X</small></span><i>›</i></button>`;
+}
+async function holdPreview(h){
+  if (!(h.mint in HELD_ICON)){ HELD_ICON[h.mint]=null; try{ const m=await solanaMeta([h.mint]); if (m?.[h.mint]?.icon) HELD_ICON[h.mint]=m[h.mint].icon; }catch(e){} }
+  h.coinIcon=HELD_ICON[h.mint]; if (h.coinIcon && !(h.coinIcon in iconCache)) iconCache[h.coinIcon]=await imgFromUrl(h.coinIcon);
+  await document.fonts.ready; const im=$('kbHoldImg'); if (im) im.src=drawHold(h).toDataURL('image/jpeg',0.9); HOLD_CUR=h;
+}
+// bucket size for the hold card: whole days when the hold is long, otherwise the hour/minute size that gives at most 8 buckets
+const hb=(t0,t1)=>{ const span=Math.max(60,t1-t0); if (span>=2*86400 && span/86400<=12) return 86400; for (const b of [60,300,900,1800,3600,10800,21600,43200,86400,172800,604800]) if (span/b<=8) return b; return 604800; };
+function drawHold(h){
+  const W=1200,H=675,S=2,c=document.createElement('canvas'); c.width=W*S; c.height=H*S; const x=c.getContext('2d'); x.scale(S,S);
+  const U=(w,s)=>`${w} ${s}px Unbounded, "Inter Tight", sans-serif`, I=(w,s)=>`${w} ${s}px "Inter Tight", sans-serif`;
+  const BG='#141210', TX='#fff6ea', MU='#a89c8c', OR='#ff8a3d', BAR='#3a3129';
+  x.fillStyle=BG; x.fillRect(0,0,W,H);
+  // logo
+  x.save(); x.translate(60,48); x.scale(44/52,44/52); x.strokeStyle=OR; x.lineWidth=7; x.lineCap='round'; x.lineJoin='round';
+  x.stroke(new Path2D('M40 14A18 18 0 1 0 44 30')); x.stroke(new Path2D('M30 12l12 2-2 12')); x.fillStyle='#fff1d6'; x.beginPath(); x.arc(26,26,6,0,7); x.fill(); x.restore();
+  x.fillStyle=TX; x.font=U(900,32); x.fillText('kickback',116,82);
+  // the coin you held, with its picture
+  x.font=I(800,32); const ct=tk(h.coinSym), cw=x.measureText(ct).width; x.textAlign='right'; x.fillText(ct,W-60,82); x.textAlign='left';
+  const R=26, cx=W-60-cw-16-R, cy=71, im=h.coinIcon&&iconCache[h.coinIcon];
+  x.save(); x.beginPath(); x.arc(cx,cy,R,0,7); x.clip(); if (im){ const s=Math.max(2*R/im.width,2*R/im.height); x.drawImage(im,cx-im.width*s/2,cy-im.height*s/2,im.width*s,im.height*s); } else { x.fillStyle='#2e2721'; x.fill(); } x.restore();
+  // the amount, big, with what it was for beside it
+  const amt=fmtUsd(h.usd); let fz=140; x.font=U(900,fz); while (x.measureText(amt).width>620 && fz>80){ fz-=6; x.font=U(900,fz); }
+  x.fillStyle=OR; x.fillText(amt,56,244); const aw=x.measureText(amt).width, RX=56+aw+44;
+  x.font=I(700,38); x.fillStyle=TX; x.fillText('back in '+tk(h.sym),RX,176); x.fillText('for holding '+fmtDur(h.dur)+(h.holding?' so far':''),RX,222);
+  const sg=v=>(v>=0?'+':'−')+fmtUsd(Math.abs(v)); x.font=I(600,24); x.fillStyle=MU;
+  x.fillText(h.trade!=null && h.trade+h.usd>=0 ? `trade ${sg(h.trade)}, total ${sg(h.trade+h.usd)}` : `${h.ps.length} payout${h.ps.length===1?'':'s'}`+(h.holding?', still holding':''), RX, 262);
+  // the climb: the line is what you had earned so far, the bars behind it what came in each day (or hour, for short holds)
+  const X0=60,X1=W-60, t0=h.s, t1=Math.max(h.s+60,h.e||Date.now()/1000), sx=t=>X0+(Math.min(t1,Math.max(t0,t))-t0)/(t1-t0)*(X1-X0);
+  const px1=h.usd/h.amt||0, ps=[...h.ps].sort((p,q)=>p.t-q.t), usdOf=p=>(+p.d||0)*px1;
+  const YB=500, BH=160, BK=hb(t0,t1), k0=Math.floor(t0/BK), nb=Math.max(1,Math.floor(t1/BK)-k0+1), bv=Array(nb).fill(0);
+  for (const p of ps){ const k=Math.floor(p.t/BK)-k0; if (k>=0&&k<nb) bv[k]+=usdOf(p); }
+  const bmx=Math.max(...bv,1e-9);
+  for (let k=0;k<nb;k++){ const a1=sx((k0+k)*BK), b1=sx((k0+k+1)*BK), w=b1-a1; if (w<4) continue; const cxm=(a1+b1)/2;
+    if (bv[k]>0){ const hh=Math.max(6,bv[k]/bmx*BH*.75); x.fillStyle='rgba(255,246,234,.06)'; x.fillRect(a1+5,YB-hh,w-10,hh); }
+    if (w>=90){ x.textAlign='center'; x.font=I(700,19); x.fillStyle=bv[k]>0?TX:MU; x.fillText(bv[k]>0?'+'+fmtUsd(bv[k]):'·',cxm,YB+32);
+      x.font=I(500,16); x.fillStyle=MU; const tt=(k0+k)*BK; x.fillText(BK>=86400?fmtDate(tt+43200):new Date(tt*1000).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'}),cxm,YB+54); x.textAlign='left'; } }
+  let cum=0; const pts=[[X0,0]]; for (const p of ps){ const xx=sx(p.t); pts.push([xx,cum]); cum+=usdOf(p); pts.push([xx,cum]); } pts.push([X1,cum]);
+  const top=Math.max(cum,1e-9), sy=v=>YB-v/top*BH;
+  x.beginPath(); x.moveTo(X0,YB); for (const [px,v] of pts) x.lineTo(px,sy(v)); x.lineTo(X1,YB); x.closePath(); x.fillStyle='rgba(255,138,61,.10)'; x.fill();
+  x.strokeStyle='rgba(255,246,234,.12)'; x.lineWidth=2; x.beginPath(); x.moveTo(X0,YB+1); x.lineTo(X1,YB+1); x.stroke();
+  x.beginPath(); pts.forEach(([px,v],k)=>k?x.lineTo(px,sy(v)):x.moveTo(px,sy(v))); x.strokeStyle=OR; x.lineWidth=4; x.lineJoin='round'; x.stroke();
+  x.fillStyle=OR; x.beginPath(); x.arc(X1,sy(cum),9,0,7); x.fill(); x.fillStyle=BG; x.beginPath(); x.arc(X1,sy(cum),3.5,0,7); x.fill();
+  // footer: who and where
+  if (pfp || pfpHandle){ const R2=20, ax=60+R2, ay=614; x.save(); x.beginPath(); x.arc(ax,ay,R2,0,7); x.closePath();
+    if (pfp){ x.clip(); const s2=Math.max(2*R2/pfp.width,2*R2/pfp.height); x.drawImage(pfp,ax-pfp.width*s2/2,ay-pfp.height*s2/2,pfp.width*s2,pfp.height*s2); } else { x.fillStyle='#2e2721'; x.fill(); x.fillStyle=OR; x.font=I(800,18); x.textAlign='center'; x.fillText((pfpHandle[0]||'?').toUpperCase(),ax,ay+6); x.textAlign='left'; }
+    x.restore(); x.strokeStyle=OR; x.lineWidth=3; x.beginPath(); x.arc(ax,ay,R2+1.5,0,7); x.stroke();
+    if (pfpHandle){ x.font=I(700,24); x.fillStyle=TX; x.fillText('@'+pfpHandle,ax+R2+14,622); } }
+  x.font=I(600,24); x.fillStyle=MU; x.textAlign='right'; x.fillText('getkickback.fun',W-60,622); x.textAlign='left';
+  return c;
+}
+
 function kbModal(){
   const r=KB_P[KB_CUR.i]; if(!r) return;
   if (KN){ knModal(r); return; } const sym=r.sym||short(r.asset), multi=r.parts.length>1, only=KB_CUR.only;
   const list=r.proofs.filter(p=>only==null||p.lab===only).sort((a,b)=>b.t-a.t), total=only==null?r.count:(r.parts.find(p=>p.lab===only)?.count||list.length);
-  KBOV.firstChild.innerHTML=`
+  KBOV.firstChild.innerHTML=`${KBOV.classList.contains('pane')?'<button type="button" class="kbback" data-kbclose>← All coins</button>':''}
    <div class="kbmh"><div class="ic">${esc(sym.replace(/[^A-Za-z0-9]/g,'').slice(0,3).toUpperCase())}${r.icon?`<img src="${esc(thumb(r.icon))}" alt="">`:''}</div>
-     <div style="min-width:0"><div class="nm1">${esc(sym)}<span class="tag" style="background:${platColor(r.platform)}">${esc(r.platform)}</span></div><div class="from">${r.count} payouts · ${fmtAmt(r.amount)} ${esc(sym)}</div></div>
-     <div class="tot"><b>${r.price!=null?fmtUsd(r.usd):'no price'}</b><small>today's price</small></div><button class="kbx" type="button" data-kbclose aria-label="Close">×</button></div>
+     <div style="min-width:0"><div class="nm1">${esc(tk(sym))}<span class="tag" style="background:${platColor(r.platform)}">${esc(r.platform)}</span></div><div class="from">${KN?`${r.count} payouts · ${fmtAmt(r.amount)} ${esc(tk(sym))}`:`${heldFor(r)}, ${r.count} payout${r.count===1?'':'s'}`}</div></div>
+     <div class="tot"><b>${r.price!=null?fmtUsd(r.usd):'no price'}</b><small>${KN?"today's price":`${fmtAmt(r.amount)} ${esc(tk(sym))}`}</small>${r.usd>=0.5?`<button type="button" class="kbsh" data-kbshare="${KB_CUR.i}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15V3M7 8l5-5 5 5M5 13v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6"/></svg>Share card</button>`:''}</div><button class="kbx" type="button" data-kbclose aria-label="Close">×</button></div>
    ${multi?`<div class="kbch"><button type="button" class="${only==null?'on':''}" data-kbonly="">all · ${r.count}</button>${r.parts.map(p=>`<button type="button" class="${only===p.lab?'on':''}" data-kbonly="${esc(p.lab)}">${esc(p.lab||'?')} · ${p.count}</button>`).join('')}</div>`:''}
-   <div class="kbml"><div class="pm">${esc(CHAIN_LABEL[r.chain])} · <code>${esc(short(r.asset))}</code>${r.price!=null?` · ${fmtUsd(r.price)} via ${esc(r.src)}`:''}${!multi&&r.from.length?` · earned by holding ${r.from.map(esc).join(', ')}`:''}</div>
-     ${r.parts.some(p=>p.q)?(()=>{ const cs=[...new Set(r.parts.filter(p=>p.q).flatMap(p=>p.from))]; return `<div class="qh">${cs.length>1?`Some payouts came while you held ${cs.map(esc).join(', ').replace(/, ([^,]*)$/,' and $1')}, which all pay in ${esc(sym)}`:'Some payouts couldn\'t be tied to one coin'}. The chain doesn't say which coin sent them, and we don't guess, so they're listed apart.</div>`; })():''}
+   ${kbDays(list, r.price, sym)}
+   <div class="kbml"><div class="pm">${KN?`${esc(CHAIN_LABEL[r.chain])} · <code>${esc(short(r.asset))}</code>${r.price!=null?` · ${fmtUsd(r.price)} via ${esc(r.src)}`:''}${!multi&&r.from.length?` · earned by holding ${r.from.map(esc).join(', ')}`:''}`:`Paid in ${esc(tk(sym))} on ${esc(CHAIN_LABEL[r.chain])}${r.price!=null?`, priced at ${fmtUsd(r.price)} from ${esc(r.src)}`:''}. Every payout below links to its transaction.`}</div>
+     ${r.parts.some(p=>p.q)?(()=>{ const cs=[...new Set(r.parts.filter(p=>p.q).flatMap(p=>p.from))]; return `<div class="qh">${cs.length>1?`Some payouts came while you held ${cs.map(esc).join(', ').replace(/, ([^,]*)$/,' and $1')}, which all pay in ${esc(tk(sym))}`:'Some payouts couldn\'t be tied to one coin'}. The chain doesn't say which coin sent them, and we don't guess, so they're listed apart.</div>`; })():''}
+     ${holdBlock(r, only)}
      <ul>${list.slice(0,KB_CUR.show).map(p=>`<li><span>${fmtDT(p.t)}${multi&&only==null&&p.lab?`<span class="s">${esc(p.lab)}</span>`:''}</span><span class="a">+${fmtAmt(p.d)}</span><a href="${p.link}" target="_blank" rel="noopener">${short(p.sig)} ↗</a></li>`).join('')}</ul>
      ${total>KB_CUR.show && list.length>KB_CUR.show?`<button class="more" type="button" data-kbmore>+ ${total-KB_CUR.show} more payouts</button>`:''}</div>`;
 }
-const kbOpen=(i,only)=>{ KB_CUR={i, only:only??null, show:30}; kbModal(); KBOV.classList.add('open'); document.documentElement.style.overflow='hidden'; };
+// rewards per day inside the payouts window (same strip as the KNOTS page)
+let KB_DAYS=null;
+function kbDays(list, pr, sym){
+  const day={}; for (const p of list){ if(!p.t) continue; const k=Math.floor(p.t/86400); day[k]=(day[k]||0)+(+p.d||0); }
+  const ks=Object.keys(day).map(Number); if (ks.length<4){ KB_DAYS=null; return ''; }
+  const lo=Math.min(...ks), hi=Math.max(...ks), mx=Math.max(...Object.values(day),1e-12);
+  const DAYS=Array.from({length:Math.min(400,hi-lo+1)},(_,i)=>({k:lo+i, v:day[lo+i]||0}));
+  let best=DAYS[0]; for (const x of DAYS) if (x.v>best.v) best=x;
+  KB_DAYS={DAYS, pr, sym};
+  return `<div class="kbday"><div class="bars">${DAYS.map((x,i)=>`<b data-bd="${i}"><i style="height:${x.v?Math.max(3,x.v/mx*100):0}%;animation-delay:${Math.min(i*25,900)}ms"></i></b>`).join('')}</div>
+    <div class="ax"><span>${fmtDate(lo*86400)}</span><span>${fmtDate(hi*86400)}</span></div><div class="tip" id="kbTip">${kbTip(best,'best day')}</div></div>`;
+}
+const kbTip=(x,tag)=>x&&KB_DAYS?`<span>${tag?tag+' · ':''}${fmtDate(x.k*86400)}</span><span><b>${fmtAmt(x.v)} ${esc(tk(KB_DAYS.sym))}</b>${KB_DAYS.pr!=null?' · '+fmtUsd(x.v*KB_DAYS.pr):''}</span>`:'';
+['mouseover','click'].forEach(ev=>document.addEventListener(ev, e=>{ const b=e.target.closest('.kbday .bars b'); if (!b || !KB_DAYS) return;
+  document.querySelectorAll('.kbday .bars b.on').forEach(x=>x.classList.remove('on')); b.classList.add('on');
+  const t=$('kbTip'); if (t) t.innerHTML=kbTip(KB_DAYS.DAYS[+b.dataset.bd]); }));
+const kbPane=()=>!KN && DESK.matches && document.body.classList.contains('done') ? document.querySelector('#proofs .card') : null;
+const kbOpen=(i,only)=>{ KB_CUR={i, only:only??null, show:30}; const pane=kbPane();
+  KBOV.classList.toggle('pane', !!pane);
+  if (pane){ const b=pane.getBoundingClientRect(); Object.assign(KBOV.style,{top:b.top+'px',left:b.left+'px',width:b.width+'px',height:b.height+'px'}); }
+  else KBOV.removeAttribute('style');
+  kbModal(); KBOV.classList.add('open'); if (!pane) document.documentElement.style.overflow='hidden'; };
 const kbClose=()=>{ KBOV.classList.remove('open'); document.documentElement.style.overflow=''; };
+addEventListener('resize',()=>{ if (KBOV.classList.contains('pane')) kbClose(); });
 document.addEventListener('click', e=>{
   if (e.target.closest('a')) return;
   const kid=e.target.closest('.kid[data-p]'); if (kid){ const r=KB_P[+kid.dataset.p]; kbOpen(+kid.dataset.p, r?.parts[+kid.dataset.k]?.lab); return; }
@@ -1790,7 +2189,7 @@ function renderChecks(list){
   const ord={warn:0,run:1,idle:2,ok:3}; items.sort((x,y)=>ord[x.st]-ord[y.st]);
   const warn=items.filter(x=>x.st==='warn').length, run=items.filter(x=>x.st==='run').length;
   const head = warn ? `${mark('warn')}${warn} note${warn>1?'s':''} on this scan` : run ? `${mark('run')}Still checking ${run} thing${run>1?'s':''}` : `${mark('ok')}Verified on every chain`;
-  $('checks').innerHTML = `<details class="ckx"><summary>${head}<span class="sm">${items.length} checks <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></span></summary><div class="cl">${items.map(x=>`<div class="ckr"${x.tip?` title="${esc(x.tip)}"`:''}>${mark(x.st)}<div><b>${esc(x.a)}</b>${x.b?`<span>${esc(x.b)}</span>`:''}</div></div>`).join('')}</div></details>`;
+  $('checks').innerHTML = `<details class="ckx"><summary>${head}<span class="sm">${items.length} checks <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></span></summary><div class="cl">${items.map(x=>`<div class="ckr"${x.tip?` title="${esc(x.tip)}"`:''}>${mark(x.st)}<div><b>${esc(x.a)}</b>${x.b?`<span title="${esc(x.b)}">${esc(x.b)}</span>`:''}</div></div>`).join('')}</div></details>`;
 }
 function countUp(el, to, from=0){
   const t0=performance.now(), dur=900;
@@ -1933,6 +2332,12 @@ function placeDetails(){
   if (DESK.matches) document.body.classList.remove('msopen');
 }
 DESK.addEventListener?.('change', placeDetails); placeDetails();
+if (!KN){ const e=document.querySelector('#result .eyebrow'); if (e) e.textContent='Your bags paid you'; const a=$('againBtn'); if (a) a.textContent='Check another';
+  { const pb=$('postBig'); if (pb && a){ const row=document.createElement('div'); row.className='btnrow'; pb.before(row); row.append(pb, a); } }
+  const d=document.querySelector('.dhead'); if (d) d.innerHTML='<span>By coin</span>';
+  document.querySelectorAll('p.hint').forEach(h=>{ if (/^Tap a reward/.test(h.textContent)) h.remove(); if (/^Today's prices/.test(h.textContent)) h.remove(); });
+  const rl=$('reportLink'); if (rl) rl.textContent='Report a problem ↗';
+  const cp=[...document.querySelectorAll('#shareModal .muted')].find(x=>/flex your card/.test(x.textContent)); if (cp) cp.remove(); }
 const FMP=t=>'https://financialmodelingprep.com/image-stock/'+t+'.png';
 const TVS={AAPL:'apple',NVDA:'nvidia',TSLA:'tesla',MSFT:'microsoft',AMZN:'amazon',GOOGL:'alphabet',GOOG:'alphabet',META:'meta-platforms',PLTR:'palantir',COIN:'coinbase',HOOD:'robinhood',MSTR:'microstrategy',AMD:'advanced-micro-devices',NFLX:'netflix',CRCL:'circle',AVGO:'broadcom',ORCL:'oracle',JPM:'jpmorgan-chase',V:'visa',MA:'mastercard',LLY:'eli-lilly',BRKB:'berkshire-hathaway',SPCX:'spacex',UNH:'unitedhealth',XOM:'exxon',INTC:'intel',IBM:'international-bus-mach',BABA:'alibaba',GME:'gamestop',UBER:'uber',SHOP:'shopify',PYPL:'paypal',DIS:'walt-disney',KO:'coca-cola',MCD:'mcdonalds',WMT:'walmart',QQQ:'invesco',CRWV:'coreweave',ASML:'asml',TSM:'taiwan-semiconductor',PEP:'pepsico',CSCO:'cisco',ABNB:'airbnb',RDDT:'reddit',SNOW:'snowflake',ARM:'arm',SMCI:'super-micro-computer',ACN:'accenture'};
 const stockIcon=t=>{ const k=String(t||'').toUpperCase().replace(/[^A-Z]/g,''); return TVS[k]?'https://s3-symbol-logo.tradingview.com/'+TVS[k]+'--big.svg':FMP(t); };
@@ -1970,17 +2375,78 @@ async function demoStep(){
   requestAnimationFrame(()=>card.classList.remove('swap'));
   demoBusy=false;
 }
-// homepage wall: only cards we pinned next to their real X post (admin), never wallets
-(async()=>{ if (KN || !TESTRUN) return; try{   // wall stays test-only until the new design ships
-  const j=await fetch('/api/wall').then(r=>r.ok?r.json():null); const it=(j?.items||[]).filter(x=>x.id&&x.tweet&&x.author);
+// homepage deck: cards people posted on X (pinned by us next to the real post) plus the biggest bags found by scans. Never a wallet.
+(async()=>{ if (KN) return; try{
+  const [jw,jt]=await Promise.all(['/api/wall','/api/top'].map(u=>fetch(u).then(r=>r.ok?r.json():null).catch(()=>null)));
+  const posts=(jw?.items||[]).filter(x=>x.id&&x.tweet&&x.author).map(x=>({...x, post:true}));
+  const scans=(jt?.items||[]).filter(x=>x.total>0&&(x.coins||[]).length).map(x=>({...x, post:false, author:x.handle||''}));
+  const it=[...posts,...scans].sort((a,b)=>(b.total||0)-(a.total||0)).slice(0,3);
   if (!it.length) return;
-  const ago=t=>{ if(!t) return ''; const s=Date.now()/1000-t; return s<3600?Math.max(1,Math.round(s/60))+'m':s<86400?Math.round(s/3600)+'h':Math.round(s/86400)+'d'; };
+  const now=Date.now()/1000;
   const e=v=>String(v).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-  const one=x=>`<a class="wc" href="${e(x.tweet)}" target="_blank" rel="noopener" aria-label="@${e(x.author)} on X"><img src="/c/${e(x.id)}.jpg" alt="" loading="lazy"><span class="t"><img src="/api/pfp?h=${e(x.author)}" alt="" onerror="this.style.visibility='hidden'"><b>@${e(x.author)}</b>${x.posted?' · '+ago(x.posted):''} <em>↗</em></span></a>`;
-  const list=it.map(one).join('');
-  const pool=[]; while(pool.length<8) pool.push(...it); const A=pool.filter((_,i)=>i%2===0), B=pool.filter((_,i)=>i%2===1);
-  const col=(l,cls)=>{ const h=l.map(one).join(''); return `<div class="wcol ${cls}" style="--wd:${Math.max(14,l.length*3.2)}s">${h}${h}</div>`; };
-  $('kbWall').innerHTML=`<div class="whd"><span class="live"><i></i>Real cards, posted on <svg class="xl" viewBox="0 0 24 24"><path d="M18.9 2H22l-7.6 8.7L23 22h-6.8l-5.3-6.9L4.8 22H1.7l8.1-9.3L1 2h7l4.8 6.3L18.9 2Zm-1.2 18h1.7L6.4 3.9H4.6L17.7 20Z"/></svg></span></div><div class="wview"><div class="wtilt">${col(A,'')}${col(B,'dn')}</div></div>`;
+  const usd=v=>'$'+Math.round(v||0).toLocaleString('en-US');
+  const agoL=t=>{ if(!t) return ''; const s=now-t; if (s<3600){ const m=Math.max(1,Math.round(s/60)); return m+(m>1?' minutes ago':' minute ago'); } if (s<86400){ const h=Math.round(s/3600); return h+(h>1?' hours ago':' hour ago'); } const d=Math.round(s/86400); return d+(d>1?' days ago':' day ago'); };
+  const name=x=>x.author?'@'+x.author:'anon';
+  // anon gets the classic blank profile picture: white with a grey person
+  const ANON='data:image/svg+xml,'+encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect width="100" height="100" fill="#fff"/><circle cx="50" cy="39" r="17" fill="#a7b0b8"/><path d="M17 100c0-21 15-34 33-34s33 13 33 34z" fill="#a7b0b8"/></svg>');
+  const sub=x=>x.post?(x.posted?'posted on X '+agoL(x.posted):'posted on X'):(x.ts?'found '+agoL(x.ts):'found by a scan');
+  const pf=x=>`<span class="pf">${x.author?e(x.author[0].toUpperCase())+`<img src="/api/pfp?h=${e(x.author)}" alt="" onerror="this.remove()">`:`<img src="${ANON}" alt="">`}</span>`;
+  const row2=(x,i)=>{ const inner=`<i>${i+1}</i>${pf(x)}<span class="nm"><b>${e(name(x))}</b><span>${e(sub(x))}</span></span><em>${usd(x.total)}</em>`;
+    return x.post?`<a class="wrow${i?'':' on'}" data-wi="${i}" href="${e(x.tweet)}" target="_blank" rel="noopener">${inner}</a>`:`<div class="wrow${i?'':' on'}" data-wi="${i}">${inner}</div>`; };
+  // a scan has no saved card, so draw one the same way the share card is drawn
+  const guessIcon=s=>{ const raw=String(s||'').replace(/^\$/,''), k=raw.toUpperCase();
+    if (MAJOR_ICON[k]) return MAJOR_ICON[k]; if (/^X?BTC$|^CBBTC$/.test(k)) return MAJOR_ICON.BTC;
+    const base=/[a-z]$/.test(raw)&&/x$/.test(raw)?k.slice(0,-1):k.replace(/B$/,''); if (TVS[base]) return stockIcon(base); return null; };
+  const drawScan=async (x,ms=2500)=>{
+    const coins=x.coins.map(c=>({sym:String(c.s).replace(/^\$/,''), usd:+c.u||0, icon:c.i||guessIcon(c.s), from:c.f||''}));
+    // a slow icon host must never hold the card back: wait at most 2.5s per picture, then draw with what we have
+    const cap=p=>Promise.race([p.catch(()=>null), sleep(ms).then(()=>null)]);
+    await Promise.all(coins.map(async c=>{ if (c.icon && !(c.icon in iconCache)){ const im=await cap(imgFromUrl(c.icon)); if (im) iconCache[c.icon]=im; } }));
+    const face=x.author?await cap(imgFromUrl('/api/pfp?h='+x.author,true)):await new Promise(r=>{ const im=new Image(); im.onload=()=>r(im); im.onerror=()=>r(null); im.src=ANON; });
+    try{ await Promise.race([Promise.all(['900 40px Unbounded','800 20px Unbounded','500 20px "JetBrains Mono"'].map(f=>document.fonts.load(f))), sleep(2000)]); }catch{}
+    const sv={pfp,pfpHandle,HIDE_W,cardStyle,share:window.__share,kb:KB_P};
+    try{ pfp=face; pfpHandle=x.author||''; HIDE_W=false; cardStyle='stack'; KB_P=[]; window.__kbHomeCard=true;
+      window.__share={total:x.total, coins, plats:(x.plats||[]).map(n=>({name:n})), wallet:'', who:name(x), payouts:x.payouts||0};
+      return drawCard().toDataURL('image/jpeg',.9);
+    } finally { window.__kbHomeCard=false; pfp=sv.pfp; pfpHandle=sv.pfpHandle; HIDE_W=sv.HIDE_W; cardStyle=sv.cardStyle; window.__share=sv.share; KB_P=sv.kb; } };
+  // scan cards: a quick draw first (icons that came in within 0.7s), then a full one once every icon is in; the deck swaps it in place
+  let onFull=()=>{};
+  const IMG={}; const imgOf=k=>{ const j=k%it.length, x=it[j]; if (IMG[j]) return IMG[j];
+    if (x.post) return IMG[j]=Promise.resolve('/c/'+x.id+'.jpg');
+    IMG[j]=drawScan(x,700).catch(()=>null);
+    IMG[j].then(()=>drawScan(x,8000)).then(u=>{ if (u){ IMG[j]=Promise.resolve(u); onFull(j,u); } }).catch(()=>{});
+    return IMG[j]; };
+  const n=it.length;
+  $('kbWall').innerHTML=`<div class="kbw2"><a class="feat2" id="wFeat" target="_blank" rel="noopener">${n>2?'<i class="bk bk2"></i>':''}${n>1?'<i class="bk bk1"></i>':''}<img class="fr" alt=""><img class="gh" alt=""></a><h3>Biggest bags found</h3>${it.map(row2).join('')}</div>`;
+  { // a small deck: the next card rises from behind while the old one fades off the front
+    const feat=$('wFeat'), fr=feat.querySelector('.fr'), gh=feat.querySelector('.gh'), b1=feat.querySelector('.bk1'), b2=feat.querySelector('.bk2');
+    const rows=[...document.querySelectorAll('.kbw2 .wrow')], DUR=3500, D=700, E='cubic-bezier(.22,.9,.24,1)';
+    const P1='translateY(-22px) scale(.92)', P2='translateY(-42px) scale(.84)', P3='translateY(-58px) scale(.76)';
+    const bg=(el,u)=>{ if (el) el.style.backgroundImage=u?`url("${u}")`:''; };
+    const link=i=>{ const x=it[i]; if (x.post){ feat.href=x.tweet; feat.removeAttribute('aria-disabled'); } else { feat.removeAttribute('href'); feat.setAttribute('aria-disabled','true'); } fr.alt=name(x)+' card'; };
+    let cur=0, hov=false, busy=false, t=null;
+    const mark=i=>rows.forEach(r=>{ const on=+r.dataset.wi===i; r.classList.toggle('on',on); r.classList.remove('run'); if (on && n>1){ void r.offsetWidth; r.classList.add('run'); } });
+    const show=async i=>{ if (i===cur || busy || !it[i]) return; busy=true; cur=i; mark(i);
+      const [u0,u1,u2]=await Promise.all([imgOf(i),imgOf(i+1),imgOf(i+2)]); await Promise.race([Promise.all([u0,u1,u2].filter(Boolean).map(decodeImg)), sleep(1200)]);
+      gh.src=fr.src; try{ await gh.decode(); }catch{} gh.style.opacity=1;
+      fr.src=u0||''; link(i); bg(b1,u1); bg(b2,u2);
+      gh.animate([{opacity:1,transform:'none'},{opacity:0,transform:'translateY(16px) scale(1.035)'}],{duration:340,easing:'cubic-bezier(.3,0,.6,1)',fill:'forwards'})
+        .finished.then(()=>{ gh.style.opacity=0; gh.getAnimations().forEach(a=>a.cancel()); }).catch(()=>{});
+      fr.animate([{transform:P1,filter:'brightness(.6)'},{transform:'none',filter:'brightness(1)'}],{duration:D,easing:E});
+      b1?.animate([{transform:P2,filter:'brightness(.35)'},{transform:P1,filter:'brightness(.6)'}],{duration:D,easing:E});
+      b2?.animate([{transform:P3,opacity:0},{transform:P2,opacity:1}],{duration:D,easing:E});
+      setTimeout(()=>{ busy=false; },D); };
+    const tick=()=>{ clearTimeout(t); t=setTimeout(()=>{ if (!hov && !document.hidden && document.body.classList.contains('idle')) show((cur+1)%n); tick(); },DUR); };
+    $('kbWall').addEventListener('mouseover',ev=>{ const r=ev.target.closest('.wrow'); hov=true; rows.forEach(w=>w.classList.add('hold')); if (r) show(+r.dataset.wi); });
+    $('kbWall').addEventListener('mouseleave',()=>{ hov=false; rows.forEach(w=>w.classList.remove('hold')); mark(cur); tick(); });
+    onFull=(j,u)=>{ if (busy) return; if (j===cur) fr.src=u; else if (j===(cur+1)%n) bg(b1,u); else if (j===(cur+2)%n) bg(b2,u); };
+    link(0); mark(0);
+    Promise.all([imgOf(0),imgOf(1),imgOf(2)]).then(([u0,u1,u2])=>{ if (cur===0 && !fr.getAttribute('src')){ fr.src=u0||''; bg(b1,u1); bg(b2,u2); } });
+    for (let k=3;k<n;k++) imgOf(k);
+    if (n>1) tick();
+  }
+  { const chip=(x,i)=>{ const inner=`${x.author?`<img src="/api/pfp?h=${e(x.author)}" alt="" loading="lazy" onerror="this.style.visibility='hidden'">`:`<img src="${ANON}" alt="">`}<i>#${i+1}</i><b>${e(name(x))}</b><em>${usd(x.total)}</em>`; return x.post?`<a href="${e(x.tweet)}" target="_blank" rel="noopener">${inner}</a>`:`<span class="wchip">${inner}</span>`; }, h=it.map(chip).join('');
+    $('wallM').innerHTML=`<div class="wlh"><span>Biggest bags found</span></div><div class="wv"><div class="wt" style="--wd:${8+it.length*5}s">${h}${h}</div></div>`; }
   $('demo').classList.add('haswall'); $('demo').removeAttribute('aria-hidden'); WALL_ON=true;
 }catch(e){} })();
 function demoRun(){ clearInterval(demoT); demoT=setInterval(demoStep, 3000); }
@@ -2000,12 +2466,16 @@ function odo(el, text){
   }
   const reels=[...el.querySelectorAll('.odr')], digits=chars.filter(c=>/\d/.test(c));
   reels.forEach((r,i)=>{ r.style.transitionDelay=((reels.length-1-i)*70)+'ms'; r.style.transform=`translateY(-${(+digits[i])*10}%)`; });
+  // each reel takes the width of its own digit, so a narrow 1 doesn't leave a gap
+  const fit=()=>{ const m=document.createElement('span'); m.style.cssText='position:absolute;visibility:hidden;white-space:pre'; el.appendChild(m);
+    el.querySelectorAll('.od').forEach((o,i)=>{ m.textContent=digits[i]; o.style.width=m.getBoundingClientRect().width+'px'; }); m.remove(); };
+  fit(); document.fonts?.ready.then(fit);
 }
 async function loadStats(){
   if (!STATS_API) return;
   const j=await fetchJson(STATS_API+'?t='+Math.floor(Date.now()/20000)); if (!j?.n) return;
   $('stats').classList.remove('hidden');
-  requestAnimationFrame(()=>{ odo($('stTotal'), '$'+Math.round(j.total).toLocaleString('en-US')); odo($('stN'), j.n.toLocaleString('en-US')); $('stW').textContent = j.n===1?'wallet':'wallets'; });
+  requestAnimationFrame(()=>{ odo($('stTotal'), '$'+Math.round(j.total).toLocaleString('en-US')); odo($('stN'), j.n.toLocaleString('en-US')); $('stW').textContent = j.n===1?'wallet checked':'wallets checked'; });
 }
 loadStats(); setInterval(()=>{ if (document.body.classList.contains('idle') && !document.hidden) loadStats(); }, 30000);
 $('againBtn').onclick=()=>{ $('home').click(); setTimeout(()=>{ $('wallet').select(); $('wallet').focus(); },350); };
@@ -2052,7 +2522,8 @@ const Tower=(()=>{
   };
 })();
 
-const thumb = u => !u || /^data:/.test(u) ? u : 'https://wsrv.nl/?url='+encodeURIComponent(u)+'&w=256&h=256&fit=cover&output=webp';
+// coin icons go through our own /api/img (edge-cached), so a slow icon host or resizer can't leave letters in place of pictures
+const thumb = u => !u || !/^https:\/\//.test(u) ? u : '/api/img?u='+encodeURIComponent(u);
 const THUMBS = {};
 const preThumb = u => { if (!u) return Promise.resolve(); if (THUMBS[u]) return THUMBS[u]; const im=new Image(); im.decoding='async';
   const p=new Promise(r=>{ im.onload=()=>{ (im.decode?im.decode().catch(()=>{}):Promise.resolve()).then(r); }; im.onerror=()=>r(); }); im.src=thumb(u); return THUMBS[u]=p; };
@@ -2061,17 +2532,32 @@ const fanUsd = v => v<10 ? v.toFixed(2) : v<1000 ? String(Math.round(v)) : v<1e4
 function renderCoins(d){
   const all=(d.coins||[]).filter(c=>c.usd>=0.01), n=Math.min(7,all.length), mid=(n-1)/2;
   const slot=[...Array(n).keys()].sort((a,b)=>Math.abs(a-mid)-Math.abs(b-mid)||a-b); const at=[]; slot.forEach((s,k)=>at[s]=k);
-  const disc=(c,i)=>`<span class="disc" style="--c:${COIN_BG[i%8]}">${esc(c.sym.replace(/[^A-Za-z0-9]/g,'').slice(0,4).toUpperCase())}${c.icon?`<img class="dl" src="${esc(thumb(c.icon))}" alt="" onload="this.parentNode.classList.add('ok')" onerror="this.remove()">`:''}</span>`;
+  const disc=(c,i)=>`<span class="disc" style="--c:${COIN_BG[i%8]}">${esc(c.sym.replace(/[^A-Za-z0-9]/g,'').slice(0,4).toUpperCase())}${c.icon?`<img class="dl" src="${esc(thumb(c.icon))}" data-raw="${esc(c.icon)}" alt="" onload="this.parentNode.classList.add('ok')" onerror="if(this.dataset.raw&&this.src!==this.dataset.raw){this.src=this.dataset.raw}else this.remove()">`:''}</span>`;
   let h=''; for (let s=0;s<n;s++){ const k=at[s], c=all[k], dist=Math.abs(s-mid);
-    h+=`<button class="coin" type="button" data-coin="${k}" data-rank="${k}" style="--dl:${(s*0.23).toFixed(2)}s;--y:${Math.round(dist*dist*2)}px;--s:${Math.round(66-dist*6)}px;z-index:${10-Math.round(dist)}"><span class="bob">${disc(c,k)}</span><b>$${fanUsd(c.usd)}</b></button>`; }
+    h+=`<button class="coin" type="button" data-coin="${k}" data-rank="${k}" data-slot="${s}" style="--dl:${(s*0.23).toFixed(2)}s;--y:${Math.round(dist*dist*2)}px;--s:${Math.round(66-dist*6)}px;z-index:${10-Math.round(dist)}"><span class="bob">${disc(c,k)}<span class="cback">$${fanUsd(c.usd)}</span></span><b>$${fanUsd(c.usd)}</b></button>`; }
   if (all.length>n) h+=`<button class="coin more" type="button" data-coin="more" data-rank="${n}" style="--dl:${(n*0.23).toFixed(2)}s;--y:8px;--s:44px"><span class="bob"><span class="disc">+${all.length-n}</span></span><b>more</b></button>`;
   if (!n && !((d.total||0)>=0.005)) for (let s=0;s<5;s++){ const dist=Math.abs(s-2);
     h+=`<span class="coin qcoin" style="--dl:${(s*0.23).toFixed(2)}s;--y:${dist*dist*2}px;--s:${66-dist*6}px;z-index:${10-dist}"><span class="bob"><span class="disc">?</span></span><b>$??</b></span>`; }
-  $('coins').innerHTML=h;
+  $('coins').innerHTML=h; kickIcons($('coins'));
   $('coinTip').innerHTML='';
   window.__coins=all;
 }
+// coin fan look: coins pop in, then float; on hover a coin rises and grows (looks 1 and 3 stay in the code, ?fan=1|3 to see them)
+let FANFX=null;
+function fanFx(){ if (KN) return null; const q=new URLSearchParams(location.search).get('fan'); const v=/^[135]$/.test(q||'')?q:'5';
+  const co=$('coins'); co.classList.remove('fv1','fv3','fv5'); co.classList.add('fv'+v); FANFX=v;
+  if (q && /kickback-test/.test(location.hostname)){ let t=$('fanTag'); if (!t){ t=document.createElement('div'); t.id='fanTag'; t.style.cssText='position:fixed;left:12px;bottom:10px;z-index:99;font:600 12px var(--sans);color:var(--dim)'; document.body.appendChild(t); } t.textContent='fan look '+v+(q?' (pinned)':''); }
+  return v; }
 function towerToFan(){
+  if (fanFx()){ const fan=[...$('coins').children], n=fan.length, mid=(n-1)/2, E='cubic-bezier(.22,1,.36,1)';
+    Tower.stop(false); const tw=$('tower'); tw.animate([{opacity:1},{opacity:0}],{duration:300,fill:'forwards'}).onfinish=()=>{ tw.innerHTML=''; tw.getAnimations().forEach(x=>x.cancel()); };
+    const ord=[...fan.keys()].sort((a,b)=>Math.abs(b-mid)-Math.abs(a-mid)||a-b); // outside in, the biggest lands last
+    ord.forEach((i,k)=>{ const f=fan[i], lab=f.querySelector('b'), d=f.querySelector('.disc');
+      lab.animate([{opacity:0,transform:'translateY(6px)'},{opacity:1,transform:'none'}],{duration:600,delay:900+k*140,easing:E,fill:'backwards'});
+      if (FANFX==='1') f.animate([{transform:`translateY(-360px) rotate(${(Math.random()*40-20).toFixed(0)}deg)`,opacity:0},{opacity:1,offset:.15},{transform:'translateY(6px) rotate(0)',offset:.72},{transform:'none',opacity:1}],{duration:1400,delay:k*150,easing:'cubic-bezier(.3,1.25,.5,1)',fill:'backwards'});
+      else if (FANFX==='3') d.animate([{transform:'perspective(420px) rotateY(720deg) scale(.4)',opacity:0},{opacity:1,offset:.3},{transform:'perspective(420px) rotateY(0) scale(1)',opacity:1}],{duration:1600,delay:k*120,easing:E,fill:'backwards'});
+      else f.animate([{transform:'scale(0)',opacity:0},{transform:'none',opacity:1}],{duration:1000,delay:k*130,easing:'cubic-bezier(.3,1.5,.5,1)',fill:'backwards'}); });
+    return; }
   const fan=[...$('coins').children].sort((a,b)=>(+a.dataset.rank)-(+b.dataset.rank));
   const src=Tower.top(fan.length); Tower.stop(false);
   const E='cubic-bezier(.22,1,.36,1)';
@@ -2090,26 +2576,33 @@ function towerToFan(){
 document.addEventListener('click', e=>{
   const b=e.target.closest('[data-coin]'); if(!b) return;
   document.querySelectorAll('.coin.on').forEach(x=>x.classList.remove('on'));
-  if (b.dataset.coin==='more'){ setDetails(true); return; }
+  if (b.dataset.coin==='more'){ if (!KN && DESK.matches){ $('showAll')?.click(); return; } setDetails(true); return; }
   const c=window.__coins[+b.dataset.coin]; b.classList.add('on');
+  if (!KN){ const t=(c.sym||'').toUpperCase(); let bi=-1; (KB_P||[]).forEach((r,i)=>{ if ((r.sym||'').toUpperCase()===t && (bi<0||r.usd>KB_P[bi].usd)) bi=i; }); if (bi>=0) kbOpen(bi); return; }
   $('coinTip').innerHTML=`<b>${esc(c.sym)} ${fmtUsd(c.usd)}</b> · ${c.from?'for holding '+esc(c.from)+' · ':''}${esc(c.platform)} · ${c.n} payout${c.n===1?'':'s'}`;
 });
+{ const co=()=>$('coins'), rest=()=>[...co().querySelectorAll('.coin')].forEach(c=>{ c.style.transform=''; c.style.marginLeft=''; c.style.marginRight=''; c.classList.remove('hot'); });
+  document.addEventListener('mousemove',e=>{ if (FANFX!=='1' || !e.target.closest?.('#coins')) return; const cs=[...co().querySelectorAll('.coin')];
+    cs.forEach(c=>{ const r=c.querySelector('.disc').getBoundingClientRect(), dx=Math.abs(e.clientX-(r.left+r.width/2)), f=Math.max(0,1-dx/(r.width*1.5));
+      c.style.transform=`translateY(${(-f*12).toFixed(1)}px) scale(${(1+f*.3).toFixed(3)})`; if (c.previousElementSibling) c.style.marginLeft=(-14+f*6).toFixed(1)+'px'; c.style.marginRight=(f*6).toFixed(1)+'px'; c.style.zIndex=Math.round(20+f*20); c.classList.toggle('hot',f>.8); }); });
+  document.addEventListener('mouseout',e=>{ if (FANFX==='1' && e.target.closest?.('#coins') && !e.relatedTarget?.closest?.('#coins')) rest(); }); }
 let tiltRaf=0, tiltEv=null;
 document.addEventListener('pointermove', e=>{
   if (e.pointerType==='touch') return; tiltEv=e; if (tiltRaf) return;
-  tiltRaf=requestAnimationFrame(()=>{ tiltRaf=0; const ev=tiltEv; const b=ev.target.closest?.('.coin'); if(!b) return; const d=b.querySelector('.disc'), r=d.getBoundingClientRect();
+  tiltRaf=requestAnimationFrame(()=>{ tiltRaf=0; const ev=tiltEv; const b=ev.target.closest?.('.coin'); if(!b || FANFX) return; const d=b.querySelector('.disc'), r=d.getBoundingClientRect();
     const x=Math.max(-.5,Math.min(.5,(ev.clientX-r.left)/r.width-.5)), y=Math.max(-.5,Math.min(.5,(ev.clientY-r.top)/r.height-.5));
     b.classList.add('tilt'); d.style.setProperty('--ry',(x*26).toFixed(1)+'deg'); d.style.setProperty('--rx',(-y*26).toFixed(1)+'deg'); });
 });
 document.addEventListener('pointerout', e=>{ const b=e.target.closest?.('.coin'); if(b && !b.contains(e.relatedTarget)){ b.classList.remove('tilt'); const d=b.querySelector('.disc'); d.style.setProperty('--rx','0deg'); d.style.setProperty('--ry','0deg'); } });
 
-let pfp=null, pfpHandle='';
+let pfp=null, pfpHandle='', HIDE_W=false;
 const imgReady=im=>new Promise(res=>{ if(im.complete&&im.naturalWidth) return res(true); im.onload=()=>res(true); im.onerror=()=>res(false); setTimeout(()=>res(!!im.naturalWidth),6000); });
 async function imgFromUrl(u, noProxy){
   const get=async url=>{ const r=await fetch(url); if(!r.ok) throw 0; const im=new Image(); im.src=URL.createObjectURL(await r.blob()); if(!(await imgReady(im))) throw 0; return im; };
+  if (!noProxy && /^https:\/\//.test(u||'')){ try{ return await get(thumb(u)); }catch(e){} }
   try{ return await get(u); }catch(e){}
   if (noProxy) return null;
-  try{ return await get('https://wsrv.nl/?url='+encodeURIComponent(u)+'&w=400&h=400&fit=cover&output=png'); }catch(e){ return null; }
+  try{ return await get('https://wsrv.nl/?url='+encodeURIComponent(u)+'&w=512&h=512&fit=cover&output=png'); }catch(e){ return null; }
 }
 async function fomoProfile(wallets, key){
   for (const w of wallets){
@@ -2142,7 +2635,7 @@ const COIN_COLORS = ['#d64545','#f2a900','#8a4dff','#2aa198','#4c6fff','#c9a227'
 let cardStyle='top', cardTheme='day'; const iconCache={};
 const pageDark=()=>{ const t=document.documentElement.dataset.theme; return t? t==='dark' : matchMedia('(prefers-color-scheme: dark)').matches; };
 cardStyle='stack'; cardTheme='ember';
-try{ cardStyle=localStorage.getItem('kb_style')||'stack'; }catch(e){}
+/* two cards only: the coin stack for the total, the hold receipt per coin */
 if (STUDIO){ cardStyle='stack'; addEventListener('DOMContentLoaded',()=>{ const b=document.createElement('div'); b.textContent='studio mode'; b.style.cssText='position:fixed;top:10px;left:50%;transform:translateX(-50%);z-index:99;font:11px ui-monospace,monospace;color:#1a120a;background:#ff8a3d;border-radius:999px;padding:5px 12px;opacity:.9'; document.body.appendChild(b); }); }
 document.addEventListener('click', e=>{ if(!e.target.closest('#themeBtn')) return;
   const t=pageDark()?'light':'dark'; document.documentElement.dataset.theme=t; try{localStorage.setItem('kb_page_theme',t)}catch(_){} });
@@ -2171,7 +2664,15 @@ function renderTier(total){
   $('postBig').classList.remove('hidden');
 }
 document.addEventListener('click', e=>{ if (e.target.closest('#postBig')) shareCard(); });
+// average colour of a coin icon, to tint the coin card
+const TINT=new WeakMap();
+function coinTint(im){ if (!im) return null; if (TINT.has(im)) return TINT.get(im); let out=null;
+  try{ const c=document.createElement('canvas'); c.width=c.height=16; const g=c.getContext('2d'); g.drawImage(im,0,0,16,16); const d=g.getImageData(0,0,16,16).data; let R=0,G=0,B=0,n=0;
+    for (let i=0;i<d.length;i+=4){ const r=d[i],gg=d[i+1],b=d[i+2],a=d[i+3]; const mx=Math.max(r,gg,b), mn=Math.min(r,gg,b); if (a<128 || mx<40 || mx-mn<28) continue; R+=r; G+=gg; B+=b; n++; }
+    if (n>8){ const h=v=>Math.round(v/n).toString(16).padStart(2,'0'); out='#'+h(R)+h(G)+h(B); } }catch(e){}
+  TINT.set(im,out); return out; }
 function drawCard(){
+  if (cardStyle==='hold' && HOLD_CUR) return drawHold(HOLD_CUR);
   const d=window.__share, TR=tierOf(d.total), T={...(CARD_THEMES[cardTheme]||CARD_THEMES.day), ...(window.__tierTheme&&cardTheme==='ember'&&TR.T||{})};
   const W=1200,H=675,S=2,c=document.createElement('canvas'); c.width=W*S; c.height=H*S; const x=c.getContext('2d');
   x.scale(S,S); x.imageSmoothingEnabled=true; x.imageSmoothingQuality='high';
@@ -2182,8 +2683,8 @@ function drawCard(){
     x.save(); x.beginPath(); x.arc(cx,cy,R,0,7); x.closePath();
     const im=cn.icon && iconCache[cn.icon];
     if (im){ x.clip(); const s=Math.max(2*R/im.width,2*R/im.height); x.drawImage(im,cx-im.width*s/2,cy-im.height*s/2,im.width*s,im.height*s); }
-    else { x.fillStyle=COIN_COLORS[i%COIN_COLORS.length]; x.fill(); x.fillStyle='#fff'; x.textAlign='center'; x.font=U(900,Math.max(13,Math.round(R*0.3)));
-      x.fillText(cn.sym.replace(/[^A-Za-z0-9]/g,'').slice(0,4).toUpperCase(),cx,cy+R*0.15); x.textAlign='left'; }
+    else { x.fillStyle=COIN_COLORS[i%COIN_COLORS.length]; x.fill(); x.fillStyle='#fff'; x.textAlign='center'; const lb=cn.sym.replace(/[^A-Za-z0-9]/g,'').slice(0,4).toUpperCase(); let fz=Math.max(8,Math.round(R*0.3)); x.font=U(900,fz); while (x.measureText(lb).width>R*1.55 && fz>6){ fz--; x.font=U(900,fz); }
+      x.fillText(lb,cx,cy+fz*0.36); x.textAlign='left'; }
     x.strokeStyle='rgba(255,246,234,.16)'; x.lineWidth=1.5; x.beginPath(); x.arc(cx,cy,R-.75,0,7); x.stroke();
     x.restore(); if(ring){ x.strokeStyle=ring; x.lineWidth=6; x.beginPath(); x.arc(cx,cy,R+3,0,7); x.stroke(); }
   };
@@ -2203,7 +2704,14 @@ function drawCard(){
       x.fillStyle=cur?acc:done?hexA(T.text,.30):hexA(T.text,.10); round(xr-bw,y+7,bw,4,2); x.fill();
       x.font=U(900,cur?17:12); x.textAlign='right'; x.fillStyle=cur?acc:done?hexA(T.text,.45):hexA(T.text,.18); x.fillText(TIERS[k].name,xr-bw-10,y+(cur?15:13)); });
     x.textAlign='left'; };
-  const who = pfpHandle ? '@'+pfpHandle : short(d.wallet||'');
+  const who = d.who || (pfpHandle ? '@'+pfpHandle : short(d.wallet||'')), blurW = HIDE_W && !pfpHandle;
+  // blur without ctx.filter (older iPhone Safari ignores it): draw the text tiny, then scale it back up
+  const wtext=(t,X,Y)=>{ if(!blurW) return x.fillText(t,X,Y);
+    const fs=parseFloat((x.font.match(/(\d+(?:\.\d+)?)px/)||[0,20])[1]), tw=x.measureText(t).width, pad=fs*.6, w=tw+pad*2, h=fs*1.8, k=.09;
+    const oc=document.createElement('canvas'); oc.width=Math.max(2,Math.ceil(w*k)); oc.height=Math.max(2,Math.ceil(h*k)); const o=oc.getContext('2d');
+    o.scale(k,k); o.font=x.font; o.fillStyle=x.fillStyle; o.fillText(t,pad,h*.68);
+    const al=x.textAlign, sx=al==='right'?X-tw:al==='center'?X-tw/2:X;
+    x.save(); x.imageSmoothingEnabled=true; x.imageSmoothingQuality='high'; x.globalAlpha*=.9; x.drawImage(oc,sx-pad,Y-h*.68,w,h); x.restore(); };
   const coins=(d.coins||[]).filter(c=>c.usd>=0.01);
   x.fillStyle=T.bg; x.fillRect(0,0,W,H);
   const glow=(cx,cy,r,a)=>{ const g=x.createRadialGradient(cx,cy,0,cx,cy,r); g.addColorStop(0,hexA(T.primary,a)); g.addColorStop(1,hexA(T.primary,0)); x.fillStyle=g; x.fillRect(0,0,W,H); };
@@ -2234,7 +2742,7 @@ function drawCard(){
     const zones = cardStyle==='stack'
       ? (()=>{ x.font=M(20); const sw=Math.min(W-160, x.measureText(earnedOn(d.plats.slice(0,3).map(p=>p.name))).width); return [[W/2-sw/2-6,524,W/2+sw/2+6,552]]; })()
       : [[52,436,620,468],[930,540,1150,620]];
-    const calm=(gx,gy)=>{ let f=1; for (const [a,b,c2,d2] of zones){ const dx=Math.max(a-gx,0,gx-c2), dy=Math.max(b-gy,0,gy-d2); f=Math.min(f, Math.min(1,Math.hypot(dx,dy)/28)); } return f; };
+    const calm=(gx,gy)=>{ let f=1; for (const [a,b,c2,d2] of zones){ const dx=Math.max(a-gx,0,gx-c2), dy=Math.max(b-gy,0,gy-d2); f=Math.min(f,Math.max(.45,Math.min(1,Math.hypot(dx,dy)/28))); } return f; };
     for (let gx=0; gx<W+20; gx+=18) for (let gy=0; gy<H+20; gy+=18){ const t=Math.max(0,((gx/W)+(gy/H))/2-.35)/.65; const r=t*7*calm(gx,gy); if (r<.4) continue; x.fillStyle=hexA(T.primary,.10+.12*t); x.beginPath(); x.arc(gx,gy,r,0,7); x.fill(); } }
   else if (GV==='aurora'){
     x.save(); x.filter='blur(80px)'; [[200,40,'#ff8a3d',.30],[620,-20,'#8a4dff',.26],[1000,60,'#2aa198',.22],[W/2,H+40,'#ff8a3d',.18]].forEach(([cx,cy,c,a])=>{ x.globalAlpha=a; x.fillStyle=c; x.beginPath(); x.ellipse(cx,cy,340,160,0,0,7); x.fill(); }); x.restore(); x.globalAlpha=1; }
@@ -2285,11 +2793,169 @@ function drawCard(){
       x.beginPath(); x.moveTo(px,py-r); x.quadraticCurveTo(px,py,px+r,py); x.quadraticCurveTo(px,py,px,py+r); x.quadraticCurveTo(px,py,px-r,py); x.quadraticCurveTo(px,py,px,py-r); x.fill(); }
     const f=x.createLinearGradient(0,0,W,H); ['#fff3c4','#ffc94d','#b8741a','#ffe08a','#ff9d3d','#fff3c4'].forEach((c,i,a)=>f.addColorStop(i/(a.length-1),c));
     x.strokeStyle=f; x.lineWidth=10; round(5,5,W-10,H-10,22); x.stroke(); x.strokeStyle='rgba(255,230,160,.35)'; x.lineWidth=1.5; round(18,18,W-36,H-36,14); x.stroke(); }
+  if (cardStyle==='coin'){ const r=coinRows()[COIN_I]||coinRows()[0]; if (r){ const k=coinStats(r), V=window.__cv||'flow';
+    const symS='$'+(r.sym||'?').replace(/^\$/,''), heldS='$'+k.held.replace(/^\$/,''), rIm=r.icon&&iconCache[r.icon], hIm=k.heldIcon&&iconCache[k.heldIcon];
+    const tint=coinTint(rIm)||T.primary, htint=coinTint(hIm)||'#8a4dff';
+    const tv=r.usd>=100?'$'+Math.round(r.usd).toLocaleString('en-US'):fmtUsd(r.usd);
+    const sp=t=>t.split('').join(String.fromCharCode(8202));
+    const I=(w,s)=>`${w} ${s}px "Inter Tight", sans-serif`;
+    const ring=(cx,cy,R,col,w)=>{ x.strokeStyle=col; x.lineWidth=w; x.beginPath(); x.arc(cx,cy,R,0,7); x.stroke(); };
+    const bigNum=(X,Y,maxW,fs0)=>{ let fs=fs0; x.font=U(900,fs); while (x.measureText(tv).width>maxW && fs>56){ fs-=4; x.font=U(900,fs); }
+      const g=x.createLinearGradient(0,Y-fs*.8,0,Y); g.addColorStop(0,'#ffb27a'); g.addColorStop(1,T.primary); x.fillStyle=g; x.fillText(tv,X,Y); return fs; };
+    const whoAt=(xr,by)=>{ x.font=U(700,22); const wsz=x.measureText(who).width, hasAv=!!(pfp||pfpHandle); if (hasAv) avatar(xr-wsz-38,by-8,24); x.fillStyle=hexA(T.text,.85); wtext(who,xr-wsz,by); };
+    // background: warm base + soft glow tinted by the reward coin
+    const bg=x.createLinearGradient(0,0,W*.6,H); bg.addColorStop(0,'#1d1814'); bg.addColorStop(1,'#0f0d0b'); x.fillStyle=bg; x.fillRect(0,0,W,H);
+    const gl=(cx,cy,rr,col,a)=>{ const g=x.createRadialGradient(cx,cy,0,cx,cy,rr); g.addColorStop(0,hexA(col,a)); g.addColorStop(1,hexA(col,0)); x.fillStyle=g; x.fillRect(0,0,W,H); };
+    const n=x.createImageData(240,135); for (let i=0;i<n.data.length;i+=4){ const v=Math.random()*255; n.data[i]=n.data[i+1]=n.data[i+2]=v; n.data[i+3]=6; } const oc=document.createElement('canvas'); oc.width=240; oc.height=135; oc.getContext('2d').putImageData(n,0,0);
+    if (V==='ticket'){
+      gl(W*.18,H*.55,560,tint,.16); gl(W*.86,H*.42,420,htint,.12);
+      x.drawImage(oc,0,0,W,H);
+      const P=56;
+      logo(P,40,32); x.fillStyle=T.text; x.font=U(900,26); x.fillText('kickback',P+44,67);
+      x.fillStyle=hexA(T.text,.4); x.font=M(15); x.textAlign='right'; x.fillText(sp(('holder rewards · '+r.platform).toUpperCase()),W-P,64); x.textAlign='left';
+      // ticket body with a perforated stub on the right
+      const TX=P, TY=112, TW=W-2*P, TH=448, SX=TX+TW-330, nr=18;
+      const shape=()=>{ x.beginPath(); x.moveTo(TX+26,TY); x.lineTo(SX-nr,TY); x.arc(SX,TY,nr,Math.PI,0,true); x.lineTo(TX+TW-26,TY); x.arcTo(TX+TW,TY,TX+TW,TY+26,26); x.lineTo(TX+TW,TY+TH-26); x.arcTo(TX+TW,TY+TH,TX+TW-26,TY+TH,26);
+        x.lineTo(SX+nr,TY+TH); x.arc(SX,TY+TH,nr,0,Math.PI,true); x.lineTo(TX+26,TY+TH); x.arcTo(TX,TY+TH,TX,TY+TH-26,26); x.lineTo(TX,TY+26); x.arcTo(TX,TY,TX+26,TY,26); x.closePath(); };
+      const tg=x.createLinearGradient(TX,TY,TX+TW,TY+TH); tg.addColorStop(0,'rgba(255,240,225,.075)'); tg.addColorStop(1,'rgba(255,240,225,.03)');
+      shape(); x.fillStyle=tg; x.fill(); x.strokeStyle='rgba(255,200,160,.16)'; x.lineWidth=1.5; shape(); x.stroke();
+      x.save(); x.setLineDash([2,10]); x.lineCap='round'; x.strokeStyle='rgba(255,220,190,.28)'; x.lineWidth=3; x.beginPath(); x.moveTo(SX,TY+nr+12); x.lineTo(SX,TY+TH-nr-12); x.stroke(); x.restore();
+      // left: the coin the rewards came in + the number
+      const LX=TX+44; let y=TY+74;
+      coinDot(LX+30,y-12,30,{sym:r.sym||'?',icon:r.icon},0,null); ring(LX+30,y-12,33,hexA(tint,.55),2);
+      x.fillStyle=T.text; let hs=34; x.font=U(900,hs); while (x.measureText(symS).width>360 && hs>22){ hs-=2; x.font=U(900,hs); } x.fillText(symS,LX+78,y);
+      const sw=x.measureText(symS).width; x.font=M(14); const tag='REWARDS'; const tw=x.measureText(sp(tag)).width+24; x.fillStyle=hexA(tint,.16); round(LX+92+sw,y-26,tw,30,15); x.fill(); x.fillStyle=hexA(T.text,.75); x.fillText(sp(tag),LX+104+sw,y-6);
+      const fs=bigNum(LX-4,TY+262,SX-LX-44,124);
+      y=TY+318; x.font=`700 24px "JetBrains Mono", monospace`; x.fillStyle=T.text; const at=fmtAmt(r.amount)+' '+(r.sym||''); x.fillText(at,LX,y); const aw=x.measureText(at).width;
+      x.font=M(24); x.fillStyle=hexA(T.text,.5); x.fillText(`  ·  ${r.count.toLocaleString('en-US')} payout${r.count>1?'s':''}`,LX+aw,y);
+      if (k.wk>=0.01){ const wt=`▲ +${fmtUsd(k.wk)}`, wl='last 7 days'; x.font=U(800,20); const w1=x.measureText(wt).width; x.font=M(17); const w2=x.measureText(wl).width; const pw=w1+w2+56, py=TY+TH-90;
+        x.fillStyle='rgba(74,222,128,.09)'; round(LX,py,pw,46,23); x.fill(); x.strokeStyle='rgba(74,222,128,.42)'; x.lineWidth=1.5; round(LX,py,pw,46,23); x.stroke();
+        x.fillStyle='#4ade80'; x.font=U(800,20); x.fillText(wt,LX+20,py+31); x.fillStyle='rgba(74,222,128,.7)'; x.font=M(17); x.fillText(wl,LX+36+w1,py+30); }
+      // stub: the coin you held
+      const cx=SX+165; x.textAlign='center';
+      x.fillStyle=hexA(T.text,.42); x.font=M(14); x.fillText(sp('PAID BY HOLDING'),cx,TY+70);
+      gl(cx,TY+190,150,htint,.22);
+      coinDot(cx,TY+190,70,{sym:k.held.replace(/^\$/,''),icon:k.heldIcon},2,null); ring(cx,TY+190,76,hexA(T.primary,.85),3);
+      x.fillStyle=T.text; let ks=34; x.font=U(900,ks); while (x.measureText(heldS).width>270 && ks>20){ ks-=2; x.font=U(900,ks); } x.fillText(heldS,cx,TY+322);
+      if (k.since){ x.fillStyle=hexA(T.text,.5); x.font=M(16); x.fillText(sp('EARNING SINCE '+fmtDate(k.since).toUpperCase()),cx,TY+360); }
+      x.textAlign='left';
+      whoAt(W-P,H-46);
+      return c;
+    }
+    // V==='flow': text left, big reward coin right, held coin as a badge. Same warm look as the other cards
+    // same base as the other cards: flat theme bg + our halftone
+    x.fillStyle=T.bg; x.fillRect(0,0,W,H);
+    { x.font=U(700,22); const ww=x.measureText(who).width+60; const zones=[[56,H-140,620,H-50],[W-56-ww,H-84,W-40,H-30]];
+      const calm=(gx,gy)=>{ let f=1; for (const [a,b,c2,d2] of zones){ const dx=Math.max(a-gx,0,gx-c2), dy=Math.max(b-gy,0,gy-d2); f=Math.min(f,Math.max(.45,Math.min(1,Math.hypot(dx,dy)/28))); } return f; };
+      for (let gx=0; gx<W+20; gx+=18) for (let gy=0; gy<H+20; gy+=18){ const t=Math.max(0,((gx/W)+(gy/H))/2-.35)/.65; const rr=t*7*calm(gx,gy); if (rr<.4) continue; x.fillStyle=hexA(T.primary,.10+.12*t); x.beginPath(); x.arc(gx,gy,rr,0,7); x.fill(); } }
+    const P=56;
+    logo(P,40,34); x.fillStyle=T.text; x.font=U(900,28); x.fillText('kickback',P+46,68);
+    // eyebrow: my $HELD bag paid me
+    let y=206; x.font=M(19); const e1='MY ', e2=/\+\d/.test(heldS)?' BAGS PAID ME':' BAG PAID ME'; x.fillStyle=hexA(T.text,.55); x.fillText(sp(e1),P,y); let ex=P+x.measureText(sp(e1)).width;
+    coinDot(ex+15,y-7,15,{sym:k.held.replace(/^\$/,''),icon:k.heldIcon},2,null); ex+=38; x.fillStyle=T.text; x.font=U(800,20); x.fillText(heldS,ex,y); ex+=x.measureText(heldS).width;
+    x.fillStyle=hexA(T.text,.55); x.font=M(19); x.fillText(sp(e2),ex,y);
+    let fs=128; x.font=U(900,fs); while (x.measureText(tv).width>620 && fs>56){ fs-=4; x.font=U(900,fs); } x.fillStyle=T.primary; x.fillText(tv,P-4,y+22+fs*.82);
+    y=y+22+fs*.82+56; x.font=`700 26px "JetBrains Mono", monospace`; x.fillStyle=T.text; const at=fmtAmt(r.amount)+' '; x.fillText(at,P,y); let ax=P+x.measureText(at).width;
+    x.fillStyle=T.text; x.font=U(800,24); x.fillText(symS,ax,y);
+    // stats strip
+    const st=[[r.count.toLocaleString('en-US'),'payouts'],[k.since?fmtDate(k.since):'·','first payout']]; if (k.wk>=0.01) st.push(['+'+fmtUsd(k.wk),'last 7 days']);
+    let sx=P; const sy=H-96; st.forEach(([v,l],i)=>{ x.font=U(800,24); const vw=x.measureText(v).width; x.font=M(14); const lw=x.measureText(sp(l.toUpperCase())).width; const cw=Math.max(vw,lw);
+      x.fillStyle=i===2?'#4ade80':T.text; x.font=U(800,24); x.fillText(v,sx,sy); x.fillStyle=hexA(T.text,.42); x.font=M(14); x.fillText(sp(l.toUpperCase()),sx,sy+28);
+      sx+=cw+28; if (i<st.length-1){ x.fillStyle='rgba(255,180,120,.18)'; x.fillRect(sx,sy-24,1.5,56); sx+=28; } });
+    // right: reward coin, held coin badge
+    const bx=920, by=318, BR=140, hx=bx-122, hy=by+112, HR=48;
+    coinDot(bx,by,BR,{sym:r.sym||'?',icon:r.icon},0,null); ring(bx,by,BR+6,'rgba(255,180,120,.22)',3);
+    x.fillStyle='#16120f'; x.beginPath(); x.arc(hx,hy,HR+10,0,7); x.fill();
+    coinDot(hx,hy,HR,{sym:k.held.replace(/^\$/,''),icon:k.heldIcon},2,null); ring(hx,hy,HR+4,T.primary,4);
+    whoAt(W-P,H-46);
+    return c; } }
   if (STUDIO && window.kbTease) return window.kbTease({x, c, W, H, S, T, U, M, coins, round, coinDot, avatar, logo, hexA, COIN_COLORS, pfpHandle});
+  // Top rewards card, same frame as the coin card
+  if (cardStyle==='top'){ const P=56, sp=t=>t.split('').join(String.fromCharCode(8202));
+    const n=coins.length, wkT=Date.now()/1000-7*86400; let wk=0; for (const r of (KB_P||[])) if (r.price!=null) for (const p of (r.proofs||[])) if (p.t>=wkT) wk+=(+p.d||0)*r.price;
+    const stats=[[(d.payouts||0).toLocaleString('en-US'),'payouts'],[String(n),n===1?'coin':'coins']]; if (wk>=0.01) stats.push(['+'+fmtUsd(wk),'last 7 days']);
+    // same base as the coin card: flat bg, halftone thinned (not cut) under text
+    x.fillStyle=T.bg; x.fillRect(0,0,W,H);
+    { x.font=U(700,22); const ww=x.measureText(who).width+60; const zones=[[56,H-140,640,H-50],[W-56-ww,H-84,W-40,H-30]];
+      const calm=(gx,gy)=>{ let f=1; for (const [a,b,c2,d2] of zones){ const dx=Math.max(a-gx,0,gx-c2), dy=Math.max(b-gy,0,gy-d2); f=Math.min(f,Math.max(.45,Math.min(1,Math.hypot(dx,dy)/28))); } return f; };
+      for (let gx=0; gx<W+20; gx+=18) for (let gy=0; gy<H+20; gy+=18){ const t=Math.max(0,((gx/W)+(gy/H))/2-.35)/.65; const rr=t*7*calm(gx,gy); if (rr<.4) continue; x.fillStyle=hexA(T.primary,.10+.12*t); x.beginPath(); x.arc(gx,gy,rr,0,7); x.fill(); } }
+    logo(P,40,34); x.fillStyle=T.text; x.font=U(900,28); x.fillText('kickback',P+46,68);
+    // left column: eyebrow with mini stack, total, where it came from, stats
+    let y=206; x.fillStyle=hexA(T.text,.55); x.font=M(19); x.fillText(sp('MY '),P,y); let ex=P+x.measureText(sp('MY ')).width;
+    const mini=coins.slice(0,3); mini.forEach((cn,i)=>{ const cx=ex+15+i*20; x.fillStyle=T.bg; x.beginPath(); x.arc(cx,y-7,17,0,7); x.fill(); coinDot(cx,y-7,15,cn,i,null); }); ex+=15+(mini.length-1)*20+24;
+    x.fillStyle=T.text; x.font=U(800,20); const bt=`${n} BAG${n===1?'':'S'}`; x.fillText(bt,ex,y); ex+=x.measureText(bt).width; x.fillStyle=hexA(T.text,.55); x.font=M(19); x.fillText(sp(n===1?' PAID ME':' PAID ME'),ex,y);
+    const tv=fmtUsd(d.total); let fs=128; x.font=U(900,fs); while (x.measureText(tv).width>600 && fs>56){ fs-=4; x.font=U(900,fs); } x.fillStyle=T.primary; x.fillText(tv,P-4,y+22+fs*.82);
+    y=y+22+fs*.82+52; const pl=d.plats.slice(0,3).map(p=>p.name); x.fillStyle=hexA(T.text,.6); x.font=M(22); x.fillText(fit('on '+pl.join(' · ')+(d.plats.length>3?` +${d.plats.length-3}`:''),600),P,y);
+    let sx=P; const sy=H-96; stats.forEach(([v,l],i)=>{ x.font=U(800,24); const vw=x.measureText(v).width; x.font=M(14); const lw=x.measureText(sp(l.toUpperCase())).width; const cw=Math.max(vw,lw);
+      x.fillStyle=i===2?'#4ade80':T.text; x.font=U(800,24); x.fillText(v,sx,sy); x.fillStyle=hexA(T.text,.42); x.font=M(14); x.fillText(sp(l.toUpperCase()),sx,sy+28);
+      sx+=cw+28; if (i<stats.length-1){ x.fillStyle='rgba(255,180,120,.18)'; x.fillRect(sx,sy-24,1.5,56); sx+=28; } });
+      // right: top coins as rows
+      const top=coins.slice(0,4), rh=84, gap=12, X=700, w=W-P-X, y0=150+(380-(top.length*rh+(top.length-1)*gap))/2;
+      top.forEach((cn,i)=>{ const Y=y0+i*(rh+gap); x.fillStyle='#1d1915'; round(X,Y,w,rh,20); x.fill(); x.strokeStyle='rgba(255,180,120,.10)'; x.lineWidth=1.5; round(X,Y,w,rh,20); x.stroke();
+        x.fillStyle=hexA(T.text,.35); x.font=M(15); x.fillText(String(i+1),X+20,Y+rh/2+5);
+        coinDot(X+68,Y+rh/2,26,cn,i,null);
+        x.fillStyle=T.text; x.font=U(800,21); x.fillText(fit('$'+cn.sym.replace(/^\$/,''),170),X+108,Y+(cn.from?38:50));
+        if (cn.from){ x.fillStyle=hexA(T.text,.5); x.font=M(14); x.fillText(fit('for holding '+cn.from,190),X+108,Y+62); }
+        x.fillStyle=i?T.text:T.primary; x.font=U(900,24); x.textAlign='right'; x.fillText('$'+Math.round(cn.usd).toLocaleString('en-US'),X+w-22,Y+rh/2+9); x.textAlign='left'; });
+      if (n>4){ x.fillStyle=hexA(T.text,.45); x.font=M(14); x.textAlign='right'; x.fillText(`+ ${n-4} more coins`,W-P-6,y0+top.length*(rh+gap)+14); x.textAlign='left'; }
+    x.font=U(700,22); const wsz=x.measureText(who).width; if (pfp||pfpHandle) avatar(W-P-wsz-38,H-54,24); x.fillStyle=hexA(T.text,.85); wtext(who,W-P-wsz,H-46);
+    return c; }
+  // Coin stack: coins on an arc over the total, this week's gain beside it, who in a pill
+  // (homepage deck cards skip this and use the older layout below, the one the posted cards were made with)
+  if (cardStyle==='stack' && !window.__kbHomeCard){
+    const n=coins.length, wkT=Date.now()/1000-7*86400; let wk=0; for (const r of (KB_P||[])) if (r.price!=null) for (const p of (r.proofs||[])) if (p.t>=wkT) wk+=(+p.d||0)*r.price;
+    const sp=t=>t.split('').join(String.fromCharCode(8202));
+    // base: flat bg + halftone, thinned (not cut) where text sits
+    x.fillStyle=T.bg; x.fillRect(0,0,W,H);
+    const dots=zones=>{ const calm=(gx,gy)=>{ let f=1; for (const [a,b,c2,d2] of zones){ const dx=Math.max(a-gx,0,gx-c2), dy=Math.max(b-gy,0,gy-d2); f=Math.min(f,Math.max(.45,Math.min(1,Math.hypot(dx,dy)/28))); } return f; };
+      for (let gx=0; gx<W+20; gx+=18) for (let gy=0; gy<H+20; gy+=18){ const t=Math.max(0,((gx/W)+(gy/H))/2-.35)/.65; const rr=t*7*calm(gx,gy); if (rr<.4) continue; x.fillStyle=hexA(T.primary,.10+.12*t); x.beginPath(); x.arc(gx,gy,rr,0,7); x.fill(); } };
+    // the fan of coins, biggest in the middle (same idea as before)
+    const fan=(cy,R0,maxN,lbl)=>{ const m=Math.min(maxN,n), mid=(m-1)/2, slots=[], byDist=[...Array(m).keys()].sort((a,b)=>Math.abs(a-mid)-Math.abs(b-mid)||a-b); byDist.forEach((slot,k)=>slots[slot]=k);
+      const Rk=k=>k===0?R0+10:R0-Math.min(3,k)*3, step=R0*2-30, fw=step*(m-1)+R0*2;
+      const P=[...Array(m).keys()].map(s=>{ const k=slots[s], d=Math.abs(s-mid); return {s,k,x:(W-fw)/2+R0+s*step, y:cy+d*d*4, R:Rk(k)}; });
+      [...P].sort((a,b)=>Math.abs(b.s-mid)-Math.abs(a.s-mid)).forEach(p=>{ x.fillStyle=T.bg; x.beginPath(); x.arc(p.x,p.y,p.R+5,0,7); x.fill(); coinDot(p.x,p.y,p.R,coins[p.k],p.k,null); if (p.k===0){ x.strokeStyle=T.primary; x.lineWidth=3; x.beginPath(); x.arc(p.x,p.y,p.R+3,0,7); x.stroke(); } });
+      if (lbl) P.forEach(p=>{ x.fillStyle=p.k?hexA(T.text,.72):T.text; x.font=U(800,p.k?16:19); x.textAlign='center'; x.fillText('$'+Math.round(coins[p.k].usd).toLocaleString('en-US'),p.x,p.y+p.R+(p.k?27:32)); x.textAlign='left'; });
+      return P; };
+    const bigTotal=(cy,fs0,maxW)=>{ const tv=fmtUsd(d.total); let fs=fs0; x.font=U(900,fs); while (x.measureText(tv).width>maxW && fs>60){ fs-=4; x.font=U(900,fs); } x.fillStyle=T.primary; x.textAlign='center'; x.fillText(tv,W/2,cy); x.textAlign='left'; return fs; };
+    const subLine=y=>{ x.fillStyle=T.muted; x.font=M(20); x.textAlign='center'; x.fillText(fit(earnedOn(d.plats.slice(0,3).map(p=>p.name)),W-200),W/2,y); x.textAlign='left'; };
+    const wkPill=(cx,y)=>{ if (wk<0.01) return; const t=`▲ +${fmtUsd(wk)} this week`; x.font=M(18); const w=x.measureText(t).width+36; x.fillStyle='rgba(74,222,128,.08)'; round(cx-w/2,y,w,38,19); x.fill(); x.strokeStyle='rgba(74,222,128,.45)'; x.lineWidth=1.5; round(cx-w/2,y,w,38,19); x.stroke(); x.fillStyle='#4ade80'; x.textAlign='center'; x.fillText(t,cx,y+25); x.textAlign='left'; };
+    const whoRight=()=>{ x.font=U(700,22); const wsz=x.measureText(who).width; if (pfp||pfpHandle) avatar(W-56-wsz-28,H-54,17); x.fillStyle=hexA(T.text,.85); wtext(who,W-56-wsz,H-46); };
+    dots([[W/2-330,470,W/2+330,520],[W/2-240,580,W/2+240,650]]);
+    logo(56,40,34); x.fillStyle=T.text; x.font=U(900,28); x.fillText('kickback',102,68);
+    { const m=Math.min(7,n), span=(m-1)*100, R=[0,0,0,0,0,0,0].map((_,k)=>k?56:72), mid=(m-1)/2;
+      const order=[...Array(m).keys()].sort((a,b)=>Math.abs(a-mid)-Math.abs(b-mid)||a-b), slot=[]; order.forEach((s,k)=>slot[s]=k);
+      const P=[...Array(m).keys()].map(s=>{ const t=m>1?(s/(m-1))*2-1:0, k=slot[s]; return {k, x:W/2+t*span/2, y:204+t*t*44, R:R[k]}; });
+      [...P].sort((a,b)=>b.k-a.k).forEach(p=>{ x.fillStyle=T.bg; x.beginPath(); x.arc(p.x,p.y,p.R+5,0,7); x.fill(); coinDot(p.x,p.y,p.R,coins[p.k],p.k,null); if (!p.k){ x.strokeStyle=T.primary; x.lineWidth=3; x.beginPath(); x.arc(p.x,p.y,p.R+3,0,7); x.stroke(); }
+        x.fillStyle=p.k?hexA(T.text,.72):T.text; x.font=U(800,p.k?15:18); x.textAlign='center'; x.fillText('$'+Math.round(coins[p.k].usd).toLocaleString('en-US'),p.x,p.y+p.R+(p.k?27:31)); x.textAlign='left'; }); }
+    // this week's gain: plain, in the card's own type (WV picks where it sits)
+    const WV='4', wvS=wk>=0.01?(wk>=100?'$'+Math.round(wk).toLocaleString('en-US'):fmtUsd(wk)):'';
+    { const tv=fmtUsd(d.total); let fs=112; x.font=U(900,fs); while (x.measureText(tv).width>W-240 && fs>60){ fs-=4; x.font=U(900,fs); } x.fillStyle=T.primary; x.textAlign='center'; x.fillText(tv,W/2,462); x.textAlign='left'; }
+    // sub line, optionally carrying the week
+    { const base=earnedOn(d.plats.slice(0,3).map(p=>p.name)); x.font=M(20);
+      if (WV==='1' && wvS){ const p1=base+'  ·  ', p2=wvS, p3=' this week'; x.font=M(20); const w1=x.measureText(p1).width, w3=x.measureText(p3).width; x.font=`700 20px "JetBrains Mono", monospace`; const w2=x.measureText(p2).width;
+        let sx=(W-(w1+w2+w3))/2; x.fillStyle=T.muted; x.font=M(20); x.fillText(p1,sx,506); x.fillStyle=T.text; x.font=`700 20px "JetBrains Mono", monospace`; x.fillText(p2,sx+w1,506); x.fillStyle=T.muted; x.font=M(20); x.fillText(p3,sx+w1+w2,506); }
+      else subLine(506); }
+    // who pill, optionally with the week at its end
+    { x.font=U(700,22); const hw=x.measureText(who).width; x.font=M(16); const tl='held and got paid', tw=x.measureText(tl).width;
+      const ext=(WV==='2'&&wvS)?(x.font=M(16), x.measureText('  ·  ').width+(x.font=`700 16px "JetBrains Mono", monospace`, x.measureText('+'+wvS).width)+(x.font=M(16), x.measureText(' this week').width)):0;
+      const av=!!(pfp||pfpHandle), ao=av?70:28, pw=ao+hw+12+tw+ext+26, px=(W-pw)/2, py=566;
+      x.fillStyle='#1d1915'; round(px,py,pw,62,31); x.fill(); x.strokeStyle='rgba(255,180,120,.16)'; x.lineWidth=1.5; round(px,py,pw,62,31); x.stroke();
+      if (av) avatar(px+33,py+31,23); x.fillStyle=T.text; x.font=U(700,22); wtext(who,px+ao,py+39); x.fillStyle=T.muted; x.font=M(16); x.fillText(tl,px+ao+hw+12,py+38);
+      if (ext){ let ex=px+ao+hw+12+tw; x.fillStyle=hexA(T.text,.3); x.font=M(16); x.fillText('  ·  ',ex,py+38); ex+=x.measureText('  ·  ').width; x.fillStyle=T.primary; x.font=`700 16px "JetBrains Mono", monospace`; x.fillText('+'+wvS,ex,py+38); ex+=x.measureText('+'+wvS).width; x.fillStyle=T.muted; x.font=M(16); x.fillText(' this week',ex,py+38); } }
+    // top right, mirroring the logo
+    if (WV==='3' && wvS){ x.textAlign='right'; x.fillStyle=T.text; x.font=U(800,24); x.fillText('+'+wvS,W-56,66); x.fillStyle=hexA(T.text,.42); x.font=M(13); x.fillText(sp('THIS WEEK'),W-56,88); x.textAlign='left'; }
+    // top right: this week's gain + the last 7 days as slim bars, lined up with the logo
+    if (WV==='4' && wvS){ const days=Array(7).fill(0), now=Date.now()/1000; for (const r of (KB_P||[])) if (r.price!=null) for (const p of (r.proofs||[])){ const k=Math.floor((now-p.t)/86400); if (k>=0&&k<7) days[6-k]+=(+p.d||0)*r.price; }
+      const mx=Math.max(...days,1e-9), bw2=8, gp=6, top=40, bot=82, bh=bot-top, bx0=W-56-(7*bw2+6*gp);
+      x.fillStyle=hexA(T.text,.10); x.fillRect(bx0-2,bot+4,7*bw2+6*gp+4,1.5);
+      days.forEach((v,i)=>{ const X=bx0+i*(bw2+gp); if (v<=0){ x.fillStyle=hexA(T.text,.14); round(X,bot-3,bw2,3,1.5); x.fill(); return; }
+        const h=Math.max(5,bh*Math.sqrt(v/mx)); x.fillStyle=i===6?T.primary:hexA(T.primary,.5); round(X,bot-h,bw2,h,3); x.fill(); });
+      x.textAlign='right'; x.fillStyle=T.text; x.font=U(800,24); x.fillText('+'+wvS,bx0-18,66); x.fillStyle=hexA(T.text,.5); x.font=`500 15px "Inter Tight", sans-serif`; x.fillText('this week',bx0-18,88); x.textAlign='left'; }
+    return c; }
   if (cardStyle==='stack'){
     x.font=U(700,26); const hw=x.measureText(who).width; x.font=M(18); const tw=x.measureText('held and got paid').width;
-    let sx=(W-(60+14+hw+14+tw))/2; avatar(sx+30,84,28); x.fillStyle=T.text; x.font=U(700,26); x.fillText(who,sx+74,94);
-    x.fillStyle=T.muted; x.font=M(18); x.fillText('held and got paid',sx+74+hw+14,93);
+    const av=!!(pfp||pfpHandle), ao=av?74:0; let sx=(W-(ao+hw+14+tw))/2; if (av) avatar(sx+30,84,28); x.fillStyle=T.text; x.font=U(700,26); wtext(who,sx+ao,94);
+    x.fillStyle=T.muted; x.font=M(18); x.fillText('held and got paid',sx+ao+hw+14,93);
     const n=Math.min(7,coins.length), R=62, step=R*2-30, fw=step*(n-1)+R*2, dy=[14,4,-6,-12,-6,4,14];
     const mid=(n-1)/2, slots=[], byDist=[...Array(n).keys()].sort((a,b)=>Math.abs(a-mid)-Math.abs(b-mid)||a-b);
     byDist.forEach((slot,k)=>slots[slot]=k);
@@ -2305,7 +2971,7 @@ function drawCard(){
     const bx=(W-(34+10+bw))/2; x.textAlign='left'; logo(bx,610,34); x.fillStyle=T.text; x.font=U(900,22); x.fillText('kickback',bx+44,636);
     return c;
   }
-  avatar(104,108,44); x.fillStyle=T.text; x.font=U(700,28); x.fillText(fit(who,380),168,104); x.fillStyle=T.muted; x.font=M(17); x.fillText('verified on-chain',168,134);
+  avatar(104,108,44); x.fillStyle=T.text; x.font=U(700,28); wtext(fit(who,380),168,104); x.fillStyle=T.muted; x.font=M(17); x.fillText('verified on-chain',168,134);
   x.fillStyle=T.muted; x.font=M(21); x.fillText('my coins kicked back',60,300);
   x.fillStyle=T.primary; let fs=118; x.font=U(900,fs); const tot=fmtUsd(d.total);
   while (x.measureText(tot).width>520 && fs>60){ fs-=6; x.font=U(900,fs); } x.fillText(tot,52,300+fs*0.95);
@@ -2322,7 +2988,49 @@ function drawCard(){
   if (coins.length>4){ x.fillStyle=T.muted; x.font=M(16); x.textAlign='right'; x.fillText(`+ ${coins.length-4} more coins`,1140,y0+top.length*(rh+gap)+16); x.textAlign='left'; }
   return c;
 }
-function renderCardPreview(){ const c=drawCard(); $('cardPrev').src=c.toDataURL('image/png');
+document.addEventListener('click', e=>{ const b=e.target.closest('#hideW'); if(!b) return; HIDE_W=!HIDE_W; b.textContent=HIDE_W?'Show wallet':'Hide wallet'; b.classList.toggle('on',HIDE_W); renderCardPreview(); });
+// one card per coin: the reward rows worth sharing, biggest first
+let COIN_I=0;
+const coinRows=()=>(KB_P||[]).filter(r=>r.usd>=0.5);
+function coinStats(r){
+  const top=r.parts&&r.parts.length>1?r.parts.find(p=>!p.q)||r.parts[0]:null;
+  let held=top?top.lab:(r.from&&r.from.length?r.from[0]+(r.from.length>1?` +${r.from.length-1}`:''):r.sym);
+  held=String(held||r.sym||'?').replace(/ · .*$/,'').replace(/ or .*$/,'');
+  let since=0, wk=0; const wkT=Date.now()/1000-7*86400;
+  for (const p of (r.proofs||[])){ if (p.t && (!since||p.t<since)) since=p.t; if (r.price!=null && p.t>=wkT) wk+=(+p.d||0)*r.price; }
+  const pm=(top&&top.payer)||r.payer||null;
+  return {held, heldIcon:(pm&&HELD_ICON[pm])||null, since, wk, pm};
+}
+let HOLD_LIST=null;
+function holdRows(){ if (HOLD_LIST) return HOLD_LIST; const out=[];
+  for (const r of KB_P||[]){ const opts=r.parts&&r.parts.length?r.parts.filter(p=>!p.q).map(p=>p.lab):[null];
+    for (const o of opts){ const h=holdFor(r,o); if (h && h.usd>=0.01) out.push(h); } }
+  return HOLD_LIST=out.sort((a,b)=>b.usd-a.usd).slice(0,12); }
+async function holdReady(h){
+  if (!(h.mint in HELD_ICON)){ HELD_ICON[h.mint]=null; try{ const m=await solanaMeta([h.mint]); if (m?.[h.mint]?.icon) HELD_ICON[h.mint]=m[h.mint].icon; }catch(e){} }
+  h.coinIcon=HELD_ICON[h.mint]; if (h.coinIcon && !(h.coinIcon in iconCache)) iconCache[h.coinIcon]=await imgFromUrl(h.coinIcon); await document.fonts.ready; return h; }
+function renderCoinPick(){
+  const el=$('coinPick'); if (!el) return;
+  const hc=$('holdChip'); if (hc) hc.style.display=holdRows().length?'':'none';
+  { const pr=document.querySelector('.pfp-row'); if (pr) pr.style.display=''; }
+  if (cardStyle==='hold'){ const hs=holdRows(); el.classList.toggle('hidden', hs.length<2);
+    // the same coin can pay in several tokens (GROK pays SPCXx and BOT), so each chip says what it paid in
+    el.innerHTML=hs.map((h,i)=>`<button type="button" class="${h===HOLD_CUR?'on':''}" data-hpick="${i}">${h.coinIcon?`<img src="${esc(thumb(h.coinIcon))}" alt="">`:''}${esc(tk(h.coinSym))}<b>${fmtUsd(h.usd)} in ${esc(tk(h.sym))}</b></button>`).join('');
+    const miss=hs.filter(h=>!h.iconTried); if (miss.length){ miss.forEach(h=>h.iconTried=true); Promise.all(miss.map(h=>holdReady(h).catch(()=>null))).then(()=>renderCoinPick()); }
+    return; }
+  const rows=coinRows(); el.classList.toggle('hidden', cardStyle!=='coin' || !rows.length);
+  el.innerHTML=rows.slice(0,8).map((r,i)=>`<button type="button" class="${i===COIN_I?'on':''}" data-cpick="${i}">${r.icon?`<img src="${esc(thumb(r.icon))}" alt="">`:''}$${esc((r.sym||'?').replace(/^\$/,''))}<b>${r.usd>=100?'$'+Math.round(r.usd).toLocaleString('en-US'):fmtUsd(r.usd)}</b></button>`).join('');
+}
+const HELD_ICON={};
+async function coinIcon(){ const r=coinRows()[COIN_I]; if (!r) return; let redo=false;
+  if (r.icon && !(r.icon in iconCache)){ iconCache[r.icon]=await imgFromUrl(r.icon); redo=true; }
+  const pm=coinStats(r).pm; if (pm && r.chain==='solana' && !(pm in HELD_ICON)){ HELD_ICON[pm]=null; try{ const m=await solanaMeta([pm]); const u=m?.[pm]?.icon; if (u){ HELD_ICON[pm]=u; iconCache[u]=await imgFromUrl(u); redo=true; } }catch(e){} }
+  if (redo) renderCardPreview(); }
+document.addEventListener('click', e=>{ const b=e.target.closest('[data-cpick]'); if (b){ COIN_I=+b.dataset.cpick; renderCardPreview(); coinIcon(); }
+  const hp=e.target.closest('[data-hpick]'); if (hp){ const h=holdRows()[+hp.dataset.hpick]; if (h){ HOLD_CUR=h; renderCardPreview(); holdReady(h).then(()=>{ if (HOLD_CUR===h) renderCardPreview(); }); } return; }
+  if (e.target.closest('[data-kbhold]') && HOLD_CUR){ cardStyle='hold'; kbClose(); shareCard(); return; }
+  const s=e.target.closest('[data-kbshare]'); if (s){ const r=KB_P[+s.dataset.kbshare]; const h=holdFor(r, KB_CUR?.only??null); kbClose(); if (h){ HOLD_CUR=h; cardStyle='hold'; holdReady(h).then(()=>renderCardPreview()); } else cardStyle='stack'; shareCard(); } });
+function renderCardPreview(){ if (cardStyle==='coin' || cardStyle==='top') cardStyle='stack'; if (cardStyle==='hold' && !HOLD_CUR){ HOLD_CUR=holdRows()[0]||null; if (HOLD_CUR) holdReady(HOLD_CUR).then(()=>renderCardPreview()); else cardStyle='stack'; } renderCoinPick(); const c=drawCard(); $('cardPrev').src=c.toDataURL('image/jpeg',0.9);
   document.querySelectorAll('[data-cstyle]').forEach(b=>b.classList.toggle('on',b.dataset.cstyle===cardStyle));
   document.querySelectorAll('[data-ctheme]').forEach(b=>b.classList.toggle('on',b.dataset.ctheme===cardTheme)); return c; }
 function shareCard(){
@@ -2332,12 +3040,12 @@ function shareCard(){
   Promise.all([pfp?null:loadPfp($('xHandle').value), loadCardIcons()]).then(()=>{ renderCardPreview(); needHandle(true); });
 }
 function needHandle(focus){
-  const need=!pfp; $('pfpNeed').classList.toggle('hidden',!need); document.querySelector('.pfp-row').classList.toggle('need',need);
+  const need=!pfp && cardStyle!=='hold'; $('pfpNeed').classList.toggle('hidden',!need); document.querySelector('.pfp-row').classList.toggle('need',need);
   if (need && focus && !$('xHandle').value) $('xHandle').focus();
 }
 document.addEventListener('click', e=>{
   const s=e.target.closest('[data-cstyle]'), t=e.target.closest('[data-ctheme]');
-  if (s){ cardStyle=s.dataset.cstyle; try{localStorage.setItem('kb_style',cardStyle)}catch(_){} renderCardPreview(); }
+  if (s){ cardStyle=s.dataset.cstyle; renderCardPreview(); }
   if (t){ cardTheme=t.dataset.ctheme; try{localStorage.setItem('kb_theme',cardTheme)}catch(_){} renderCardPreview(); }
 });
 let handleTimer;
@@ -2346,7 +3054,7 @@ document.addEventListener('input', e=>{ if(e.target.id!=='xHandle') return; clea
 document.addEventListener('change', async e=>{ if(e.target.id!=='pfpFile' || !e.target.files[0]) return;
   const im=new Image(); im.src=URL.createObjectURL(e.target.files[0]); if(await imgReady(im)){ pfp=im; renderCardPreview(); needHandle(); } });
 document.addEventListener('click', e=>{
-  if (e.target.closest('#shareBtn')) shareCard();
+  if (e.target.closest('#shareBtn')){ cardStyle='stack'; shareCard(); }
   if (e.target.closest('#closeShare') || e.target.id==='shareModal') $('shareModal').classList.add('hidden');
   if (e.target.closest('#dlCard')) copyCard(e.target.closest('#dlCard'));
   if (e.target.closest('#postX')) postToX();
@@ -2355,7 +3063,7 @@ async function copyCard(btn){
   const label='Copy image', say=t=>{ btn.textContent=t; clearTimeout(copyCard.t); copyCard.t=setTimeout(()=>btn.textContent=label,2600); };
   const blobP=new Promise(res=>drawCard().toBlob(res,'image/png'));
   logEvent({kind:'copy', handle:pfpHandle||''});
-  if (CARD_API && !TESTRUN && window.__share) try{ const d=window.__share; postJson(CARD_API,{w:d.wallet, total:d.total, handle:pfpHandle||'', img:drawCard().toDataURL('image/jpeg',0.88), studio:STUDIO?1:0, kind:'copy'},20000); }catch(e){}
+  if (CARD_API && !TESTRUN && window.__share) try{ const d=window.__share; postJson(CARD_API,{w:d.wallet, total:d.total, handle:pfpHandle||'', img:drawCard().toDataURL('image/jpeg',0.92), studio:STUDIO?1:0, kind:'copy'},20000); }catch(e){}
   try{ if (navigator.clipboard && window.ClipboardItem){ await navigator.clipboard.write([new ClipboardItem({'image/png': blobP})]); say('Copied ✓'); return; } }catch(e){}
   const blob=await blobP; const file=new File([blob],'kickback-card.png',{type:'image/png'});
   try{ if (navigator.canShare && navigator.canShare({files:[file]})){ await navigator.share({files:[file]}); say('Shared ✓'); return; } }catch(e){ if (e?.name==='AbortError') return; }
@@ -2369,10 +3077,12 @@ async function postToX(){
   try{ if (navigator.clipboard && window.ClipboardItem){
     await navigator.clipboard.write([new ClipboardItem({'image/png': new Promise(res=>drawCard().toBlob(res,'image/png'))})]); copied=true; } }catch(e){}
   const win=window.open('about:blank','_blank');
-  const say = link => STUDIO && window.kbStudioText ? window.kbStudioText+'\n\n'+link : `Just realised I got ${fmtUsd(d.total)} in total from just holding paired coins lol\n\n${link} by @syanovee`;
+  const cr = cardStyle==='coin' ? coinRows()[COIN_I] : null, ck = cr ? coinStats(cr) : null;
+  const hd = cardStyle==='hold' ? HOLD_CUR : null;
+  const say = link => STUDIO && window.kbStudioText ? window.kbStudioText+'\n\n'+link : hd ? `held ${tk(hd.coinSym)} for ${fmtDur(hd.dur)}${hd.holding?' so far':''}, got ${fmtUsd(hd.usd)} back in ${tk(hd.sym)}\n\n${link} by @syanovee` : cr ? `My $${ck.held.replace(/^\$/,'')} bag paid me ${fmtUsd(cr.usd)} in $${(cr.sym||'').replace(/^\$/,'')} so far\n\n${link} by @syanovee` : `Just realised I got ${fmtUsd(d.total)} in total from just holding paired coins lol\n\n${link} by @syanovee`;
   const home=/kickback-test\.|localhost|^file:/.test(location.href)?location.origin:LINKS.site;
   let link=home;
-  if (CARD_API){ try{ const img=drawCard().toDataURL('image/jpeg',0.88); const j=await postJson(CARD_API,{w:d.wallet, total:d.total, handle:pfpHandle||'', img, studio:STUDIO?1:0},20000); if (j?.id) link=home+'/s/'+j.id; }catch(e){} }
+  if (CARD_API){ try{ const img=drawCard().toDataURL('image/jpeg',0.92); const j=await postJson(CARD_API,{w:d.wallet, total:d.total, handle:pfpHandle||'', img, studio:STUDIO?1:0},20000); if (j?.id) link=home+'/s/'+j.id; }catch(e){} }
   const url='https://x.com/intent/post?text='+encodeURIComponent(say(link));
   if (win){ try{ win.opener=null; }catch(e){} win.location.href=url; } else location.href=url;
   if (copied){ btn.textContent='Card copied ✓ paste it into your post (⌘V / Ctrl+V)'; setTimeout(()=>{ btn.textContent=label; },6000); }
@@ -2470,7 +3180,9 @@ async function run(){
   const hk='server', ak='server';
   if (!inputs.length || inputs.some(x=>!isSol(x)&&!isEvm(x))){ setStatus("Paste one or more Solana or EVM (0x…) addresses",true); return; }
   if (KN && inputs.some(x=>!isSol(x))){ setStatus('KNOTS lives on Solana: paste a Solana wallet',true); return; }
+  { const d=inputs.find(x=>W_SOL_DIST[x]); if (d){ setStatus(`That's the ${W_SOL_DIST[d]} distributor wallet, it pays the rewards, it doesn't earn them 😄 Paste a holder wallet`,true); return; } }
   const myRun = ++RUN_ID;
+  if (!KN && !EMBED && !STUDIO && !TESTRUN && inputs.length===1) try{ history.replaceState(null,'','/w/'+inputs[0]); }catch(e){}
   window.__runKey = (crypto.randomUUID ? crypto.randomUUID() : String(Date.now())+Math.random().toString(36).slice(2,10)).replace(/[^A-Za-z0-9-]/g,'');
   $('rank').classList.add('hidden'); $('tierNext').textContent=''; $('tiers').classList.add('hidden'); $('postBig').classList.add('hidden');
   $('go').disabled=true; $('go').classList.add('flip'); $('result').classList.add('hidden'); $('linked').textContent=''; $('linkedInfo').textContent=''; $('deep').classList.add('hidden'); kbState('scanning');
@@ -2529,10 +3241,10 @@ async function run(){
     relayDone();
     await Promise.all([...early, ...lists.flat().map(take)]);
     for (const l of found){ const f=lists.flat().find(x=>x.address===l.address); if (f) l.moves=f.moves; }
-    $('linkedInfo').innerHTML = (found.length ? 'Linked wallet '+found.map(l=>`<code title="${esc(l.address)}">${esc(short(l.address))}</code>`).join(', ')+' · found through your bridge history' : 'No linked wallet found. Scanned only what you pasted. Paste several addresses separated by spaces to check them together.')
+    $('linkedInfo').innerHTML = (!KN && !found.length) ? '' : (found.length ? 'Linked wallet '+found.map(l=>`<code title="${esc(l.address)}">${esc(short(l.address))}</code>`).join(', ')+' · found through your bridge history' : 'No linked wallet found. Scanned only what you pasted. Paste several addresses separated by spaces to check them together.')
       + (sols.size+evms.size>2?`<br>Scanned ${sols.size} Solana + ${evms.size} EVM wallets.`:'');
     $('linked').innerHTML = others.length ? `Also yours? You bridged with ${others.map(l=>`<code>${esc(short(l.address))}</code>`).join(', ')} <button class="addw" type="button" data-w="${esc(others.map(l=>l.address).join(' '))}">+ Add and rescan</button>` : '';
-    fomoProfile([...inputs, ...found.map(l=>l.address)], fk).then(applyProfile).catch(()=>{});
+    if (!EMBED) fomoProfile([...inputs, ...found.map(l=>l.address)], fk).then(applyProfile).catch(()=>{});
     const res = await Promise.all(runs);
 
     let shownTotal = 0, pairsLate = null, pairsGot = false, pairsMiss = false, secondDone = false;
@@ -2593,11 +3305,16 @@ async function run(){
     for (const p of payouts){ const m=meta[p.asset]||(meta[p.asset]={}); const sym=(m.sym||p.sym||'').toUpperCase(); if (m.price==null && ['USDG','USDC','USDT','USD1','PYUSD'].includes(sym)){ m.price=1; m.src='stablecoin'; m.sym=m.sym||p.sym; } }
     const needSym=[...new Set([...Object.keys(pairs), ...pumpCoins])].filter(m=>!(mSol[m]?.sym)&&!(mPump[m]?.sym));
     if (needSym.length && hk){
-      const url='/api/helius';
+      const url=EMB_HELIUS||'/api/helius';
       for (let i=0;i<needSym.length;i+=500){
         const r=await rpc(url,'getAssetBatch',{ids:needSym.slice(i,i+500)}).catch(()=>null);
         for (const x of r||[]) if (x?.content?.metadata?.symbol){ const sym=x.content.metadata.symbol.trim(); (mSol[x.id]=mSol[x.id]||{}).sym ??= sym; (mPump[x.id]=mPump[x.id]||{}).sym ??= sym; }
       }
+    }
+    { // reward tokens priced like stocks: get their full names, so the same stock from two issuers (xStocks, Backpack) can be told apart
+      const needName=[...new Set(payouts.filter(p=>p.chain==='solana').map(p=>p.asset))].filter(m=>meta[m] && !meta[m].name && (meta[m].price||0)>5 && m!==SOL_MINT);
+      if (needName.length && hk){ const r=await rpc(EMB_HELIUS||'/api/helius','getAssetBatch',{ids:needName.slice(0,100)}).catch(()=>null);
+        for (const x of r||[]){ const n=x?.content?.metadata?.name?.trim(); if (n && meta[x.id]) meta[x.id].name=n; } }
     }
     setProg(100);
 
@@ -2614,6 +3331,7 @@ async function run(){
       const k=p.chain+'|'+p.platform+'|'+p.asset+'|'+(p.src||'');
       const g=groups[k]||(groups[k]={payer:p.src||null, chain:p.chain, platform:p.platform, asset:p.asset, raw:0n, dec:p.dec, count:0, last:0, proofs:[], coins:new Set(), sym:p.sym, held:new Set()});
       if (p.held) for (const m of p.held) g.held.add(m);
+      if (p.coin) (g.cm=g.cm||new Set()).add(p.coin);
       g.raw+=p.raw; g.count++; g.last=Math.max(g.last,p.t);
       g.proofs.push({sig:p.sig, t:p.t, link:p.link, d:rawToNum(p.raw,p.dec)});
       if ((p.platform==='pump.fun'||p.platform==='Scribe'||(p.platform==='Creator rewards'&&p.chain==='solana')) && p.coin) g.coins.add(mPump[p.coin]?.sym || short(p.coin));
@@ -2630,7 +3348,8 @@ async function run(){
         if (pairs[g.asset]?.base && g.held.has(g.asset)) from.push((mSol[g.asset]?.sym||short(g.asset))+(from.length?' (own round, if any)':' (own round)'));
       }
       const price = m.price ?? null;
-      return {...g, sym:m.sym||g.sym, icon:m.icon, price, src:m.src, amount, usd:price!=null?amount*price:0, from};
+      from=from.map(f=>/^\$|…|^not matched|^one of/.test(f)?f:'$'+f);   // tickers always with $
+      return {...g, sym:m.sym||g.sym, name:m.name||null, icon:m.icon, price, src:m.src, amount, usd:price!=null?amount*price:0, from};
     }).sort((a,b)=>b.usd-a.usd);
 
     const total = rows.reduce((s,r)=>s+r.usd,0);
@@ -2638,6 +3357,19 @@ async function run(){
     if (!second){ const kr=KN?rows.filter(r=>r.platform==='StonkFun'&&r.payer===KN_MINT):null, liveT=KN?kr.reduce((a,r)=>a+r.usd,0):total, liveN=KN?kr.reduce((a,r)=>a+r.count,0):payouts.length;
       progRender(1); mainChipDone(true, `<b>${liveN.toLocaleString('en-US')}</b> payouts`); $('liveWrap').classList.remove('hidden'); const from=shownTotal; if (KN && liveT<from-0.5) headline('Matching payouts to $KNOTS', true); countUp($('liveSum'), liveT, from); await sleep(KN?1300:950); shownTotal=total; }
     countUp($('total'), total, shownTotal); shownTotal=total;
+    { // still earning: what came in over the last 7 days
+      const wkT=Date.now()/1000-7*86400; let wk=0; for (const r of rows) if (r.price!=null) for (const p of (r.proofs||[])) if (p.t>=wkT) wk+=(+p.d||0)*r.price;
+      const el=$('wk'); if (!KN){ // last 7 days as small bars, today on the right
+        const day=Array(7).fill(0), nowS=Date.now()/1000; for (const r of rows) if (r.price!=null) for (const p of (r.proofs||[])){ const k=Math.floor((nowS-p.t)/86400); if (k>=0&&k<7) day[6-k]+=(+p.d||0)*r.price; }
+        const mx=Math.max(...day,1e-9);
+        const dl=k=>{ const d=new Date((nowS-(6-k)*86400)*1000); return k===6?'today':k===5?'yesterday':d.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'}); };
+        const cap=`<b>${fmtUsd(wk)}</b> in the last 7 days`;
+        el.innerHTML=wk>=0.01?`<span class="spk">${day.map((v,i)=>`<b data-v="${fmtUsd(v)}" data-d="${dl(i)}" class="${i===6?'t':''}${v>0?'':' z'}" style="--h:${v>0?Math.max(8,Math.sqrt(v/mx)*52):4}px;--dl:${i*70}ms"><i></i></b>`).join('')}</span><span class="spl" data-cap="${esc(cap)}">${cap}</span>`:'';
+        if (!el._spk){ el._spk=1;
+          el.addEventListener('mouseover',e=>{ const b=e.target.closest('.spk b'); if (!b) return; el.classList.add('hov'); el.querySelectorAll('.spk b').forEach(x=>x.classList.toggle('on',x===b)); const l=el.querySelector('.spl'); l.innerHTML=`<b>${b.dataset.v}</b> ${b.dataset.d}`; });
+          el.addEventListener('mouseleave',()=>{ el.classList.remove('hov'); el.querySelectorAll('.spk b.on').forEach(x=>x.classList.remove('on')); const l=el.querySelector('.spl'); if (l) l.innerHTML=l.dataset.cap; }); }
+        el.classList.toggle('hidden', !(wk>=0.01)); }
+      else if (wk>=0.01){ el.innerHTML=`<b>▲ +${fmtUsd(wk)}</b><span>last 7 days · ≈ ${fmtUsd(wk/7)}/day</span>`; el.classList.remove('hidden'); } else el.classList.add('hidden'); }
     $('meta').textContent = `${payouts.length} payouts · ${txTotal.toLocaleString('en-US')} transactions checked · ${Math.round((Date.now()-t0)/1000)}s`+(partial?' · deep check running…':'')+(TESTRUN&&DIAG.req?` · [test] cache ${Math.round(DIAG.hit/Math.max(1,DIAG.sigs)*100)}% of ${DIAG.sigs.toLocaleString('en-US')} · ${DIAG.req} req · avg ${Math.round(DIAG.ms/DIAG.req)}ms · ${DIAG.colo||'?'}`:'');
     const platList = Object.entries(byPlat).filter(([k,v])=>v.usd>=0.01).sort((a,b)=>b[1].usd-a[1].usd);
     { const zero = total < 0.005; $('result').classList.toggle('z0', zero); document.body.classList.toggle('zero', zero);
@@ -2646,7 +3378,7 @@ async function run(){
     $('plats').innerHTML = platList.map(([k,v],n)=>`<div class="plat" style="--pd:${(n*0.12).toFixed(2)}s" title="${v.n} payouts · ${esc(CHAIN_LABEL[v.chain])}"><span class="dot" style="background:${platColor(k)}"></span><span class="nm">${esc(k)}</span><b>${fmtUsd(v.usd)}</b></div>`).join('');
     const coinMap={}; for (const r of rows){ if(!r.usd) continue; const k=(r.sym||'?').toUpperCase(); const c=coinMap[k]=coinMap[k]||{sym:r.sym||'?', usd:0, n:0, icon:r.icon, platform:r.platform, from:(r.from||[])[0]||'', best:0}; c.usd+=r.usd; c.n+=r.count||0; if(!c.icon&&r.icon) c.icon=r.icon; if(r.usd>c.best){ c.best=r.usd; c.platform=r.platform; if((r.from||[])[0]) c.from=String(r.from[0]).replace(/ \(own round.*$/,''); } }
     window.__share = {total, payouts:payouts.length, wallet:inputs[0], plats:platList.map(([k,v])=>({name:k, usd:v.usd})), coins:Object.values(coinMap).sort((a,b)=>b.usd-a.usd), chains:new Set(rows.filter(r=>r.usd).map(r=>r.chain)).size};
-    const topKey = window.__share.coins.filter(c=>c.usd>=0.01).slice(0,7).map(c=>c.sym).join('|');
+    const topKey = window.__share.coins.filter(c=>c.usd>=0.01).slice(0,7).map(c=>c.sym+(c.icon?'*':'')).join('|');   // an icon that arrives on the second pass redraws the fan
     if (!second) await Promise.race([Promise.all(window.__share.coins.slice(0,8).map(c=>preThumb(c.icon))), sleep(1200)]);
     if (!second || topKey!==window.__topKey){ window.__topKey=topKey; renderCoins(window.__share); }
     else { window.__coins=window.__share.coins.filter(c=>c.usd>=0.01); document.querySelectorAll('#coins .coin[data-coin]').forEach(b=>{ const c=window.__coins[+b.dataset.coin]; const lab=b.querySelector('b'); if (c && lab && b.dataset.coin!=='more') lab.textContent='$'+(fanUsd(c.usd)); }); }
@@ -2684,17 +3416,21 @@ async function run(){
     renderChecks(checks); renderTier(total);
     if (!second){ $('result').classList.remove('hidden'); kbState('done'); towerToFan(); }
     setStatus((payouts.length?'Done ✓':'No holder rewards found.')+(notes.length?'\n'+notes.join('\n'):''));
-    if (RANK_API && !TESTRUN && myRun===RUN_ID) postJson(RANK_API,{w:inputs[0], total}).then(r=>{ if (!r?.n || myRun!==RUN_ID) return;
+    if (RANK_API && !TESTRUN && !EMBED && myRun===RUN_ID) postJson(RANK_API,{w:inputs[0], total}).then(r=>{ if (!r?.n || myRun!==RUN_ID) return;
       const el=$('rank'); el.innerHTML = r.n<50 ? `<b>#${r.rank}</b> of ${r.n.toLocaleString('en-US')} checked` : `<b>Top ${r.top}%</b> of ${r.n.toLocaleString('en-US')} checked`;
       el.classList.remove('hidden'); window.__share && (window.__share.rank=r); });
-    if (myRun===RUN_ID && second!=='late'){ const flags=[STUDIO&&'studio', KN&&'knots', res.some(([j,r])=>r?.trunc)&&(res.some(([j,r])=>r?.trunc?.deep)?'capped+deep':'capped'), res.some(([j,r])=>r?.missing)&&'unread', res.some(([j,r])=>r?.error)&&'chain-skipped'].filter(Boolean).join(' ');
+    if (myRun===RUN_ID && second!=='late'){ const flags=[EMBED&&'embed', EMBED&&EMB_P&&('p='+EMB_P), EMBED&&EMB_HK&&('hk='+(EMB_HK.error?'fallback':'own')), STUDIO&&'studio', KN&&'knots', KN&&('kn='+Math.round(KN_CARD?.usd||0)), KN&&('knn='+(KN_CARD?.n||0)), res.some(([j,r])=>r?.trunc)&&(res.some(([j,r])=>r?.trunc?.deep)?'capped+deep':'capped'), res.some(([j,r])=>r?.missing)&&'unread', res.some(([j,r])=>r?.error)&&'chain-skipped'].filter(Boolean).join(' ');
       const plats={}; for (const [k,v] of Object.entries(byPlat)) plats[k]=Math.round(v.usd*100)/100;
-      const coins=rows.filter(r=>r.usd>=0.01).sort((a,b)=>b.usd-a.usd).slice(0,15).map(r=>({s:r.sym||short(r.asset), p:r.platform, u:Math.round(r.usd*100)/100, ...(r.payer||(r.from||[]).length===1?{f:String(r.payer?(r.from||[])[0]||short(r.payer):r.from[0]).replace(/ \(own round.*$/,'')}:{})}));
-      logEvent({kind:second?'final':'first', wallets:inputs, linked:found.map(l=>l.address), total:Math.round(total*100)/100, plats, coins, payouts:payouts.length,
+      const coins=rows.filter(r=>r.usd>=0.01).sort((a,b)=>b.usd-a.usd).slice(0,15).map(r=>({s:r.sym||short(r.asset), p:r.platform, u:Math.round(r.usd*100)/100, ...(/^https:\/\/\S{8,280}$/.test(r.icon||'')?{i:r.icon}:{}), ...(r.payer||(r.from||[]).length===1?{f:String(r.payer?(r.from||[])[0]||short(r.payer):r.from[0]).replace(/ \(own round.*$/,'')}:{})}));
+      // which coin pays its holders from where (no wallet in it): feeds the bag calculator, so every coin someone scanned can be measured
+      const seeds=[]; { const by={}; for (const p of payouts){ if (!p.coin || p.platform==='StonkFun') continue; const k=p.chain+'|'+p.coin+'|'+p.platform; if (!by[k] || (p.t||0)>(by[k].t||0)) by[k]=p; }
+        for (const p of Object.values(by).slice(0,40)) seeds.push({c:p.chain, p:p.platform, m:String(p.coin), d:p.distributor?String(p.distributor):null, a:String(p.asset||''), s:String(p.sig||'').startsWith('record:')?null:p.sig, t:p.t||0}); }
+      logEvent({kind:second?'final':'first', seeds, wallets:inputs, linked:found.map(l=>l.address), total:Math.round(total*100)/100, plats, coins, payouts:payouts.length,
         chains:new Set(rows.map(r=>r.chain)).size, secs:Math.round((Date.now()-t0)/1000), handle:pfpHandle||'', flags, mobile:matchMedia('(max-width:999px)').matches, ref:document.referrer, search:location.search}); }
     { const rl=$('reportLink'); if (rl){ const top=Object.entries(byPlat).sort((a,b)=>b[1].usd-a[1].usd).slice(0,6).map(([k,v])=>`${k}: ${fmtUsd(v.usd)}`).join('\n');
       const body=`Kickback report\n\nWallet: ${inputs.join(', ')}${found.length?'\nLinked: '+found.map(l=>l.address).join(', '):''}\nFound: ${fmtUsd(total)}${second?'':' (first pass)'}\n${top}\n\nWhat looks wrong: `;
       rl.href=REPORT_DM+'&text='+encodeURIComponent(body.slice(0,1800)); } }
+    if (EMBED && EMB_CUR && myRun===RUN_ID){ EMB_CUR.last={...embJson([...inputs, ...found.map(l=>l.address)], rows, total, byPlat, payouts.length), helius:EMB_HK||{used:'kickback'}}; parent.postMessage({type:'kickback:result', id:EMB_CUR.id, final:false, data:EMB_CUR.last}, EMB_CUR.origin); }
     window.__result = {total, rows:rows.map(r=>({sym:r.sym, platform:r.platform, chain:r.chain, amount:r.amount, usd:+r.usd.toFixed(2), n:r.count})), byPlat, checks, notes, suspects};
     };
     clearInterval(liveTimer); shownTotal = LIVE?.shown||0; LIVE=null;
@@ -2711,11 +3447,56 @@ async function run(){
     }
   }catch(e){
     clearInterval(liveTimer); LIVE=null;
+    if (EMBED && EMB_CUR) EMB_CUR.err=e.message;
     kbErr(e);
     if (myRun===RUN_ID){ kbState('idle'); setStatus('Error: '+e.message, true); progBase=0; progSpan=100; setProg(0); }
   }finally{ if (myRun===RUN_ID){ $('go').disabled=false; progBase=0; progSpan=100; if(document.body.classList.contains('scanning')) kbState('idle'); } }
 }
 $('go').onclick = run;
+// --- embed: JSON for partners ---
+function embJson(wallet, rows, total, byPlat, np){
+  const now=Date.now()/1000, DAY=86400, base=Math.floor(now/DAY)-29;
+  const daily=Array.from({length:30},(_,i)=>({day:new Date((base+i)*DAY*1000).toISOString().slice(0,10), usd:0}));
+  let wk=0; const latest=[];
+  const clean=x=>String(x||'').replace(/\s*\(.*\)\s*$/,'').trim();
+  const coins=rows.filter(r=>(r.usd||0)>0).sort((a,b)=>b.usd-a.usd).map(r=>{ let first=0;
+    for (const p of (r.proofs||[])){ if (!p.t) continue; const v=r.price!=null?(+p.d||0)*r.price:0, k=Math.floor(p.t/DAY)-base;
+      if (k>=0 && k<30) daily[k].usd+=v; if (p.t>=now-7*DAY) wk+=v; if (!first || p.t<first) first=p.t;
+      latest.push({time:p.t, chain:r.chain, symbol:r.sym||null, mint:r.asset, amount:+p.d||0, usd:+v.toFixed(4), tx:p.sig||null, link:p.link||null, paidFor:clean(p.lab)||null}); }
+    return {symbol:r.sym||null, chain:r.chain, mint:r.asset, icon:r.icon||null, platform:r.platform, usd:+r.usd.toFixed(2), amount:r.amount, price:r.price??null, payouts:r.count, paidFor:[...new Set((r.from||[]).map(clean).filter(Boolean))], firstPayout:first||null}; });
+  latest.sort((a,b)=>b.time-a.time);
+  return {wallet:wallet[0], wallets:wallet, chains:[...new Set(rows.filter(r=>(r.usd||0)>0).map(r=>r.chain))], totalUsd:+(+total).toFixed(2), payouts:np, last7dUsd:+wk.toFixed(2), daily30d:daily.map(x=>({day:x.day, usd:+x.usd.toFixed(2)})),
+    platforms:Object.fromEntries(Object.entries(byPlat).filter(([k,v])=>(+v.usd||0)>=0.01).map(([k,v])=>[k, +(+v.usd).toFixed(2)])), coins, latest:latest.slice(0,50),
+    pricedAt:Math.floor(now), poweredBy:'https://getkickback.fun'};
+}
+if (EMBED){
+  let Q=Promise.resolve();
+  const scanOne=async (d, origin)=>{
+    const reply=(type,o)=>parent.postMessage({type, id:d.id, ...o}, origin);
+    const ws=[...new Set((Array.isArray(d.wallet)?d.wallet:String(d.wallet||'').split(/[\s,;]+/)).map(x=>String(x).trim()).filter(Boolean))].slice(0,5);
+    if (!ws.length || ws.some(x=>!isSol(x)&&!isEvm(x))) return reply('kickback:error',{error:'not a Solana or EVM wallet'});
+    const w=ws.join(' ');
+    const chk=await fetch('/api/partner?key='+encodeURIComponent(d.key||'')+'&origin='+encodeURIComponent(origin)).then(r=>r.json()).catch(()=>null);
+    if (!chk?.ok) return reply('kickback:error',{error:chk?.error||'key check failed'});
+    EMB_P=chk.name; EMB_HELIUS=(typeof d.helius==='string' && /^[A-Za-z0-9-]{8,80}$/.test(d.helius)) ? 'https://mainnet.helius-rpc.com/?api-key='+d.helius : null;
+    EMB_HK=null;
+    if (EMB_HELIUS){ const sw=ws.find(isSol);
+      if (sw){ let why='';
+        try{ const r=await fetch(EMB_HELIUS,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({jsonrpc:'2.0',id:1,method:'getTransactionsForAddress',params:[sw,{transactionDetails:'signatures',limit:1}]})});
+          const j=await r.json().catch(()=>null);
+          if (!r.ok || !j || j.error) why=(j?.error?.message||('HTTP '+r.status)).slice(0,160); }
+        catch(e){ why='request blocked (domain lock or network): '+e.message; }
+        if (why){ EMB_HK={used:'kickback', error:'your Helius key could not run the scan, used ours instead: '+why}; EMB_HELIUS=null; }
+        else EMB_HK={used:'partner'}; } }
+    EMB_CUR={id:d.id, origin, last:null, err:null};
+    $('wallet').value=w;
+    try{ await run(); }catch(e){ EMB_CUR.err=e.message; }
+    if (EMB_CUR.last) reply('kickback:result',{final:true, data:EMB_CUR.last}); else reply('kickback:error',{error:EMB_CUR.err||'scan failed'});
+    EMB_CUR=null;
+  };
+  addEventListener('message', e=>{ const d=e.data||{}; if (e.source!==parent || d.type!=='kickback:scan') return; Q=Q.then(()=>scanOne(d, e.origin)).catch(()=>{}); });
+  if (parent!==window) parent.postMessage({type:'kickback:ready'}, '*');
+}
 for (const id of ['wallet']) $(id).addEventListener('keydown', e=>{ if(e.key==='Enter') run(); });
 const q=new URLSearchParams(location.search); if(q.get('wallet')) $('wallet').value=q.get('wallet');
 if (!KN && q.get('wallet') && q.has('go')) setTimeout(()=>{ if (document.body.classList.contains('idle')) run(); }, 500);

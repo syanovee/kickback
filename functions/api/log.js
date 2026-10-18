@@ -1,7 +1,7 @@
 import { json } from '../_lib/cache.js';
 const isAddr = s => typeof s === 'string' && (/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(s) || /^0x[0-9a-fA-F]{40}$/.test(s));
 const str = (s, n) => typeof s === 'string' ? s.slice(0, n) : '';
-const coinsJson = c => JSON.stringify((Array.isArray(c) ? c : []).slice(0, 15).map(x => ({ s: str(x?.s, 16), p: str(x?.p, 24), u: Math.round(Number(x?.u) * 100) / 100 || 0, ...(x?.f ? { f: str(x.f, 16) } : {}) })));
+const coinsJson = c => JSON.stringify((Array.isArray(c) ? c : []).slice(0, 15).map(x => ({ s: str(x?.s, 16), p: str(x?.p, 24), u: Math.round(Number(x?.u) * 100) / 100 || 0, ...(x?.f ? { f: str(x.f, 16) } : {}), ...(typeof x?.i === 'string' && /^https:\/\/[^\s"'<>]{8,280}$/.test(x.i) ? { i: x.i } : {}) })));
 const num = (v, max = 1e9) => { const x = Number(v); return Number.isFinite(x) && x >= 0 && x <= max ? x : 0; };
 const ready = {};
 async function init(DB, T) {
@@ -13,7 +13,7 @@ async function init(DB, T) {
 function source(ref, search) {
   let out = '';
   try { if (ref) out = new URL(ref).hostname; } catch {}
-  try { const q = new URLSearchParams(search || ''); const u = [...q].filter(([k]) => k.startsWith('utm_')).map(([k, v]) => k.slice(4) + '=' + v.slice(0, 40)); if (u.length) out += (out ? ' ' : '') + u.join('&'); } catch {}
+  try { const q = new URLSearchParams(search || ''); const u = [...q].filter(([k, v]) => k.startsWith('utm_') || (k === 'from' && v === 'knots')).map(([k, v]) => (k === 'from' ? 'from=knots' : k.slice(4) + '=' + v.slice(0, 40))); if (u.length) out += (out ? ' ' : '') + u.join('&'); } catch {}
   return out.slice(0, 160);
 }
 export async function onRequestPost({ request, env }) {
@@ -31,6 +31,22 @@ export async function onRequestPost({ request, env }) {
     await env.DB.prepare(`INSERT INTO tip_log (ts, act, src, mobile, country) VALUES (?1, ?2, ?3, ?4, ?5)`)
       .bind(Math.floor(Date.now() / 1000), act, b.src === 'footer' ? 'footer' : act === 'open' ? 'pill' : '', b.mobile ? 1 : 0, str(request.cf?.country, 4)).run();
     return json({ ok: true });
+  }
+  // coin -> where its holder payouts come from, for the bag calculator. No wallet is stored with it.
+  if ((b?.kind === 'first' || b?.kind === 'final') && Array.isArray(b.seeds) && b.seeds.length) {
+    try {
+      await env.DB.exec(`CREATE TABLE IF NOT EXISTS y_seed (chain TEXT, coin TEXT, platform TEXT, distributor TEXT, asset TEXT, sig TEXT, t INTEGER, seen INTEGER, n INTEGER DEFAULT 1, PRIMARY KEY (chain, coin, platform))`);
+      const ok = (x, n) => typeof x === 'string' && x.length > 0 && x.length <= n && /^[A-Za-z0-9:._-]+$/.test(x);
+      const now = Math.floor(Date.now() / 1000), st = [];
+      for (const x of b.seeds.slice(0, 40)) {
+        if (!ok(x?.c, 12) || !/^[A-Za-z .]{2,24}$/.test(x?.p || '') || !ok(x?.m, 60)) continue;
+        st.push(env.DB.prepare(`INSERT INTO y_seed (chain, coin, platform, distributor, asset, sig, t, seen, n) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, 1)
+          ON CONFLICT(chain, coin, platform) DO UPDATE SET distributor = COALESCE(excluded.distributor, distributor), asset = excluded.asset,
+          sig = CASE WHEN excluded.t >= COALESCE(t, 0) AND excluded.sig IS NOT NULL THEN excluded.sig ELSE sig END, t = MAX(COALESCE(t, 0), excluded.t), seen = excluded.seen, n = n + 1`)
+          .bind(x.c, x.m, x.p, ok(x.d, 60) ? x.d : null, ok(x.a, 60) ? x.a : '', ok(x.s, 100) ? x.s : null, Number(x.t) | 0, now));
+      }
+      if (st.length) await env.DB.batch(st);
+    } catch {}
   }
   const run = b?.run;
   if (typeof run !== 'string' || !/^[A-Za-z0-9-]{8,40}$/.test(run)) return json({ error: 'bad run' }, 400);
