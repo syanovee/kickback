@@ -10,7 +10,7 @@ export async function onRequestGet(ctx) {
     const u = j?.user?.avatar_url; if (u) { const r = await fetch(u.replace('_normal', '_400x400')); if (r.ok) img = r; }
   } catch {}
   if (!img) { try { const r = await fetch('https://unavatar.io/x/' + h + '?fallback=false'); if (r.ok) img = r; } catch {} }
-  if (!img) return new Response('not found', { status: 404, headers: { 'Cache-Control': 'public, max-age=600' } });
+  if (!img) return new Response('not found', { status: 404, headers: { 'Cache-Control': 'no-store' } });   // a miss is often just a slow lookup, so let the next try go through
   const res = new Response(img.body, { headers: { 'Content-Type': img.headers.get('Content-Type') || 'image/jpeg', 'Cache-Control': 'public, max-age=86400' } });
   ctx.waitUntil(caches.default.put(key, res.clone()));
   return res;

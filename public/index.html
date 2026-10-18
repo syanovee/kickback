@@ -2390,7 +2390,7 @@ async function demoStep(){
   // anon gets the classic blank profile picture: white with a grey person
   const ANON='data:image/svg+xml,'+encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect width="100" height="100" fill="#fff"/><circle cx="50" cy="39" r="17" fill="#a7b0b8"/><path d="M17 100c0-21 15-34 33-34s33 13 33 34z" fill="#a7b0b8"/></svg>');
   const sub=x=>x.post?(x.posted?'posted on X '+agoL(x.posted):'posted on X'):(x.ts?'found '+agoL(x.ts):'found by a scan');
-  const pf=x=>`<span class="pf">${x.author?e(x.author[0].toUpperCase())+`<img src="/api/pfp?h=${e(x.author)}" alt="" onerror="this.remove()">`:`<img src="${ANON}" alt="">`}</span>`;
+  const pf=x=>`<span class="pf">${x.author?e(x.author[0].toUpperCase())+`<img src="/api/pfp?h=${e(x.author)}" alt="" onerror="if(!this.dataset.r){this.dataset.r=1;setTimeout(()=>{this.src='/api/pfp?h=${e(x.author)}&r='+Date.now()},1500)}else this.remove()">`:`<img src="${ANON}" alt="">`}</span>`;
   const row2=(x,i)=>{ const inner=`<i>${i+1}</i>${pf(x)}<span class="nm"><b>${e(name(x))}</b><span>${e(sub(x))}</span></span><em>${usd(x.total)}</em>`;
     return x.post?`<a class="wrow${i?'':' on'}" data-wi="${i}" href="${e(x.tweet)}" target="_blank" rel="noopener">${inner}</a>`:`<div class="wrow${i?'':' on'}" data-wi="${i}">${inner}</div>`; };
   // a scan has no saved card, so draw one the same way the share card is drawn
