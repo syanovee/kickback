@@ -1368,16 +1368,16 @@ async function rpc(url, method, params){
     if (status===401 || status===403) throw new Error('API key rejected');
     return j?.result;
   }
-  throw new Error('RPC kept failing ('+last+')');
+  SCAN_PARTIAL=true; throw new Error('RPC kept failing ('+last+')');
 }
 
-const bsToken = a => bs('/tokens/'+a);
+const bsToken = a => bs('/tokens/'+a.toLowerCase());
 async function bs(path){
   for (let i=0;i<10;i++){
-    try{ const r = await fetch(RH_API+path); if (r.ok) return await r.json(); if (r.status!==429 && r.status<500) return null; }catch(e){}
+    try{ const r = await fetch(path.startsWith('/tokens/') ? '/api/bs'+path : RH_API+path); if (r.ok) return await r.json(); if (r.status!==429 && r.status<500) return null; }catch(e){}
     await sleep(Math.min(10000, 800*2**i));
   }
-  throw new Error('Robinhood Chain explorer is not responding');
+  SCAN_PARTIAL=true; throw new Error('Robinhood Chain explorer is not responding');
 }
 
 const REWARDS_SINCE = Math.floor(Date.parse('2026-07-15T00:00:00Z')/1000);
@@ -1913,7 +1913,7 @@ async function scanEvm(chain, A, key, relayReady){
 async function evmMeta(chain, addrs){
   const C = EVM_CHAINS[chain], info = {};
   const nat = addrs.filter(x=>x.startsWith('native:')), tok = addrs.filter(x=>!x.startsWith('native:'));
-  if (nat.length){ const j=await fetchJson(`https://api.coingecko.com/api/v3/simple/price?ids=${C.cg}&vs_currencies=usd`); for (const n of nat) info[n]={price:j?.[C.cg]?.usd??null, sym:C.native, src:'CoinGecko'}; }
+  if (nat.length){ const j=await fetchJson(`/api/price?ids=${C.cg}`) || await fetchJson(`https://api.coingecko.com/api/v3/simple/price?ids=${C.cg}&vs_currencies=usd`); if (j?.[C.cg]?.usd==null) SCAN_PARTIAL=true; for (const n of nat) info[n]={price:j?.[C.cg]?.usd??null, sym:C.native, src:'CoinGecko'}; }
   if (chain==='robinhood') return {...info, ...(tok.length?await robinhoodMeta(tok):{})};
   const dexChunks=[]; for (let i=0;i<tok.length;i+=30) dexChunks.push(tok.slice(i,i+30));
   const dexRes = await Promise.all(dexChunks.map(c=>fetchJson(`https://api.dexscreener.com/tokens/v1/${C.dex}/`+c.join(',')).then(p=>[c,p])));
@@ -1959,7 +1959,7 @@ async function solanaMeta(mints){
 }
 async function robinhoodMeta(addrs){
   const info={};
-  await pool(addrs, 16, async a=>{ const j=await bsToken(a).catch(()=>null); if (j) info[a]={price:j.exchange_rate!=null?+j.exchange_rate:null, sym:j.symbol, icon:j.icon_url, src:'Blockscout'}; });
+  await pool(addrs, 4, async a=>{ const j=await bsToken(a).catch(()=>null); if (j) info[a]={price:j.exchange_rate!=null?+j.exchange_rate:null, sym:j.symbol, icon:j.icon_url, src:'Blockscout'}; });
   return info;
 }
 /* StonkFun pays many coins' holders in the same token (e.g. KNOTS, HODL, DONK all pay STONK) and the chain doesn't say which coin a payout was for.
@@ -3216,7 +3216,7 @@ async function postToX(){
 
 const isSol = a => /^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(a), isEvm = a => /^0x[0-9a-fA-F]{40}$/.test(a);
 // --- saved results: a wallet checked before opens its last full result right away, then a quiet re-check updates it ---
-let QUIET=0, SNAP_T=0;
+let QUIET=0, SNAP_T=0, SCAN_PARTIAL=false;   // SCAN_PARTIAL: a source kept refusing during this check, so its total may be short
 const snapKey=ws=>[...new Set(ws.map(w=>isEvm(w)?w.toLowerCase():w))].sort().join(' ');
 const b64=u8=>{ let s=''; for (let i=0;i<u8.length;i+=0x8000) s+=String.fromCharCode.apply(null,u8.subarray(i,i+0x8000)); return btoa(s); };
 async function gz(str){ const cs=new Blob([str]).stream().pipeThrough(new CompressionStream('gzip')); return b64(new Uint8Array(await new Response(cs).arrayBuffer())); }
@@ -3224,7 +3224,7 @@ async function ungz(b){ const bin=atob(b), u=new Uint8Array(bin.length); for (le
 async function snapGet(ws){ if (typeof DecompressionStream==='undefined') return null;
   const j=await fetchJson('/api/snap?k='+encodeURIComponent(snapKey(ws))); if (!j?.data) return null;
   try{ const o=JSON.parse(await ungz(j.data)); return o?.v===1&&o.rows ? {...o, ts:j.ts} : null; }catch(e){ return null; } }
-function snapSave(ws, rows, total, n){ if (typeof CompressionStream==='undefined' || !window.__runKey) return;
+function snapSave(ws, rows, total, n){ if (typeof CompressionStream==='undefined' || !window.__runKey || SCAN_PARTIAL) return;
   const top=rows.filter(r=>(r.usd||0)>=1); if (top.length && top.filter(r=>!r.icon).length > top.length/2) return;
   const run=window.__runKey;
   const share=window.__share;
@@ -3319,6 +3319,13 @@ async function findLinkedWallets(addr, onEarly, onPage1){
 
 let LIVE=null;
 const STABLES=new Set(['USDG','USDC','USDT','USD1','PYUSD']);
+// a token only counts as $1 by its name when it is the real contract: spam airdrops copy the name (fake "USDG" on Robinhood Chain, 1B supply, sent to 40k wallets)
+const KNOWN_STABLES=new Set([...STABLE_MINTS, '2u1tszSeqZ3qBWF3uNGPFc8TzMk2tdiwknnRMWGWjGWH',
+  '0x5fc5360d0400a0fd4f2af552add042d716f1d168',                                                    // Robinhood Chain USDG
+  '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48','0xdac17f958d2ee523a2206206994597c13d831ec7','0x6c3ea9036406852006290770bedfcaba0e23a0e8','0xe343167631d89b6ffc58b88d6b7fb0228795491d',   // Ethereum USDC, USDT, PYUSD, USDG
+  '0x833589fcd6edb6e08f4c7c32d4f71b54bda02913',                                                    // Base USDC
+  '0x55d398326f99059ff775485246999027b3197955','0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d','0x8d0d000ee44948fc98c9b98a4fa4921476f08b0d']);  // BNB USDT, USDC, USD1
+const stableAt=(asset,sym)=>STABLES.has((sym||'').toUpperCase()) && KNOWN_STABLES.has(String(asset||'').startsWith('0x')?String(asset).toLowerCase():asset);
 function liveAdd(chain, asset, raw, dec, sym){ if (!LIVE || raw<=0n) return; if (KN && asset!==KN_STONK) return; const k=chain+'|'+asset; const it=LIVE.items[k]||(LIVE.items[k]={chain, asset, raw:0n, dec, sym}); it.raw+=raw; LIVE.dirty=true; }
 function liveSol(c, W){
   if (!LIVE || !c || c.err || c.sw || LIVE.seen.has(c.s)) return; LIVE.seen.add(c.s);
@@ -3362,7 +3369,7 @@ async function run(){
   if (!inputs.length || inputs.some(x=>!isSol(x)&&!isEvm(x))){ setStatus("Paste one or more Solana or EVM (0x…) addresses",true); return; }
   if (KN && inputs.some(x=>!isSol(x))){ setStatus('KNOTS lives on Solana: paste a Solana wallet',true); return; }
   { const d=inputs.find(x=>W_SOL_DIST[x]); if (d){ setStatus(`That's the ${W_SOL_DIST[d]} distributor wallet, it pays the rewards, it doesn't earn them 😄 Paste a holder wallet`,true); return; } }
-  const myRun = ++RUN_ID;
+  const myRun = ++RUN_ID; SCAN_PARTIAL=false;
   QUIET=0; let SNAP=null;
   if (!KN && !EMBED && !STUDIO) SNAP=await Promise.race([snapGet(inputs).catch(()=>null), sleep(1500).then(()=>null)]);
   if (myRun!==RUN_ID) return;
@@ -3400,7 +3407,7 @@ async function run(){
     try{ const by={}; for (const it of Object.values(LIVE.items)) (by[it.chain]=by[it.chain]||[]).push(it.asset);
       const metas={}; await Promise.all(Object.entries(by).map(async([c,l])=>{ metas[c] = c==='solana' ? await cachedMeta('sol:', l, solanaMeta) : await cachedMeta(c+':', l, x=>evmMeta(c,x)); }));
       if (!LIVE) return; let tot=0;
-      for (const it of Object.values(LIVE.items)){ const m=(metas[it.chain]||{})[it.asset]||{}; let pr=m.price; if (pr==null && STABLES.has((m.sym||it.sym||'').toUpperCase())) pr=1; if (pr!=null) tot+=rawToNum(it.raw,it.dec)*pr; }
+      for (const it of Object.values(LIVE.items)){ const m=(metas[it.chain]||{})[it.asset]||{}; let pr=m.price; if (pr==null && stableAt(it.asset, m.sym||it.sym)) pr=1; if (pr!=null) tot+=rawToNum(it.raw,it.dec)*pr; }
       for (const it of Object.values(LIVE.items)){ const ic=((metas[it.chain]||{})[it.asset]||{}).icon || MAJOR_ICON[(((metas[it.chain]||{})[it.asset]||{}).sym||it.sym||'').toUpperCase()]; if (ic) preThumb(ic); }
       if (tot>=0.01 && Math.abs(tot-LIVE.shown)>=0.005 && !(LIVE.floor && tot<LIVE.floor)){ $('liveWrap').classList.remove('hidden'); countUp($('liveSum'), tot, LIVE.shown); LIVE.shown=tot; }
     }finally{ liveBusy=false; } };
@@ -3494,7 +3501,7 @@ async function run(){
     for (const p of payouts){ const m=meta[p.asset]; const s=(m?.sym||p.sym||'').toUpperCase().replace(/[^A-Z.]/g,'');
       if (m?.icon && m.icon.includes('cdn.robinhood.com/ncw_assets') && s) m.icon=stockIcon(s); }
     for (const p of payouts){ const m=meta[p.asset]||(meta[p.asset]={}); if (m.icon) continue; const ic=MAJOR_ICON[(m.sym||p.sym||'').toUpperCase()]; if (ic) m.icon=ic; }
-    for (const p of payouts){ const m=meta[p.asset]||(meta[p.asset]={}); const sym=(m.sym||p.sym||'').toUpperCase(); if (m.price==null && ['USDG','USDC','USDT','USD1','PYUSD'].includes(sym)){ m.price=1; m.src='stablecoin'; m.sym=m.sym||p.sym; } }
+    for (const p of payouts){ const m=meta[p.asset]||(meta[p.asset]={}); const sym=(m.sym||p.sym||'').toUpperCase(); if (m.price==null && stableAt(p.asset, sym)){ m.price=1; m.src='stablecoin'; m.sym=m.sym||p.sym; } }
     const needSym=[...new Set([...Object.keys(pairs), ...pumpCoins])].filter(m=>!(mSol[m]?.sym)&&!(mPump[m]?.sym));
     if (needSym.length && hk){
       const url=EMB_HELIUS||'/api/helius';
