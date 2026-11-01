@@ -1,0 +1,220 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Kickback · what would your bag pay you?</title>
+<meta name="description" content="Pick a coin that pays its holders, enter an amount, see what holding it pays. Measured on real wallets, every number backed by its tx.">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml"><link rel="icon" href="/favicon-32.png" sizes="32x32">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;600;700;800&family=Unbounded:wght@700;800;900&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+
+:root{--bg:#141210;--s1:#1b1714;--s2:#231e19;--s3:#2a241e;--line:#2e2721;--text:#fff6ea;--muted:#a89c8c;--dim:#6d6358;--acc:#ff8a3d;--up:#3ddc84}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:15px/1.45 "Inter Tight",system-ui,sans-serif}
+.w{max-width:620px;margin:0 auto;padding:16px 14px 60px}
+/*x*/.demo{color:var(--acc);font:500 10px "JetBrains Mono",monospace;letter-spacing:.1em;text-align:center;padding:5px;border:1px dashed rgba(255,138,61,.45);border-radius:8px;margin-bottom:14px}
+.top{display:flex;align-items:center;justify-content:space-between;margin-bottom:34px}
+.lg{display:flex;align-items:center;gap:8px}.lg b{font:900 19px Unbounded,sans-serif;letter-spacing:-.5px}
+.nav{display:flex;gap:2px;font-weight:600;font-size:13px}.nav a{padding:6px 11px;border-radius:999px;color:var(--muted);text-decoration:none}.nav a.on{background:var(--s2);color:var(--text)}
+h1{font:900 34px/1.08 Unbounded,sans-serif;letter-spacing:-1.4px;margin:0 0 8px;text-align:center}h1 em{font-style:normal;color:var(--acc)}
+.lead{color:var(--muted);text-align:center;margin:0 0 22px}
+.srch{position:relative}
+.sb{display:flex;align-items:center;gap:10px;background:var(--s1);border:1.5px solid var(--line);border-radius:16px;padding:0 14px;height:56px;transition:border-color .15s}
+.sb:focus-within{border-color:var(--acc)}
+.sb svg{flex:none;color:var(--dim)}
+.sb input{flex:1;min-width:0;background:none;border:0;color:var(--text);font:600 16px "Inter Tight",sans-serif;outline:none}
+.dd{position:absolute;left:0;right:0;top:62px;background:var(--s1);border:1px solid var(--line);border-radius:14px;padding:6px;z-index:5;display:none;box-shadow:0 20px 40px rgba(0,0,0,.4)}
+.dd.on{display:block}
+.op{display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:10px;cursor:pointer}.op:hover,.op.f{background:var(--s2)}
+.op b{font-weight:700}.op small{color:var(--dim);margin-left:auto;font-size:12.5px}
+.op .y{color:var(--acc);font-weight:700;font-size:13px;margin-left:10px;min-width:54px;text-align:right}
+.op .on{min-width:0}.op .on i{display:block;font-style:normal;font:11.5px "JetBrains Mono",monospace;color:var(--dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.chk{color:var(--muted);font-size:13px;padding:10px}
+.ic{width:28px;height:28px;border-radius:50%;display:grid;place-items:center;font:800 11px Unbounded,sans-serif;color:#1a120a;flex:none}
+.ic.l{width:44px;height:44px;font-size:16px}
+.pop{display:flex;gap:6px;justify-content:center;margin-top:12px;flex-wrap:wrap}
+.pop span{display:flex;align-items:center;gap:6px;background:var(--s1);border:1px solid var(--line);border-radius:999px;padding:4px 10px 4px 4px;font-weight:600;font-size:13px;cursor:pointer;color:var(--muted)}.pop span:hover{color:var(--text);border-color:var(--s3)}
+.pop .ic{width:20px;height:20px;font-size:9px}
+.calc{margin-top:18px;background:var(--s1);border:1px solid var(--line);border-radius:20px;padding:18px;display:none}
+.calc.on{display:block;animation:in .25s ease}
+@keyframes in{from{opacity:0;transform:translateY(6px)}}
+.ch{display:flex;align-items:center;gap:12px}
+.ch b{font:800 20px Unbounded,sans-serif;letter-spacing:-.5px}.ch small{display:block;color:var(--muted);font-size:13px}
+.ch .pi{margin-left:auto;text-align:right;font-size:12.5px;color:var(--muted)}.ch .pi b{font:700 14px "Inter Tight",sans-serif;color:var(--text);letter-spacing:0;display:block}
+.amt{display:flex;align-items:center;gap:10px;margin:18px 0 6px}
+.amt label{color:var(--muted);font-size:13px;white-space:nowrap}
+.amt .in{flex:1;display:flex;align-items:center;background:var(--s2);border:1px solid var(--line);border-radius:12px;padding:0 12px;height:46px}
+.amt .in span{color:var(--dim);font:700 18px "Inter Tight",sans-serif}
+.amt input{flex:1;min-width:0;background:none;border:0;color:var(--text);font:700 18px "Inter Tight",sans-serif;outline:none;padding-left:4px}
+.qk{display:flex;gap:6px}.qk button{background:var(--s2);border:1px solid var(--line);color:var(--muted);border-radius:9px;padding:6px 10px;font:600 12.5px "Inter Tight",sans-serif;cursor:pointer}.qk button:hover{color:var(--text)}
+.out{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:14px}
+.out div{background:var(--s2);border-radius:12px;padding:10px 10px 9px;text-align:center}
+.out em{font-style:normal;display:block;color:var(--dim);font:500 10px "JetBrains Mono",monospace;letter-spacing:.08em;text-transform:uppercase}
+.out b{display:block;font:800 17px Unbounded,sans-serif;letter-spacing:-.4px;margin-top:2px}
+.out div.m{background:rgba(255,138,61,.1);outline:1px solid rgba(255,138,61,.35)}.out div.m b{color:var(--acc)}
+.why{margin-top:12px;color:var(--dim);font-size:12.5px;line-height:1.55}.why a{color:var(--muted)}
+.tk{margin-top:10px;text-align:center;color:var(--muted);font-size:13.5px}.tk b{color:var(--text)}
+.net{margin-top:14px;border:1px solid var(--line);border-radius:14px;padding:12px 14px}
+.nh{font:500 10.5px "JetBrains Mono",monospace;letter-spacing:.08em;color:var(--dim);text-transform:uppercase;margin-bottom:8px}
+.nr{display:flex;align-items:center;justify-content:space-between;gap:8px}.nr>span{color:var(--dim);font-weight:700}
+.nr div{text-align:center;flex:1}.nr em{font-style:normal;display:block;color:var(--dim);font-size:11.5px}.nr b{font:800 17px Unbounded,sans-serif;letter-spacing:-.4px}
+.nr .nt{background:var(--s2);border-radius:10px;padding:6px 0}
+.u{color:#3ddc84}.d{color:#ff6b6b}
+.acts{display:flex;gap:8px;margin-top:14px}
+.btn{flex:1;height:44px;border-radius:12px;border:0;background:var(--acc);color:#1a120a;font:700 14.5px "Inter Tight",sans-serif;cursor:pointer}
+.btn.g{flex:0 0 auto;padding:0 16px;background:none;border:1px solid var(--line);color:var(--text)}
+.bag{margin-top:18px;background:var(--s1);border:1px solid var(--line);border-radius:20px;padding:16px 18px;display:none}
+.bag.on{display:block}
+.bh{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px}
+.bh .k{font:500 11px "JetBrains Mono",monospace;letter-spacing:.1em;color:var(--dim);text-transform:uppercase}
+.bh .n{color:var(--muted);font-size:13px}
+.bi{display:grid;grid-template-columns:auto 1fr 110px 84px 22px;align-items:center;gap:10px;padding:9px 0;border-top:1px solid var(--line)}
+.bi:first-of-type{border-top:0}
+.bi .ic{width:26px;height:26px;font-size:10px}
+.bi b{font-weight:700}.bi small{display:block;color:var(--dim);font-size:12px}
+.bi .ai{display:flex;align-items:center;background:var(--s2);border:1px solid var(--line);border-radius:9px;padding:0 8px;height:34px}
+.bi .ai span{color:var(--dim);font-weight:700}.bi .ai input{width:100%;background:none;border:0;color:var(--text);font:600 14px "Inter Tight",sans-serif;outline:none;padding-left:3px}
+.bi .wk{text-align:right;font-weight:700;color:var(--acc)}.bi .wk small{display:inline;color:var(--dim);font-weight:500;margin-left:2px}
+.bi .x{background:none;border:0;color:var(--dim);cursor:pointer;font-size:16px;padding:0}.bi .x:hover{color:var(--text)}
+.tot{display:flex;align-items:flex-end;justify-content:space-between;margin-top:8px;padding-top:14px;border-top:1px solid var(--line)}
+.tot em{font-style:normal;color:var(--muted);font-size:13px;display:block}
+.tot b{font:900 30px Unbounded,sans-serif;letter-spacing:-1px;color:var(--acc)}
+.tot .r{text-align:right;color:var(--muted);font-size:13px}.tot .r b{font:700 15px "Inter Tight",sans-serif;color:var(--text);letter-spacing:0}
+.foot{margin-top:16px;color:var(--dim);font-size:12px;text-align:center}
+@media(max-width:560px){
+ h1{font-size:26px}.nav{display:none}.top{margin-bottom:24px}
+ .out{grid-template-columns:repeat(2,1fr)}.out b{font-size:16px}
+ .amt{flex-wrap:wrap}.amt label{width:100%}.qk{width:100%}.qk button{flex:1}
+ .bi{grid-template-columns:auto 1fr 92px 22px}.bi .wk{grid-column:2/4;text-align:left;margin-top:-4px}.bi .x{grid-row:1;grid-column:4}
+ .ch .pi{display:none}
+}
+
+.ic{overflow:hidden;background:var(--s3);color:var(--muted)}.ic img{width:100%;height:100%;object-fit:cover;display:block}
+a.lg{color:var(--text);text-decoration:none}
+.msg{margin-top:18px;background:var(--s1);border:1px solid var(--line);border-radius:16px;padding:16px;color:var(--muted);text-align:center;display:none}.msg.on{display:block}.msg b{color:var(--text)}
+.pace{margin-top:8px;text-align:center;font-size:12.5px;color:var(--dim)}.pace b{color:var(--muted)}
+.pf{margin-top:12px;border-top:1px solid var(--line);padding-top:10px;display:none}.pf.on{display:block}
+.pf .r{display:flex;align-items:center;gap:8px;padding:6px 0;font-size:12.5px;color:var(--muted)}.pf .r code{font:12px "JetBrains Mono",monospace;color:var(--text);white-space:nowrap}.pf .r a{margin-left:auto;color:var(--acc);text-decoration:none;white-space:nowrap}
+.why button{background:none;border:0;padding:0;color:var(--muted);font:inherit;text-decoration:underline;cursor:pointer}
+.ld{display:inline-block;width:12px;height:12px;border-radius:50%;border:2px solid var(--line);border-top-color:var(--acc);animation:r .8s linear infinite;vertical-align:-2px;margin-right:6px}@keyframes r{to{transform:rotate(360deg)}}
+.btn.g:disabled{opacity:.5}
+
+</style></head><body><div class="w">
+<div class="top">
+ <a class="lg" href="/"><svg width="26" height="26" viewBox="0 0 52 52"><path d="M40 14A18 18 0 1 0 44 30" fill="none" stroke="#ff8a3d" stroke-width="7" stroke-linecap="round"/><path d="M30 12l12 2-2 12" fill="none" stroke="#ff8a3d" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/><circle cx="26" cy="26" r="6" fill="#fff1d6"/></svg><b>kickback</b></a>
+ <div class="nav"><a href="/">Scan</a><a href="/calc/" class="on">Calculator</a></div>
+</div>
+
+<h1>What would your bag <em>pay you?</em></h1>
+<p class="lead">Pick a coin, enter an amount, see what holding it pays. Measured on real wallets.</p>
+
+<div class="srch">
+ <div class="sb"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg><input id="q" placeholder="Ticker or CA, e.g. KNOTS" autocomplete="off" spellcheck="false" enterkeyhint="search"></div>
+ <div class="dd" id="dd"></div>
+</div>
+<div class="pop" id="pop"></div>
+<div class="msg" id="msg"></div>
+
+<div class="calc" id="calc">
+ <div class="ch"><span class="ic l" id="cIc"></span><div><b id="cSym"></b><small id="cSub"></small></div><div class="pi"><b id="cApr"></b>a year</div></div>
+ <div class="amt"><label for="amt">If I hold</label><div class="in"><span>$</span><input id="amt" value="1000" inputmode="decimal"></div>
+  <div class="qk"><button data-v="100">$100</button><button data-v="1000">$1K</button><button data-v="10000">$10K</button></div></div>
+ <div class="out"><div><em>Day</em><b id="oD"></b></div><div class="m"><em>Week</em><b id="oW"></b></div><div><em>Month</em><b id="oM"></b></div><div><em>Year</em><b id="oY"></b></div></div>
+ <div class="tk" id="tk"></div>
+ <div class="pace" id="pace"></div>
+ <div class="net" id="net"><div class="nh">Last 7 days for a holder</div>
+  <div class="nr"><div><em>Rewards</em><b class="u" id="nR"></b></div><span>+</span><div><em>Price</em><b id="nP"></b></div><span>=</span><div class="nt"><em>Net</em><b id="nN"></b></div></div></div>
+ <div class="why" id="why"></div>
+ <div class="pf" id="pf"></div>
+ <div class="acts"><button class="btn" id="addBag" type="button">+ Add to my bag</button><a class="btn g" id="buy" target="_blank" rel="noopener" style="display:grid;place-items:center;text-decoration:none">Buy</a></div>
+</div>
+
+<div class="bag" id="bag">
+ <div class="bh"><span class="k">My bag</span><span class="n" id="bN"></span></div>
+ <div id="bl"></div>
+ <div class="tot"><div><em>Your bag pays about</em><b id="tW"></b></div><div class="r">a month<br><b id="tM"></b></div></div>
+ <div class="acts"><a class="btn g" href="/" style="flex:1;display:grid;place-items:center;text-decoration:none">Scan my wallet</a></div>
+</div>
+
+<p class="foot">Past 7 days of on-chain payouts, today's prices. Payouts and prices change. Not financial advice.</p>
+</div>
+<script>
+const $=id=>document.getElementById(id);
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const usd=v=>!isFinite(v)?'$0':v>=100?'$'+Math.round(v).toLocaleString('en-US'):'$'+v.toFixed(2);
+const num=v=>v>=1e6?(v/1e6).toFixed(2)+'M':v>=1e3?Math.round(v).toLocaleString('en-US'):v>=1?v.toFixed(2):v>=0.01?v.toFixed(4):v.toPrecision(3);
+const pct=v=>(v>=0?'+':'')+v.toFixed(1)+'%';
+const short=a=>a.slice(0,4)+'…'+a.slice(-4);
+const cap=v=>v>=1e9?'$'+(v/1e9).toFixed(1)+'B':v>=1e6?'$'+(v/1e6).toFixed(1)+'M':'$'+Math.round(v/1e3)+'K';
+const isAddr=s=>/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(s)||/^0x[0-9a-fA-F]{40}$/.test(s);
+const ic=(c,cls='')=>`<span class="ic ${cls}">${c.icon?`<img src="${esc(c.icon)}" alt="" loading="lazy" onerror="this.remove()">`:''}${c.icon?'':esc((c.symbol||'?')[0])}</span>`;
+const store={get(k,d){try{return JSON.parse(localStorage.getItem(k))??d}catch{return d}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch{}}};
+const cache=new Map();
+async function coin(mint){ if(cache.has(mint)) return cache.get(mint); const p=fetch('/api/yield/'+mint).then(r=>r.ok?r.json():null).catch(()=>null); cache.set(mint,p); const v=await p; if(!v||v.status!=='ok') cache.delete(mint); return v; }
+let cur=null, bag=store.get('kb_bag',[]);
+
+// search
+let st=0, lastQ='';
+async function list(){ const q=$('q').value.trim().replace(/^\$/,''), dd=$('dd');
+  if(!q){ dd.classList.remove('on'); return; }
+  if(isAddr(q)){ dd.classList.remove('on'); openCoin(q); return; }
+  const my=++st; lastQ=q;
+  const j=await fetch('/api/yield/search?q='+encodeURIComponent(q)).then(r=>r.json()).catch(()=>({items:[]}));
+  if(my!==st) return;
+  dd.innerHTML=j.items.length?j.items.map(c=>`<div class="op" data-m="${esc(c.mint)}">${ic(c)}<div class="on"><b>$${esc(c.symbol)}</b><i>${esc(short(c.mint))}${c.mcap?' · '+cap(c.mcap)+' mcap':''}</i></div><small>pays ${esc(c.quote)}</small><span class="y">${c.usdPer1kWeek!=null?usd(c.usdPer1kWeek)+'/wk':c.fresh?'add':'…'}</span></div>`).join('')
+    :`<div class="chk">No coin with that ticker yet. Paste its CA and we'll add it.</div>`;
+  dd.classList.add('on'); }
+$('q').addEventListener('input',()=>{ clearTimeout(list.t); list.t=setTimeout(list,180); });
+$('q').addEventListener('focus',list);
+$('q').addEventListener('keydown',e=>{ if(e.key==='Enter'){ const f=$('dd').querySelector('.op'); if(f) openCoin(f.dataset.m); else list(); } });
+$('dd').onclick=e=>{ const o=e.target.closest('.op'); if(o) openCoin(o.dataset.m); };
+document.addEventListener('click',e=>{ if(!e.target.closest('.srch')) $('dd').classList.remove('on'); });
+fetch('/api/yield/search').then(r=>r.json()).then(j=>{ $('pop').innerHTML=j.items.slice(0,4).map(c=>`<span data-m="${esc(c.mint)}">${ic(c)}$${esc(c.symbol)}</span>`).join(''); }).catch(()=>{});
+$('pop').onclick=e=>{ const t=e.target.closest('[data-m]'); if(t) openCoin(t.dataset.m); };
+
+function msg(html){ $('msg').innerHTML=html; $('msg').classList.toggle('on',!!html); }
+async function openCoin(mint){
+  $('dd').classList.remove('on'); msg('<span class="ld"></span>Loading…'); $('calc').classList.remove('on');
+  const c=await coin(mint);
+  if(!c){ msg('Could not load this coin. Try again in a moment.'); return; }
+  if(c.status==='pending'){ msg('<b>Added.</b> We\'ll measure its payouts on-chain in the next hourly run. Come back in about an hour.'); return; }
+  if(c.status==='unsupported'){ msg('We measure <b>StonkFun</b> coins right now. pump.fun, Pons and other chains are coming next.'); return; }
+  if(c.status==='no-rewards'){ msg(`<b>$${esc(c.symbol||'')}</b> does not pay its holders.`); return; }
+  if(c.status==='quiet'||!(c.per7d>0)){ msg(`<b>$${esc(c.symbol||'')}</b> ${c.status==='quiet'||c.paid7d===0?'has not paid holders in the last 7 days.':'is still being measured. Check back in an hour.'}${c.note&&c.status!=='quiet'&&c.paid7d!==0?'<br><small>Last try: '+esc(c.note)+'.</small>':''}`); return; }
+  msg(''); cur=c; $('q').value='$'+c.symbol;
+  history.replaceState(null,'','/calc/?c='+c.mint);
+  $('cIc').outerHTML=ic(c,'l').replace('class="ic l"','class="ic l" id="cIc"');
+  $('cSym').textContent='$'+c.symbol; $('cSub').textContent=`pays ${c.quote.symbol} · ${c.platform} · ${c.chain==='solana'?'Solana':c.chain}`;
+  $('cApr').textContent=c.usdPer1kWeek!=null?(c.usdPer1kWeek*52/10).toFixed(1)+'%':'·';
+  const net=c.pricePct7d!=null;
+  $('net').style.display=net&&c.rewardsPct7d!=null?'':'none';
+  if(net){ const r=c.rewardsPct7d, p=c.pricePct7d, n=r+p; $('nR').textContent=pct(r); $('nP').textContent=pct(p); $('nP').className=p>=0?'u':'d'; $('nN').textContent=pct(n); $('nN').className=n>=0?'u':'d'; }
+  const ratio=c.per24h/c.per7d;
+  $('pace').innerHTML=c.coverH>=48&&c.per24h>0&&isFinite(ratio)&&Math.abs(ratio-1)>0.25?`Last 24h paid at <b>${ratio>1?(ratio).toFixed(1)+'x':Math.round(ratio*100)+'%'}</b> of the 7-day pace`:'';
+  const m=c.measured, bh=c.basisH||c.coverH, cov=bh<167?` Based on the last ${bh>=36?Math.round(bh/24)+' days':Math.round(bh)+' hours'} of payouts, scaled to a week.`:'';
+  $('why').innerHTML=`Measured on <b>${m.holders}</b> wallets paid in every round of the last ${m.windowH>=30?Math.round(m.windowH/24)+' days':Math.round(m.windowH)+'h'}. <button type="button" id="pfB">See their payouts</button>.${cov}`+(c.fee?`<br>$${esc(c.symbol)} takes a ${c.fee}% fee on every buy and sell, already counted above.`:'');
+  $('pf').classList.remove('on');
+  $('pf').innerHTML=m.proofs.map(p=>`<div class="r"><code>${esc(short(p.w))}</code> holds ${num(p.bal)}, got ${num(p.got)} ${esc(c.quote.symbol)} in ${p.n} payouts<a href="https://solscan.io/tx/${esc(p.sig)}" target="_blank" rel="noopener">tx ↗</a></div>`).join('');
+  $('pfB').onclick=()=>$('pf').classList.toggle('on');
+  $('buy').href=c.chain==='solana'?'https://jup.ag/swap/SOL-'+c.mint:'#';
+  $('calc').classList.remove('on'); void $('calc').offsetWidth; $('calc').classList.add('on'); calc(); }
+
+// what $a in this coin pays per week, in the reward token and in $
+const weekly=(c,a)=>{ const toks=a/c.price*(1-c.fee/100), rw=toks*c.per7d; return {rw, usd:rw*c.qprice}; };
+function calc(){ if(!cur) return; const a=parseFloat($('amt').value.replace(/,/g,''))||0, w=weekly(cur,a);
+  $('oD').textContent=usd(w.usd/7); $('oW').textContent=usd(w.usd); $('oM').textContent=usd(w.usd*365/12/7); $('oY').textContent=usd(w.usd*52);
+  $('tk').innerHTML=`≈ <b>${num(w.rw)} ${esc(cur.quote.symbol)}</b> a week, worth more or less as ${esc(cur.quote.symbol)} moves`; }
+$('amt').oninput=calc;
+document.querySelectorAll('.qk button').forEach(b=>b.onclick=()=>{ $('amt').value=b.dataset.v; calc(); });
+
+// my bag
+$('addBag').onclick=()=>{ if(!cur) return; const a=parseFloat($('amt').value.replace(/,/g,''))||0, ex=bag.find(x=>x.m===cur.mint); if(ex) ex.a+=a; else bag.push({m:cur.mint,a});
+  store.set('kb_bag',bag); drawBag(); $('addBag').textContent='Added ✓'; setTimeout(()=>$('addBag').textContent='+ Add to my bag',900); };
+async function drawBag(){ $('bag').classList.toggle('on',bag.length>0); if(!bag.length) return;
+  const cs=await Promise.all(bag.map(x=>coin(x.m)));
+  $('bl').innerHTML=bag.map((x,i)=>{ const c=cs[i]; if(!c||!(c.per7d>0)) return ''; return `<div class="bi">${ic(c)}<div><b>$${esc(c.symbol)}</b><small>pays ${esc(c.quote.symbol)}</small></div>
+    <div class="ai"><span>$</span><input data-i="${i}" value="${x.a}" inputmode="decimal"></div><div class="wk" id="w${i}"></div><button class="x" data-x="${i}" type="button" aria-label="Remove">×</button></div>`; }).join('');
+  tot(cs); }
+function tot(cs){ let w=0, amt=0; bag.forEach((x,i)=>{ const c=cs[i]; if(!c||!(c.per7d>0)) return; const v=weekly(c,x.a).usd; w+=v; amt+=x.a; const el=$('w'+i); if(el) el.innerHTML=usd(v)+'<small>/wk</small>'; });
+  $('tW').textContent='+'+usd(w)+' / wk'; $('tM').textContent='~'+usd(w*365/12/7); $('bN').textContent=`${bag.length} coin${bag.length>1?'s':''} · ${usd(amt)}`; tot.cs=cs; }
+$('bl').oninput=e=>{ const i=e.target.dataset.i; if(i!=null){ bag[i].a=parseFloat(e.target.value.replace(/,/g,''))||0; store.set('kb_bag',bag); tot(tot.cs); } };
+$('bl').onclick=e=>{ const i=e.target.dataset.x; if(i!=null){ bag.splice(i,1); store.set('kb_bag',bag); drawBag(); } };
+drawBag();
+const start=new URLSearchParams(location.search).get('c'); if(start&&isAddr(start)) openCoin(start);
+</script></body></html>

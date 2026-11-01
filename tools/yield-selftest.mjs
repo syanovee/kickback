@@ -22,7 +22,7 @@ for (const c of cases) {
     const r = await m(seed);
     if (!r.coin) { say('   result:', r.note); continue; }
     const st = r.stat, k = st.curve;
-    const at = usd => { const toks = usd / st.price; if (!k || k.length < 3) return st.per7d; if (toks <= k[0][0]) return k[0][1]; if (toks >= k.at(-1)[0]) return k.at(-1)[1]; for (let i = 1; i < k.length; i++) if (toks <= k[i][0]) { const f = (Math.log(toks) - Math.log(k[i - 1][0])) / (Math.log(k[i][0]) - Math.log(k[i - 1][0])); return k[i - 1][1] + (k[i][1] - k[i - 1][1]) * f; } };
+    const at = usd => { const toks = usd / st.price; if (!k || k.length < 6 || toks < k[0][0] || toks > k.at(-1)[0]) return st.per7d; for (let i = 1; i < k.length; i++) if (toks <= k[i][0]) { const f = (Math.log(toks) - Math.log(k[i - 1][0])) / (Math.log(k[i][0]) - Math.log(k[i - 1][0])); return k[i - 1][1] + (k[i][1] - k[i - 1][1]) * f; } };
     const wk = usd => st.price && st.qprice ? (usd / st.price * at(usd) * st.qprice) : null;
     say(`   $${r.coin.symbol} pays ${r.coin.quote_symbol}, mcap $${Math.round(r.coin.mcap || 0)}, price ${st.price}, reward price ${st.qprice}`);
     say(`   measured on ${st.n} wallets, window ${st.win_h}h, per token/wk median ${st.per7d} (p25 ${st.lo}, p75 ${st.hi})`);

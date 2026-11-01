@@ -1,0 +1,47 @@
+{
+  "_": "Coins the coin pages always count (found by the job or not), and coins they never show. platform: StonkFun | pump.fun | Flap. flap: true turns Flap back on.",
+  "pin": [
+    {
+      "mint": "HTmQz7My6MehV7bjhJ6jde8nDND1yvsz68d24LP7YgUQ",
+      "platform": "StonkFun"
+    },
+    {
+      "mint": "55A3VxMBfzw6uSe64zms5iMPw9k6kx9WzzusbCU6pump",
+      "platform": "pump.fun"
+    },
+    {
+      "mint": "3A3qjns31YZA6Ung91ZpoPD7J3p1bDFbTJ4ANFAPpump",
+      "platform": "pump.fun"
+    },
+    {
+      "mint": "5ubruMYpgKqw9ip5J1qrXbVGmMdn2VCsMg421B4bpump",
+      "platform": "pump.fun"
+    },
+    {
+      "mint": "nxPqZ4F7ux8Vph5NFu25rEP6Kx9Gr1U6Fmj36Rjpump",
+      "platform": "pump.fun"
+    },
+    {
+      "mint": "Hg5Ja55T5wESq4vyFoiVCMeHXtGyVA69X2UHq8hgpump",
+      "platform": "pump.fun"
+    },
+    {
+      "mint": "48hnR1CWtafBumJsJod6Q8yduwDuYyumCJzuBVzvpump",
+      "platform": "pump.fun"
+    },
+    {
+      "mint": "0x7d0443cddfc8e11af105f4fe44dd28c630237777",
+      "platform": "Flap"
+    },
+    {
+      "mint": "0xfe189e97832da1573e4e4ff034f4ffc3a15c7777",
+      "platform": "Flap"
+    },
+    {
+      "mint": "0xbeea1d618e533a387d941f58a7d4c9b7bd377777",
+      "platform": "Flap"
+    }
+  ],
+  "skip": [],
+  "flap": false
+}

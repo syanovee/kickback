@@ -7,8 +7,17 @@ export async function onRequestGet({ request, env }) {
   if (!out.get('user')) return json({ error: 'user required' }, 400);
   const end = +out.get('endTimestamp') || 0, ttl = end && end < Date.now() / 1000 - 3600 ? 7 * 86400 : 0;
   const ctx = arguments[0];
-  return cached(ctx, 'relay3', out.toString(), ttl, async () => {
-    const r = await fetch('https://api.relay.link/requests/v3?' + out, { headers: { 'x-api-key': env.RELAY_KEY } });
-    return { status: r.status, text: await r.text() };
+  // v3 started returning an empty list for Solana users (Oct 2026), v2 still works: try v3, fall back to v2
+  return cached(ctx, 'relay4', out.toString(), ttl, async () => {
+    const h = { headers: { 'x-api-key': env.RELAY_KEY } };
+    const r = await fetch('https://api.relay.link/requests/v3?' + out, h);
+    const text = await r.text();
+    let empty = false;
+    try { const j = JSON.parse(text); empty = r.ok && Array.isArray(j.requests) && j.requests.length === 0 && !j.continuation; } catch {}
+    if (r.ok && !empty) return { status: r.status, text };
+    const out2 = new URLSearchParams(out);
+    if (+out2.get('limit') > 50) out2.set('limit', '50');   // v2 caps limit at 50
+    const r2 = await fetch('https://api.relay.link/requests/v2?' + out2, h);
+    return { status: r2.status, text: await r2.text() };
   }, t => t.includes('"requests"'));
 }

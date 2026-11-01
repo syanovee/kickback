@@ -12,3 +12,5 @@
 /admin.html
   Cache-Control: no-store
   X-Robots-Tag: noindex
+/calc/
+  Cache-Control: no-cache

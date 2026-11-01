@@ -1,0 +1,81 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Kickback for partners · docs</title><meta name="robots" content="noindex">
+<link rel="icon" href="/favicon.svg">
+<link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;600;700&family=Unbounded:wght@800;900&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#141210;--s1:#1b1714;--s2:#231e19;--line:#2e2721;--text:#fff6ea;--muted:#a89c8c;--dim:#6d6358;--acc:#ff8a3d}
+*{box-sizing:border-box} body{margin:0;background:var(--bg);color:var(--text);font:16px/1.6 "Inter Tight",system-ui,sans-serif}
+.w{max-width:820px;margin:0 auto;padding:48px 20px 80px}
+.top{display:flex;align-items:center;gap:12px;margin-bottom:36px} .top b{font:900 26px Unbounded,sans-serif;letter-spacing:-.5px} .top span{font:500 12px "JetBrains Mono",monospace;letter-spacing:.12em;color:#1a120a;background:var(--acc);padding:4px 10px;border-radius:999px}
+h1{font:900 40px/1.1 Unbounded,sans-serif;letter-spacing:-1.5px;margin:0 0 12px} h2{font:800 22px Unbounded,sans-serif;letter-spacing:-.5px;margin:44px 0 12px}
+p,li{color:var(--muted)} b,strong{color:var(--text)} a{color:var(--acc)}
+code{font:14px "JetBrains Mono",monospace;background:var(--s2);border:1px solid var(--line);border-radius:6px;padding:1px 6px;color:var(--text)}
+pre{white-space:pre-wrap;word-break:break-word;background:var(--s1);border:1px solid var(--line);border-radius:14px;padding:18px 20px;overflow:auto;font:13.5px/1.6 "JetBrains Mono",monospace;color:var(--text)} pre code{background:none;border:0;padding:0}
+table{width:100%;border-collapse:collapse;font-size:15px} td,th{text-align:left;padding:10px 8px;border-top:1px solid var(--line);vertical-align:top} th{color:var(--dim);font:500 12px "JetBrains Mono",monospace;letter-spacing:.08em;text-transform:uppercase}
+td:first-child{white-space:nowrap} .c{color:var(--dim)}
+.note{background:rgba(255,138,61,.08);border:1px solid rgba(255,138,61,.35);border-radius:14px;padding:14px 18px;color:var(--text)}
+</style></head><body><div class="w">
+<div class="top"><svg width="34" height="34" viewBox="0 0 52 52"><path d="M40 14A18 18 0 1 0 44 30" fill="none" stroke="#ff8a3d" stroke-width="7" stroke-linecap="round"/><path d="M30 12l12 2-2 12" fill="none" stroke="#ff8a3d" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/><circle cx="26" cy="26" r="6" fill="#fff1d6"/></svg><b>kickback</b><span>PARTNERS</span></div>
+
+<h1>Holder rewards for any wallet, as JSON.</h1>
+<p>One script, one call. Kickback finds every holder reward a wallet got on Solana, Base, BNB Chain, Ethereum and Robinhood Chain (StonkFun, pump.fun, Pons, Flap and more), each one backed by its transaction, and hands you the result as JSON. You render it however you like.</p>
+
+<h2>Quick start</h2>
+<pre><code>&lt;script src="https://getkickback.fun/kickback.js"&gt;&lt;/script&gt;
+&lt;script&gt;
+const data = await Kickback.scan(wallet, {
+  key: 'YOUR_PARTNER_KEY',
+  helius: 'YOUR_HELIUS_KEY',             // optional, scans run on your Helius
+  onUpdate: (d, final) =&gt; render(d),    // first result fast, then the verified one
+  onProgress: text =&gt; status(text),     // "Solana: reading transactions…"
+});
+&lt;/script&gt;</code></pre>
+<p>The script opens the scanner in a hidden frame on your page. The first result usually lands in a few seconds; <code>onUpdate</code> fires again when the deep check finishes, and the promise resolves with that final result.</p>
+
+<h2>Options</h2>
+<table><tr><th>option</th><th>what it does</th></tr>
+<tr><td><code>wallet</code></td><td>One address, or a list of one user's wallets: <code>['Sol…', '0x…']</code>. Solana and EVM, up to 5. Wallets linked to it through bridge history are found and added automatically, like on getkickback.fun. <code>wallets</code> in the response lists everything that was scanned.</td></tr>
+<tr><td><code>key</code></td><td>Your partner key. Works only on the domains it was issued for.</td></tr>
+<tr><td><code>helius</code></td><td>Your Helius API key, used for Solana. Solana reads go straight from the visitor's browser to Helius with it, so nothing runs on our quota. Your plan needs <code>getTransactionsForAddress</code>. Without it we use ours.</td></tr>
+<tr><td><code>onUpdate(data, final)</code></td><td>Called on every pass. <code>final</code> is <code>true</code> on the last one.</td></tr>
+<tr><td><code>onProgress(text)</code></td><td>Human readable status while scanning.</td></tr>
+<tr><td><code>timeout</code></td><td>ms, default 240000.</td></tr></table>
+
+<h2>Response</h2>
+<pre><code>{
+  "wallet": "7xKq…",
+  "wallets": ["7xKq…", "0x3f…"],
+  "chains": ["solana", "base"],
+  "totalUsd": 12480.55,          // all rewards, today's prices
+  "payouts": 1042,
+  "last7dUsd": 184.20,
+  "daily30d": [ { "day": "2026-09-06", "usd": 27.40 }, … ],   // 30 entries, oldest first
+  "platforms": { "StonkFun": 11890.10, "pump.fun": 590.45 },
+  "coins": [ {
+    "symbol": "STONK", "chain": "solana", "mint": "6Gmw…", "icon": "https://…", "platform": "StonkFun",
+    "usd": 8130.00, "amount": 37190.2, "price": 0.2186,
+    "payouts": 412, "paidFor": ["KNOTS"], "firstPayout": 1757400000
+  }, … ],                        // biggest first
+  "latest": [ {
+    "time": 1759500000, "chain": "solana", "symbol": "STONK", "mint": "6Gmw…",
+    "amount": 12.4, "usd": 2.71, "tx": "5h0v…",
+    "link": "https://solscan.io/tx/…", "paidFor": "KNOTS"
+  }, … ],                        // newest first, up to 50
+  "helius": { "used": "partner" },   // or "kickback" + "error" when your key could not run it
+  "pricedAt": 1759500123,
+  "poweredBy": "https://getkickback.fun"
+}</code></pre>
+<p class="c"><code>chain</code> is one of <code>solana</code>, <code>base</code>, <code>bsc</code>, <code>eth</code>, <code>robinhood</code>. The same token can show up once per chain. Times are unix seconds. <code>usd</code> uses today's price, not the price on the payout day.</p>
+
+<h2>Errors</h2>
+<p>The promise rejects with a readable message: <code>not a Solana or EVM wallet</code>, <code>unknown key</code>, <code>this key is not allowed on …</code>, <code>hourly limit reached</code>, <code>timeout</code>.</p>
+
+<h2>Good to know</h2>
+<ul>
+<li><b>Lock your Helius key</b> in the Helius dashboard (allowed domains) to your domain <b>and</b> <code>getkickback.fun</code>: the scan runs inside our frame, so Helius sees that origin. If your key can't run the scan, we use ours and say so in <code>helius.error</code>.</li>
+<li>One scan at a time per page; extra calls queue up.</li>
+<li><code>mint</code> is the token address on its chain (SPL mint on Solana, contract on EVM).</li>
+<li>Please show <a href="https://getkickback.fun">powered by Kickback</a> next to the data.</li>
+</ul>
+<p class="note">Questions or a new key: <a href="https://x.com/syanovee">@syanovee</a> on X.</p>
+</div></body></html>

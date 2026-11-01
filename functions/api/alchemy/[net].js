@@ -14,6 +14,7 @@ function ttlFor(m, p) {
   if (m === 'alchemy_getAssetTransfers') {
     const q = p?.[0] || {};
     if (q.contractAddresses && q.maxCount === '0x1' && q.order === 'asc') return 30 * DAY;
+    if (q.fromAddress && q.toAddress && q.maxCount === '0x1') return DAY;   // 'did X ever pay Y' checks (Pons escrow): same answer for a day
   }
   return 0;
 }

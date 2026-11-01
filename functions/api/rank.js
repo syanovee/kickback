@@ -11,7 +11,9 @@ export async function onRequestPost({ request, env }) {
   const key = w.startsWith('0x') ? w.toLowerCase() : w, t = Math.round(total * 100) / 100;
   await env.DB.prepare('INSERT INTO scans (w, total, t) VALUES (?1, ?2, ?3) ON CONFLICT(w) DO UPDATE SET total = excluded.total, t = excluded.t')
     .bind(key, t, Math.floor(Date.now() / 1000)).run();
-  const r = await env.DB.prepare('SELECT (SELECT COUNT(*) FROM scans WHERE total > ?1 AND w != ?2) AS above, (SELECT COUNT(*) FROM scans) AS n').bind(t, key).first();
+  const r = await env.DB.prepare(`SELECT (SELECT COUNT(*) FROM scans WHERE total > ?1 AND w != ?2) AS above, (SELECT COUNT(*) FROM scans) AS n,
+    (SELECT COUNT(*) FROM scans WHERE total > 0) AS paid, (SELECT COUNT(*) FROM scans WHERE total > 0 AND total < ?1 AND w != ?2) AS below`).bind(t, key).first();
   const rank = (r?.above || 0) + 1, n = r?.n || 1;
-  return json({ rank, n, top: Math.max(1, Math.ceil(rank / n * 100)) });
+  // paid/below: wallets that got anything, and how many of them this one beat (the many $0 wallets would make any total look "top 50%")
+  return json({ rank, n, top: Math.max(1, Math.ceil(rank / n * 100)), paid: r?.paid || 0, below: r?.below || 0 });
 }

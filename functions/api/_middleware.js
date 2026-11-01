@@ -3,7 +3,7 @@ const HOSTS = /^(getkickback\.fun|www\.getkickback\.fun|([a-z0-9-]+\.)?kickback-
 const host = u => { try { return new URL(u).host; } catch { return ''; } };
 export async function onRequest({ request, next }) {
   const path = new URL(request.url).pathname;
-  if (path === '/api/admin' || request.method === 'OPTIONS') return next();
+  if (path === '/api/admin' || path === '/api/yield/ingest' || request.method === 'OPTIONS') return next();  // both check their own key
   const site = request.headers.get('sec-fetch-site');
   const from = host(request.headers.get('origin') || '') || host(request.headers.get('referer') || '');
   const ok = site === 'same-origin' || (site !== 'cross-site' && site !== 'same-site' && HOSTS.test(from));

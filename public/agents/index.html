@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml"><link rel="icon" href="/favicon-32.png" sizes="32x32">
+<title>Kickback for agents · paid in USDG, on credit if needed</title>
+<meta name="description" content="AI agents pay Kickback per scan over x402 on Robinhood Chain. Short on USDG? They borrow the gap on their Priors line.">
+<meta property="og:title" content="Kickback for agents">
+<meta property="og:description" content="Agents pay per scan over x402. Short on USDG? They borrow the gap on Priors.">
+<meta property="og:image" content="https://getkickback.fun/og.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="theme-color" content="#141210">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;600&family=JetBrains+Mono:wght@400;500&family=Unbounded:wght@500;700&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#141210;--s1:#1c1916;--s2:#26211c;--line:rgba(255,246,234,.07);--line2:rgba(255,246,234,.13);--text:#fff6ea;--muted:#a89c8c;--dim:#756b5f;--acc:#ff8a3d;--ok:#7ee787;--soft:rgba(255,138,61,.12);
+  --mono:"JetBrains Mono",ui-monospace,Menlo,monospace;--sans:"Inter Tight",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;--disp:"Unbounded","Inter Tight",sans-serif}
+*{box-sizing:border-box;margin:0}
+body{background:var(--bg);color:var(--text);font:16px/1.55 var(--sans);-webkit-font-smoothing:antialiased}
+a{color:var(--acc);text-decoration:none} a:hover{text-decoration:underline}
+.wrap{max-width:920px;margin:0 auto;padding:28px 16px 80px}
+nav{display:flex;justify-content:space-between;align-items:center;margin-bottom:56px;font-size:14px;color:var(--muted)}
+nav b{font-family:var(--disp);color:var(--text);font-size:17px;letter-spacing:-.01em}
+.tag{display:inline-block;font:500 12px var(--mono);color:var(--acc);background:var(--soft);padding:5px 10px;border-radius:99px;margin-bottom:18px}
+h1{font:700 clamp(30px,6vw,52px)/1.08 var(--disp);letter-spacing:-.02em;margin-bottom:18px}
+h1 em{font-style:normal;color:var(--acc)}
+.lead{color:var(--muted);font-size:18px;max-width:640px;margin-bottom:40px}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:56px}
+.stat{background:var(--s1);border:1px solid var(--line);border-radius:14px;padding:18px}
+.stat .v{font:700 clamp(22px,4vw,32px) var(--disp);letter-spacing:-.02em}
+.stat .k{color:var(--muted);font-size:13px;margin-top:4px}
+.live{display:inline-flex;align-items:center;gap:7px;font:500 12px var(--mono);color:var(--ok);margin-bottom:10px}
+.live:before{content:"";width:7px;height:7px;border-radius:50%;background:var(--ok);box-shadow:0 0 0 0 rgba(126,231,135,.6);animation:p 2s infinite}
+@keyframes p{70%{box-shadow:0 0 0 8px rgba(126,231,135,0)}100%{box-shadow:0 0 0 0 rgba(126,231,135,0)}}
+h2{font:600 22px var(--disp);letter-spacing:-.01em;margin:0 0 16px}
+.steps{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:56px}
+.step{background:var(--s1);border:1px solid var(--line);border-radius:14px;padding:18px}
+.step i{font:500 12px var(--mono);color:var(--acc);font-style:normal}
+.step h3{font:600 16px var(--sans);margin:8px 0 6px}
+.step p{color:var(--muted);font-size:14px}
+pre{background:var(--s1);border:1px solid var(--line);border-radius:14px;padding:18px;overflow-x:auto;font:13px/1.6 var(--mono);color:var(--text);margin-bottom:12px}
+pre .c{color:var(--dim)}
+.note{color:var(--muted);font-size:14px;margin-bottom:56px}
+.rcpts{display:flex;flex-direction:column;gap:8px}
+.r{display:grid;grid-template-columns:auto 1fr auto;gap:14px;align-items:center;background:var(--s1);border:1px solid var(--line);border-radius:12px;padding:12px 14px;font-size:14px}
+.r.hl{border-color:var(--acc);box-shadow:0 0 0 3px var(--soft)}
+.r .who{font:500 13px var(--mono)}
+.r .what{color:var(--muted)}
+.r .amt{font:500 13px var(--mono);color:var(--ok);white-space:nowrap}
+.empty{color:var(--dim);font:13px var(--mono);padding:18px;border:1px dashed var(--line2);border-radius:12px;text-align:center}
+footer{margin-top:64px;color:var(--dim);font-size:13px;border-top:1px solid var(--line);padding-top:20px;display:flex;justify-content:space-between;flex-wrap:wrap;gap:10px}
+@media (max-width:720px){.stats{grid-template-columns:repeat(2,1fr)}.steps{grid-template-columns:1fr}.r{grid-template-columns:1fr auto}.r .who{grid-column:1/-1}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <nav><a href="/" style="color:inherit"><b>Kickback</b></a><span>for agents · <a href="https://x.com/syanovee">@syanovee</a></span></nav>
+
+  <span class="tag">x402 · Robinhood Chain · Priors credit</span>
+  <h1>Agents pay Kickback.<br><em>On credit</em>, if they're short.</h1>
+  <p class="lead">Any AI agent can buy a Kickback scan for 0.05 USDG, with no account and no API key. Short on USDG? Agents with a <a href="https://priors.trade">Priors</a> line borrow the gap, pay, and repay later. Every payment settles on chain.</p>
+
+  <div class="live">live</div>
+  <div class="stats">
+    <div class="stat"><div class="v" id="s-scans">0</div><div class="k">scans paid by agents</div></div>
+    <div class="stat"><div class="v" id="s-agents">0</div><div class="k">Priors agents served</div></div>
+    <div class="stat"><div class="v" id="s-payers">0</div><div class="k">paying wallets</div></div>
+    <div class="stat"><div class="v" id="s-earned">$0</div><div class="k">USDG earned</div></div>
+  </div>
+
+  <h2>How it works</h2>
+  <div class="steps">
+    <div class="step"><i>01</i><h3>Agent asks</h3><p>It calls one URL with a wallet. Kickback answers 402: 0.05 USDG on Robinhood Chain.</p></div>
+    <div class="step"><i>02</i><h3>Agent pays</h3><p>It signs a USDG transfer. No USDG? It borrows the gap on its Priors line first.</p></div>
+    <div class="step"><i>03</i><h3>Kickback scans</h3><p>Every holder reward the wallet received, priced, with each tx. A failed scan is never charged.</p></div>
+  </div>
+
+  <h2>Call it</h2>
+<pre><span class="c"># any x402 client works. With Priors' own client:</span>
+npm i @priors/x402 @x402/core @x402/evm ethers
+
+import { createPayer, robinhood } from "@priors/x402";
+const payer = createPayer({ signer, maxPrice: "$0.10",
+  pool: robinhood.pool, agentId: YOUR_AGENT_ID, maxBorrow: "$1" }); <span class="c">// optional credit</span>
+const r = await payer.pay("https://agents.getkickback.fun/rewards?wallet=WALLET");</pre>
+  <p class="note">Rules: agents that defaulted on a Priors loan are refused. The same wallet within 10 minutes is served from the last scan. Endpoint info: <a href="https://agents.getkickback.fun/">agents.getkickback.fun</a></p>
+
+  <h2>Latest receipts</h2>
+  <div class="rcpts" id="rcpts"><div class="empty">no agent has paid yet. be the first</div></div>
+
+  <footer><span>Kickback has no token and no contract address.</span><span>Payments settle through <a href="https://x402.priors.trade">facilitator.priors.trade</a></span></footer>
+</div>
+<script>
+const API = "https://agents.getkickback.fun";
+const hl = new URLSearchParams(location.search).get("r");
+const short = a => a ? a.slice(0, 6) + "…" + a.slice(-4) : "";
+const ago = t => { const s = Math.max(1, Math.floor(Date.now() / 1000 - t)); return s < 60 ? s + "s ago" : s < 3600 ? Math.floor(s / 60) + "m ago" : s < 86400 ? Math.floor(s / 3600) + "h ago" : Math.floor(s / 86400) + "d ago"; };
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+function count(el, to, fmt) { const from = +el.dataset.v || 0; el.dataset.v = to; const t0 = performance.now();
+  const f = now => { const k = Math.min(1, (now - t0) / 900), v = from + (to - from) * (1 - Math.pow(1 - k, 3)); el.textContent = fmt(v); if (k < 1) requestAnimationFrame(f); }; requestAnimationFrame(f); }
+async function load() {
+  try {
+    const s = await (await fetch(API + "/stats")).json();
+    count(document.getElementById("s-scans"), s.scans, v => Math.round(v));
+    count(document.getElementById("s-agents"), s.priorsAgents, v => Math.round(v));
+    count(document.getElementById("s-payers"), s.payers, v => Math.round(v));
+    count(document.getElementById("s-earned"), s.earnedUsdg, v => "$" + v.toFixed(2));
+    if (s.latest?.length) document.getElementById("rcpts").innerHTML = s.latest.map(r => `
+      <div class="r${r.id === hl ? " hl" : ""}" id="r-${esc(r.id)}">
+        <span class="who">${r.agentId != null ? `<a href="https://priors.trade/agent?id=${+r.agentId}">agent #${+r.agentId}</a>` : esc(short(r.payer))}${r.score != null ? ` · score ${+r.score}` : ""}</span>
+        <span class="what">scan paid ${ago(r.time)}${r.foundUsd != null ? ` · found $${(+r.foundUsd).toFixed(2)} in rewards` : ""}</span>
+        <span class="amt">${r.tx ? `<a href="https://robin.etherscan.io/tx/${esc(r.tx)}" style="color:inherit">0.05 USDG ↗</a>` : "0.05 USDG"}</span>
+      </div>`).join("");
+    if (hl) document.getElementById("r-" + hl)?.scrollIntoView({ block: "center" });
+  } catch (e) {}
+}
+load(); setInterval(load, 30000);
+</script>
+</body>
+</html>

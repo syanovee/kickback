@@ -9,7 +9,7 @@ export async function onRequestGet({ params, env, request }) {
   const kn = row.kind === 'knots';
   const title = kn ? `${who} earned ${usd(row.total)} in STONK from holding KNOTS` : `${who} got ${usd(row.total)} in holder rewards`;
   const desc = kn ? 'See how much STONK you earned from holding KNOTS, every payout with its tx.' : 'Your bags paid you too. Paste any wallet on Kickback and see every holder reward, each with its transaction.';
-  const img = `${origin}/c/${id}.jpg`, to = `${origin}/${kn ? 'knots/' : ''}`;
+  const img = `${origin}/c/${id}.jpg`, to = `${origin}/${kn ? 'knots/' : ''}?utm_source=card`;
   const html = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>${esc(title)} · Kickback</title>
 <meta name="description" content="${esc(desc)}">
