@@ -3227,10 +3227,23 @@ async function snapGet(ws){ if (typeof DecompressionStream==='undefined') return
 function snapSave(ws, rows, total, n){ if (typeof CompressionStream==='undefined' || !window.__runKey) return;
   const top=rows.filter(r=>(r.usd||0)>=1); if (top.length && top.filter(r=>!r.icon).length > top.length/2) return;
   const run=window.__runKey;
+  const share=window.__share;
   const o={v:1, total, n, rows, share:window.__share, topKey:window.__topKey, stack:$('stack').innerHTML, plats:$('plats').innerHTML, wk:$('wk').classList.contains('hidden')?'':$('wk').innerHTML};
   const js=JSON.stringify(o,(k,v)=>typeof v==='bigint'?String(v):v instanceof Set?[...v]:v);
   // after the scan's own log entry has landed: the server only keeps a saved result that matches it
-  setTimeout(async()=>{ try{ const data=await gz(js); if (data.length>7.5e6) return; await postJson('/api/snap',{k:snapKey(ws), run, total:Math.round(total*100)/100, data},20000); }catch(e){} }, 4000);
+  setTimeout(async()=>{ try{ const data=await gz(js); if (data.length>7.5e6) return; await postJson('/api/snap',{k:snapKey(ws), run, total:Math.round(total*100)/100, data},20000); }catch(e){}
+    if (ws.length===1 && total>=1) wcardSave(ws[0], run, total, share); }, 4000);
+}
+// the wallet's own card for its getkickback.fun/w/<wallet> link preview (X, Telegram), drawn like the share card with no pfp
+async function wcardSave(w, run, total, share){ if (!share) return;
+  const cap=p=>Promise.race([p.catch(()=>null), sleep(2500).then(()=>null)]);
+  await Promise.all((share.coins||[]).slice(0,8).map(async c=>{ if (c.icon && !(c.icon in iconCache)){ const im=await cap(imgFromUrl(c.icon)); if (im) iconCache[c.icon]=im; } }));
+  try{ await Promise.race([Promise.all(['900 40px Unbounded','700 40px Unbounded','500 20px "JetBrains Mono"'].map(f=>document.fonts.load(f))), sleep(2000)]); }catch(e){}
+  const sv={pfp,pfpHandle,HIDE_W,cardStyle,cardTheme,share:window.__share};
+  let img; try{ pfp=null; pfpHandle=''; HIDE_W=false; cardStyle='stack'; cardTheme='ember'; window.__share={...share, wallet:w};
+    const c=drawCard(), s=document.createElement('canvas'); s.width=1200; s.height=675; s.getContext('2d').drawImage(c,0,0,1200,675); img=s.toDataURL('image/jpeg',0.86);
+  }catch(e){ return; } finally { pfp=sv.pfp; pfpHandle=sv.pfpHandle; HIDE_W=sv.HIDE_W; cardStyle=sv.cardStyle; cardTheme=sv.cardTheme; window.__share=sv.share; }
+  try{ await postJson('/api/wcard',{w, run, total:Math.round(total*100)/100, img},20000); }catch(e){}
 }
 function snapRestore(o){
   SNAP_T=o.total; window.__share=o.share; window.__topKey=o.topKey;
