@@ -4,6 +4,8 @@ const host = u => { try { return new URL(u).host; } catch { return ''; } };
 export async function onRequest({ request, next }) {
   const path = new URL(request.url).pathname;
   if (path === '/api/admin' || path === '/api/yield/ingest' || request.method === 'OPTIONS') return next();  // both check their own key
+  // link preview pictures are fetched by X, Telegram and Discord bots, which send no origin
+  if (path === '/api/wcard' && request.method === 'GET') return next();
   const site = request.headers.get('sec-fetch-site');
   const from = host(request.headers.get('origin') || '') || host(request.headers.get('referer') || '');
   const ok = site === 'same-origin' || (site !== 'cross-site' && site !== 'same-site' && HOSTS.test(from));
