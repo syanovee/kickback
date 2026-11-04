@@ -1399,19 +1399,23 @@ async function solIndex(url, W, lo, hi, onP, onFirst, cap){
   const hi0 = hi;
   hi = Math.min(...out.map(x=>x.t||hi));
   if (cap){
-    const rate = out.length/Math.max(60, hi0-hi), est = Math.round(rate*(hi0-lo));
+    // the rate comes from the first page's own time span (hi0 is 'now + 5 min', using it made busy wallets look 10-100x slower and read far past the cap)
+    const newest = Math.min(hi0, Math.max(...out.map(x=>x.t||0))), rate = out.length/Math.max(1, newest-hi), est = Math.round(rate*(newest-lo));
     if (est > cap){ lo = Math.max(lo, Math.floor(hi - (cap-out.length)/rate*1.15)); out.est = est; }
   }
   const seen = new Set(out.map(x=>x.sig));
   const K=12, DAYS=86400, step=Math.max(DAYS, Math.ceil((hi+1-lo)/K/DAYS)*DAYS), wins=[];
   for (let s=lo; s<=hi; s+=step) wins.push([s, Math.min(hi+1, s+step)]);
+  wins.reverse();   // newest first: the cut below keeps the newest
+  const over = () => cap && out.length > cap*3;   // a hard stop so a mis-estimate can never read a whole exchange-size history
   await pool(wins, K, async ([a,b])=>{
+    if (over()) return;
     let tk=null;
     do{ const o={transactionDetails:'signatures',limit:1000,filters:{...SOL_F, blockTime:{gte:a,lt:b}}}; if (tk) o.paginationToken=tk;
       const r=await rpc(url,'getTransactionsForAddress',[W,o]);
       for (const x of r.data||[]) if (!seen.has(x.signature)){ seen.add(x.signature); out.push({sig:x.signature, slot:x.slot, t:x.blockTime}); }
       tk=r.paginationToken; if (onP) onP(out.length);
-    }while(tk);
+    }while(tk && !over());
   });
   if (cap && out.length > cap){ const est=out.est||out.length; out.sort((a,b)=>(b.t||0)-(a.t||0)); out.length=cap; out.est=est; }
   if (cap && out.est){ out.truncated=true; out.cutoff=Math.min(...out.map(x=>x.t||Infinity)); }
