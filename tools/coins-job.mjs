@@ -210,6 +210,105 @@ async function flapRead(token) {
   return { tracker, total, reward, dec, sym };
 }
 
+
+// ---- Pons (Robinhood Chain): coins whose holders are paid through the Pons escrow.
+// The escrow sends each coin's reward vault its money; the vault then pays the holders in batches. A vault is a contract whose token() is the coin.
+// What reaches the vaults is what holders got. Creator fees go through the same escrow to other contracts (fee claimers, agent harvests) and are left out.
+// Data from Blockscout's PRO API (free key, BLOCKSCOUT_KEY). Progress lives on a hidden row so each run only reads the new escrow transfers.
+const PONS_ESCROW = '0xd3afeb2a57f70ef218aa82451c51b2fb0416ac9e', BS = 'https://api.blockscout.com/4663/api/v2', BS_KEY = process.env.BLOCKSCOUT_KEY;
+const PONS_STATE = '_pons_escrow', PONS_BACK_DAYS = 7;   // first run: last week (about 4k escrow transfers, a couple of minutes)
+async function bs(path, q = {}) {
+  for (let i = 0; i < 6; i++) {
+    await sleep(230);
+    const u = new URL(BS + path); for (const [k, v] of Object.entries(q)) u.searchParams.set(k, v); u.searchParams.set('apikey', BS_KEY);
+    try { const r = await fetch(u, { signal: AbortSignal.timeout(30000) }); if (r.ok) return await r.json(); if (r.status === 404) return null; if (r.status !== 429 && r.status < 500) throw new Error('blockscout ' + r.status); }
+    catch (e) { if (i === 5 || /blockscout 4/.test(e.message)) throw e; }
+    await sleep(1000 * 2 ** i);
+  }
+}
+async function bsCall(to, data) {
+  for (let i = 0; i < 4; i++) {
+    await sleep(230);
+    try { const u = new URL(i % 2 ? 'https://robinhoodchain.blockscout.com/api/eth-rpc' : 'https://api.blockscout.com/4663/json-rpc'); if (!(i % 2)) u.searchParams.set('apikey', BS_KEY);
+      const r = await fetch(u, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'eth_call', params: [{ to, data }, 'latest'] }), signal: AbortSignal.timeout(20000) });
+      if (r.ok) { const j = await r.json(); return j.result ?? null; } } catch {}
+    await sleep(800 * 2 ** i);
+  }
+  return null;
+}
+async function ponsRun(known) {
+  if (!BS_KEY) { log('Pons: no BLOCKSCOUT_KEY, skipped'); return; }
+  const st = known.get(PONS_STATE); let S = {}; try { S = JSON.parse(st?.cursor || '{}') || {}; } catch {}
+  const vaults = S.v || {};            // vault -> coin, or '' when it is not a holder vault
+  const nowMs = Date.now(), floorMs = S.hw ? 0 : nowMs - PONS_BACK_DAYS * 864e5;
+  // 1. new escrow transfers, newest first, down to where the last run stopped (or 30 days back the first time)
+  const items = []; let q = { type: 'ERC-20', filter: 'from' }, reached = false;
+  for (let p = 0; p < 4000 && left() > 120e3; p++) {
+    const j = await bs(`/addresses/${PONS_ESCROW}/token-transfers`, q);
+    for (const t of j?.items || []) {
+      const ts = Date.parse(t.timestamp), id = t.transaction_hash + ':' + t.log_index;
+      if (S.hw && (ts < S.hw.t || (ts === S.hw.t && S.hw.h.includes(id)))) { reached = true; break; }
+      if (Date.parse(t.timestamp) < floorMs) { reached = true; break; }
+      items.push(t);
+    }
+    if (reached || !j?.next_page_params) { reached = true; break; }
+    q = { type: 'ERC-20', filter: 'from', ...j.next_page_params };
+  }
+  if (!reached) { log(`Pons: ran out of time after ${items.length} transfers, next run starts over`); return; }
+  // 2. which recipients are holder vaults: a contract whose token() names the coin and that pays many wallets at once
+  // only recipients worth a look (>= $10 or 3+ transfers in this batch), biggest first: thousands of dust recipients would eat the daily API allowance
+  const sz = {}; for (const t of items) { if (!t.to?.is_contract) continue; const a = t.to.hash.toLowerCase(), o = sz[a] || (sz[a] = { usd: 0, n: 0 }); o.n++; o.usd += (Number(t.total?.value || 0) / 10 ** +(t.total?.decimals || 18)) * (+t.token?.exchange_rate || 0); }
+  const recips = Object.entries(sz).filter(([a, o]) => !(a in vaults) && (o.usd >= 10 || o.n >= 3)).sort((x, y) => y[1].usd - x[1].usd || y[1].n - x[1].n).map(([a]) => a);
+  log(`Pons: ${items.length} new escrow transfers, ${recips.length} new recipients to check`);
+  // 4 at a time: Blockscout's free key allows 5 requests a second
+  let checked = 0, qi = 0;
+  const one = async a => {
+    const tk = await bsCall(a, '0xfc0c546a'); const coin = tk && tk.length >= 66 && !/^0x0+$/.test(tk) ? ('0x' + tk.slice(-40)).toLowerCase() : null;
+    if (!coin || /^0x0{40}$/.test(coin)) { vaults[a] = ''; return; }
+    const out = await bs(`/addresses/${a}/token-transfers`, { type: 'ERC-20', filter: 'from' }).catch(() => null);
+    const per = {}; for (const t of out?.items || []) (per[t.transaction_hash] = per[t.transaction_hash] || new Set()).add(t.to.hash.toLowerCase());
+    vaults[a] = Object.values(per).some(x => x.size >= 3) ? coin : '';     // batch payouts to holders, not a fee claimer paying its owner
+  };
+  await Promise.all([...Array(4)].map(async () => { while (qi < recips.length && left() > 90e3) { const a = recips[qi++]; await one(a); checked++; } }));
+  // out of time before every recipient was checked: keep what we learned about vaults, count nothing yet (next run reads the same transfers again)
+  if (checked < recips.length) { await post([{ mint: PONS_STATE, chain: 'robinhood', platform: 'Pons', status: 'hidden', cursor: JSON.stringify({ ...S, v: vaults }) }]); log(`Pons: checked ${checked}/${recips.length} recipients, counting next run`); return; }
+  // 3. add up per coin, in its main payout token
+  const per = new Map();
+  for (const t of items) {
+    const coin = vaults[t.to?.hash?.toLowerCase()]; if (!coin) continue;
+    const tok = t.token, a = (tok.address_hash || tok.address || '').toLowerCase(), raw = BigInt(t.total?.value || '0'), dec = +(t.total?.decimals || tok.decimals || 18);
+    const c = per.get(coin) || { coin, tok: {}, days: new Map(), last: 0, proofs: [] };
+    const k = c.tok[a] || (c.tok[a] = { a, sym: tok.symbol, dec, icon: tok.icon_url || null, price: tok.exchange_rate ? +tok.exchange_rate : null, raw: 0n, n: 0 });
+    k.raw += raw; k.n++;
+    const ts = Math.floor(Date.parse(t.timestamp) / 1000), d = Math.floor(ts / DAY);
+    const dd = c.days.get(a + '|' + d) || { a, d, raw: 0n, n: 0 }; dd.raw += raw; dd.n++; c.days.set(a + '|' + d, dd);
+    if (ts > c.last) c.last = ts; if (c.proofs.length < 3) c.proofs.push({ s: t.transaction_hash });
+    per.set(coin, c);
+  }
+  // 4. write: one coin at a time, its days with it. The state row moves last, so a failed run is simply read again next time.
+  const startDay = S.from ?? Math.floor(floorMs / 1000 / DAY) + 1;
+  const coins = [], days = [];
+  for (const c of per.values()) {
+    const k = known.get(c.coin);
+    const main = k?.pay_mint && c.tok[k.pay_mint] ? c.tok[k.pay_mint] : Object.values(c.tok).sort((x, y) => (Number(y.raw) / 10 ** y.dec) * (y.price || 0) - (Number(x.raw) / 10 ** x.dec) * (x.price || 0) || y.n - x.n)[0];
+    const prevRaw = k?.pay_mint === main.a ? BigInt(k.paid_raw || '0') : 0n, total = prevRaw + main.raw;
+    const info = await bs(`/tokens/${c.coin}`).catch(() => null);
+    const paidN = toNum(total, main.dec), usdNow = main.price ? paidN * main.price : 0, status = k?.status === 'hidden' ? 'hidden' : usdNow >= MIN_USD ? 'ok' : 'small';   // same bar as the other platforms
+    coins.push({ mint: c.coin, chain: 'robinhood', platform: 'Pons', symbol: info?.symbol || k?.symbol || null, name: info?.name || null, icon: info?.icon_url || null,
+      price: info?.exchange_rate ? +info.exchange_rate : null, mcap: info?.circulating_market_cap ? +info.circulating_market_cap : null, vol24: info?.volume_24h ? +info.volume_24h : null,
+      pay_mint: main.a, pay_symbol: main.sym, pay_dec: main.dec, pay_icon: main.icon, pay_price: main.price, paid_raw: total.toString(), paid_usd: main.price ? paidN * main.price : null,
+      rounds: (k?.rounds || 0) + main.n, last_ts: Math.max(c.last, k?.last_ts || 0), days_from: k?.days_from ?? startDay, src: 'pons', proofs: c.proofs, status, updated: Math.floor(Date.now() / 1000) });
+    for (const x of c.days.values()) if (x.a === main.a && x.d >= startDay) days.push([c.coin, x.d, toNum(x.raw, main.dec), x.n, 'add']);
+  }
+  // high-water mark: the newest transfer's time, plus every transfer at that exact second (several land in one block)
+  const topT = items.length ? Date.parse(items[0].timestamp) : null;
+  const hw = topT ? { t: topT, h: items.filter(t => Date.parse(t.timestamp) === topT).map(t => t.transaction_hash + ':' + t.log_index) } : S.hw;
+  const next = { from: startDay, hw, v: vaults };
+  for (let i = 0; i < coins.length; i += 100) { const part = coins.slice(i, i + 100), has = d => part.some(c => c.mint === d[0]); await post(part, days.filter(has)); }
+  await post([{ mint: PONS_STATE, chain: 'robinhood', platform: 'Pons', status: 'hidden', cursor: JSON.stringify(next) }]);
+  log(`Pons: ${items.length} escrow transfers read, ${per.size} coins paid holders, ${Object.values(vaults).filter(Boolean).length} holder vaults known`);
+}
+
 async function main() {
   const st = await site('GET');
   const known = new Map(st.coins.map(c => [c.mint, c]));
@@ -254,7 +353,18 @@ async function main() {
   const mk = { ...(await market('solana', sol)), ...(await market('bsc', bsc)) };
   const payS = [...new Set([WSOL, ...[...rows.values()].filter(r => r.chain === 'solana').map(r => r.pay_mint)])], payB = [...new Set([WBNB, ...[...rows.values()].filter(r => r.chain === 'bsc').map(r => r.pay_mint)])];
   const pk = { ...(await market('solana', payS)), ...(await market('bsc', payB)) };
-  const meta = (r, m) => Object.assign(r, { symbol: m?.symbol ?? r.symbol, name: m?.name ?? r.name, icon: m?.icon ?? r.icon, price: m?.price ?? null, mcap: m?.mcap ?? null, vol24: m?.vol24 ?? null, created: m?.created ?? null });
+  // coins DexScreener doesn't list (dead or never traded there) still get a name: from the token's own on-chain metadata, 100 per call
+  { const miss = [...rows.values()].filter(r => r.chain === 'solana' && !mk[r.mint]?.symbol && !known.get(r.mint)?.symbol).map(r => r.mint);
+    for (let i = 0; i < miss.length; i += 100) {
+      const a = await rpc('getAssetBatch', [{ ids: miss.slice(i, i + 100) }]).catch(() => null);
+      for (const x of Array.isArray(a) ? a : []) { if (!x?.id) continue; const md = x.content?.metadata || {}; const o = mk[x.id] || (mk[x.id] = {});
+        if (!o.symbol && md.symbol) o.symbol = String(md.symbol).trim().slice(0, 20); if (!o.name && md.name) o.name = String(md.name).trim().slice(0, 60);
+        if (!o.icon && (x.content?.links?.image || x.content?.files?.[0]?.uri)) o.icon = x.content.links?.image || x.content.files[0].uri; }
+    }
+    if (miss.length) log(`names from on-chain metadata: ${miss.length} coins`);
+  }
+  // known coins keep the name they already have when DexScreener drops them
+  const meta = (r, m) => Object.assign(r, { symbol: m?.symbol ?? r.symbol ?? known.get(r.mint)?.symbol, name: m?.name ?? r.name, icon: m?.icon ?? r.icon, price: m?.price ?? null, mcap: m?.mcap ?? null, vol24: m?.vol24 ?? null, created: m?.created ?? null });
   const payMeta = r => { const p = pk[key(r.pay_mint)] || {}; Object.assign(r, { pay_price: p.price ?? null, pay_icon: MAJOR[r.pay_mint]?.icon || p.icon || null }); if (MAJOR[r.pay_mint]) r.pay_symbol = MAJOR[r.pay_mint].symbol; };
 
   // pump coins worth a page: busy ones (or pinned, or already counted)
@@ -282,6 +392,9 @@ async function main() {
   for (const r of rows.values()) if (!known.get(r.mint)) first.push(r.mint);
   await post([...rows.values()], dayRows);
   log(`wrote ${rows.size} coins (${first.length} new)`);
+
+  // 4b. Pons (Robinhood Chain), cheap: only the escrow's new transfers
+  if (!ONLY.length) await ponsRun(known).catch(e => log('Pons failed, next run tries again:', e.message));
 
   // 5. pump.fun: count rounds from the vault, biggest coins first
   for (const r of NO_PUMP ? [] : pumpRows.sort((a, b) => (b.vol24 || 0) - (a.vol24 || 0))) {
