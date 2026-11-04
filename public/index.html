@@ -1448,8 +1448,14 @@ function solSlices(index, size){
   return ranges;
 }
 let solAlchemyOk;
+// what the server already read for this wallet (once per page load): only txs that are in the fresh signature list are used, the rest is read from the chain
+const SOL_PRE={};
+const solMem = W => SOL_PRE[W] ??= Promise.race([
+  fetch('/api/solmem?w='+W).then(r=>r.ok?r.json():null).then(async j=>{ const m=new Map(); for (const p of j?.p||[]) try{ for (const c of JSON.parse(await ungz(p))) m.set(c.s,c); }catch(e){} return m; }).catch(()=>null),
+  sleep(4000).then(()=>null)]);
 async function solRead(url, W, index, all, onP, aurl, bySig){
   const put=(sig,c)=>{ all.set(sig,c); liveSol(c, W); };
+  if (SOLSCAN && !EMB_HELIUS){ const pre=await solMem(W); if (pre?.size) for (const x of index) if (!all.has(x.sig)){ const c=pre.get(x.sig); if (c) put(x.sig,c); } }
   if (bySig){
     for (let k=0;k<4;k++){
       const left = index.filter(x=>!all.has(x.sig)); if (!left.length) break;

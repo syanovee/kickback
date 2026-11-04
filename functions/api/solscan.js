@@ -1,6 +1,7 @@
 import { getCached, putCached, json } from '../_lib/cache.js';
 import { TX_OPTS, txKey } from '../_lib/soltx.js';
 import { solCompact } from '../_lib/compact.js';
+import { memPut } from '../_lib/solmem.js';
 const DAY = 86400, TAG = 'alchemy:solana-mainnet', SOL_F = { status: 'succeeded', tokenAccounts: 'balanceChanged' };
 const isAddr = s => typeof s === 'string' && /^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(s);
 const isSig = s => typeof s === 'string' && /^[1-9A-HJ-NP-Za-km-z]{64,90}$/.test(s);
@@ -11,10 +12,14 @@ export async function onRequestPost(ctx) {
   const W = b?.w, sigs = b?.sigs;
   if (!isAddr(W) || !Array.isArray(sigs) || !sigs.length || sigs.length > 100 || !sigs.every(isSig)) return json({ error: 'bad request' }, 400);
   const want = new Set(sigs), out = {}, now = Date.now() / 1000, puts = [];
+  const mem = [];
   const keep = tx => {
     const sig = tx?.transaction?.signatures?.[0]; if (!sig) return;
-    if (tx.blockTime && now - tx.blockTime > 120) puts.push(putCached(ctx, TAG, txKey(sig), 30 * DAY, JSON.stringify({ jsonrpc: '2.0', id: 1, result: tx })));
-    if (want.has(sig)) { try { out[sig] = solCompact(tx, W); } catch {} }
+    const final = tx.blockTime && now - tx.blockTime > 120;
+    if (final) puts.push(putCached(ctx, TAG, txKey(sig), 30 * DAY, JSON.stringify({ jsonrpc: '2.0', id: 1, result: tx })));
+    let c = null; try { c = solCompact(tx, W); } catch {}
+    if (c && want.has(sig)) out[sig] = c;
+    if (c && final) mem.push(c);
   };
   const miss = [];
   await Promise.all(sigs.map(async s => { const hit = await getCached(ctx, TAG, txKey(s)); if (hit) { try { const r = JSON.parse(hit).result; if (r) { out[s] = solCompact(r, W); return; } } catch {} } miss.push(s); }));
@@ -45,6 +50,6 @@ export async function onRequestPost(ctx) {
       } catch {}
     }));
   }
-  ctx.waitUntil(Promise.all(puts));
+  ctx.waitUntil(Promise.all([...puts, memPut(env, W, mem)]));
   return json({ txs: out, hit: sigs.length - miss.length });
 }

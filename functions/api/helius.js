@@ -3,6 +3,7 @@ import { TX_OPTS, txKey } from '../_lib/soltx.js';
 const ALLOWED = new Set(['getTokenAccountsByOwner','getTransactionsForAddress','getAssetBatch','getTransaction',
   'getSignaturesForAddress','getAccountInfo','getMultipleAccounts','getBalance']);
 const DAY = 86400;
+const STANDARD = new Set(['getTokenAccountsByOwner','getSignaturesForAddress','getAccountInfo','getMultipleAccounts','getBalance','getTransaction']);
 
 export async function onRequestPost(ctx) {
   const { request, env } = ctx;
@@ -16,10 +17,14 @@ export async function onRequestPost(ctx) {
   else if (m === 'getAssetBatch') ttl = DAY;
   else if (m === 'getTransactionsForAddress' && p?.[1]?.transactionDetails === 'signatures' && p?.[1]?.filters?.blockTime?.lt
            && p[1].filters.blockTime.lt < Date.now() / 1000 - 3600) ttl = 7 * DAY;
+  const call = async url => { const r = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...body, id: 1 }) }); return { status: r.status, text: await r.text() }; };
+  const helius = () => call('https://mainnet.helius-rpc.com/?api-key=' + env.HELIUS_KEY);
+  // standard Solana methods go to Alchemy (its own free allowance); Helius only for what only Helius has. If Alchemy says no, Helius answers.
   const upstream = async () => {
-    const r = await fetch('https://mainnet.helius-rpc.com/?api-key=' + env.HELIUS_KEY, {
-      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...body, id: 1 }) });
-    return { status: r.status, text: await r.text() };
+    if (STANDARD.has(m) && env.ALCHEMY_KEY) {
+      try { const a = await call('https://solana-mainnet.g.alchemy.com/v2/' + env.ALCHEMY_KEY); if (a.status === 200 && okRpc(a.text)) return a; } catch {}
+    }
+    return helius();
   };
   const res = await cached(ctx, 'helius', JSON.stringify([m, p]), ttl, upstream, okRpc);
   if (m === 'getTransactionsForAddress' && p?.[1]?.transactionDetails === 'full' && res.status === 200) {
