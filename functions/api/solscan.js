@@ -2,6 +2,7 @@ import { getCached, putCached, json } from '../_lib/cache.js';
 import { TX_OPTS, txKey } from '../_lib/soltx.js';
 import { solCompact } from '../_lib/compact.js';
 import { memPut } from '../_lib/solmem.js';
+import { solRpc } from '../_lib/rpc.js';
 const DAY = 86400, TAG = 'alchemy:solana-mainnet', SOL_F = { status: 'succeeded', tokenAccounts: 'balanceChanged' };
 const isAddr = s => typeof s === 'string' && /^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(s);
 const isSig = s => typeof s === 'string' && /^[1-9A-HJ-NP-Za-km-z]{64,90}$/.test(s);
@@ -33,8 +34,7 @@ export async function onRequestPost(ctx) {
       let j = null;
       for (let a = 0; a < 5 && !j; a++) {
         if (a) await new Promise(r => setTimeout(r, 250 * a + Math.random() * 250));
-        try { const r = await fetch('https://mainnet.helius-rpc.com/?api-key=' + env.HELIUS_KEY, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'getTransactionsForAddress', params: [W, o] }) });
-          const t = r.ok ? await r.json() : null; if (t?.result) j = t; } catch {}
+        try { const r = await solRpc(env, 'getTransactionsForAddress', [W, o]); const t = r.status === 200 ? JSON.parse(r.text) : null; if (t?.result) j = t; } catch {}
       }
       for (const tx of j?.result?.data || []) keep(tx);
       tk = j?.result?.paginationToken; pages++;

@@ -1451,7 +1451,8 @@ function solSlices(index, size){
   const ranges=[]; let cur=null;
   for (const s of Object.keys(bySlot).map(Number).sort((a,b)=>b-a)){ if (!cur) cur={lo:s, hi:s, sigs:[]}; cur.lo=s; cur.sigs.push(...bySlot[s]); if (cur.sigs.length>=size){ ranges.push(cur); cur=null; } }
   if (cur) ranges.push(cur);
-  return ranges;
+  // one slot can hold more of this wallet's txs than one request may carry (big distributors): split, same slot range
+  return ranges.flatMap(r=>{ if (r.sigs.length<=size) return [r]; const out=[]; for (let i=0;i<r.sigs.length;i+=size) out.push({lo:r.lo, hi:r.hi, sigs:r.sigs.slice(i,i+size)}); return out; });
 }
 let solAlchemyOk;
 // what the server already read for this wallet (once per page load): only txs that are in the fresh signature list are used, the rest is read from the chain

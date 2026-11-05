@@ -1,9 +1,9 @@
 import { cached, okRpc, json, putCached } from '../_lib/cache.js';
 import { TX_OPTS, txKey } from '../_lib/soltx.js';
+import { solRpc } from '../_lib/rpc.js';
 const ALLOWED = new Set(['getTokenAccountsByOwner','getTransactionsForAddress','getAssetBatch','getTransaction',
   'getSignaturesForAddress','getAccountInfo','getMultipleAccounts','getBalance']);
 const DAY = 86400;
-const STANDARD = new Set(['getTokenAccountsByOwner','getSignaturesForAddress','getAccountInfo','getMultipleAccounts','getBalance','getTransaction']);
 
 export async function onRequestPost(ctx) {
   const { request, env } = ctx;
@@ -17,16 +17,10 @@ export async function onRequestPost(ctx) {
   else if (m === 'getAssetBatch') ttl = DAY;
   else if (m === 'getTransactionsForAddress' && p?.[1]?.transactionDetails === 'signatures' && p?.[1]?.filters?.blockTime?.lt
            && p[1].filters.blockTime.lt < Date.now() / 1000 - 3600) ttl = 7 * DAY;
-  const call = async url => { const r = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...body, id: 1 }) }); return { status: r.status, text: await r.text() }; };
-  const helius = () => call('https://mainnet.helius-rpc.com/?api-key=' + env.HELIUS_KEY);
-  // standard Solana methods go to Alchemy (its own free allowance); Helius only for what only Helius has. If Alchemy says no, Helius answers.
-  const upstream = async () => {
-    if (STANDARD.has(m) && env.ALCHEMY_KEY) {
-      try { const a = await call('https://solana-mainnet.g.alchemy.com/v2/' + env.ALCHEMY_KEY); if (a.status === 200 && okRpc(a.text)) return a; } catch {}
-    }
-    return helius();
-  };
-  const res = await cached(ctx, 'helius', JSON.stringify([m, p]), ttl, upstream, okRpc);
+  // every call goes through the router: the right providers for the method, spread by weight, the next one answers if one refuses
+  const upstream = () => solRpc(env, m, p);
+  // a page that points to a next page is tied to the provider that made it: not kept, so a cached page never sends a read to a provider that has since gone
+  const res = await cached(ctx, 'helius', JSON.stringify([m, p]), ttl, upstream, t => okRpc(t) && !/"paginationToken"\s*:\s*"/.test(t));
   if (m === 'getTransactionsForAddress' && p?.[1]?.transactionDetails === 'full' && res.status === 200) {
     try {
       const j = await res.clone().json(), now = Date.now() / 1000;
