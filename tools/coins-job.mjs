@@ -356,7 +356,7 @@ async function main() {
   // coins DexScreener doesn't list (dead or never traded there) still get a name: from the token's own on-chain metadata, 100 per call
   { const miss = [...rows.values()].filter(r => r.chain === 'solana' && !mk[r.mint]?.symbol && !known.get(r.mint)?.symbol).map(r => r.mint);
     for (let i = 0; i < miss.length; i += 100) {
-      const a = await rpc('getAssetBatch', [{ ids: miss.slice(i, i + 100) }]).catch(() => null);
+      const a = await rpc('getAssetBatch', { ids: miss.slice(i, i + 100) }).catch(() => null);
       for (const x of Array.isArray(a) ? a : []) { if (!x?.id) continue; const md = x.content?.metadata || {}; const o = mk[x.id] || (mk[x.id] = {});
         if (!o.symbol && md.symbol) o.symbol = String(md.symbol).trim().slice(0, 20); if (!o.name && md.name) o.name = String(md.name).trim().slice(0, 60);
         if (!o.icon && (x.content?.links?.image || x.content?.files?.[0]?.uri)) o.icon = x.content.links?.image || x.content.files[0].uri; }

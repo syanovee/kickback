@@ -951,8 +951,6 @@
       <input id="wallet" placeholder="Paste a wallet" autocomplete="off" spellcheck="false">
       <button id="go" aria-label="Check"><span class="gf">Check</span><span class="gb">Checking…</span></button>
     </div>
-    <!-- maintenance note: remove this line when Solana checks are back -->
-    <div class="maint" id="maint"><i></i><span><b>Solana checks are paused</b> for a short maintenance, back soon. EVM wallets work as usual.</span></div>
     <div class="wb hidden" id="wb"></div>
     <div class="chains"><span>Solana</span><span>BNB</span><span>Base</span><span>Ethereum</span><span>Robinhood</span></div>
     <div class="stats hidden" id="stats"><span class="stl"><span class="sc"><b id="stTotal"></b><span>found so far</span></span><span class="sc"><b id="stN"></b><span id="stW">wallets checked</span></span></span></div>
@@ -3670,7 +3668,7 @@ async function run(){
     clearInterval(liveTimer); LIVE=null;
     if (EMBED && EMB_CUR) EMB_CUR.err=e.message;
     kbErr(e);
-    if (myRun===RUN_ID && QUIET===myRun){ $('deep').classList.add('hidden'); } else if (myRun===RUN_ID){ kbState('idle'); setStatus(/api key rejected/i.test(e.message||'') ? 'Solana checks are paused for a short maintenance, back soon. EVM wallets work.' : 'Error: '+e.message, true); progBase=0; progSpan=100; setProg(0); }
+    if (myRun===RUN_ID && QUIET===myRun){ $('deep').classList.add('hidden'); } else if (myRun===RUN_ID){ kbState('idle'); setStatus('Error: '+e.message, true); progBase=0; progSpan=100; setProg(0); }
   }finally{ if (myRun===RUN_ID){ $('go').disabled=false; progBase=0; progSpan=100; if(document.body.classList.contains('scanning')) kbState('idle'); } }
 }
 $('go').onclick = run;
