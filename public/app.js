@@ -11,7 +11,7 @@ function tsStart(){
   const t0=Date.now(), s=document.createElement('script'); s.src='https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit'; s.async=true;
   s.onerror=()=>{ tsLog('script','blocked'); tsGive(''); };
   s.onload=()=>{ tsLog('script', (Date.now()-t0)+'ms'); const ts=window.turnstile; if (!ts){ tsGive(''); return; }
-    const el=document.createElement('div'); el.style.cssText='position:fixed;right:0;bottom:0;width:1px;height:1px;overflow:hidden;opacity:0;pointer-events:none'; document.body.appendChild(el);
+    const el=document.createElement('div'); el.style.cssText='position:fixed;right:0;bottom:0;width:300px;height:65px;overflow:hidden;opacity:0;pointer-events:none;z-index:-1'; document.body.appendChild(el);
     try{ TS.id=ts.render(el,{ sitekey:TS_KEY, callback:t=>{ tsLog('solved', (Date.now()-t0)+'ms'); tsGive(t); },
       'error-callback':e=>{ tsLog('error', String(e)); tsGive(''); return true; },
       'expired-callback':()=>{ tsLog('expired', 1); TS.tok=''; try{ ts.reset(TS.id); }catch(e){} },
@@ -27,12 +27,14 @@ async function tsToken(){
   TS.tok=''; if (t) try{ window.turnstile?.reset(TS.id); }catch(e){}
   return t;
 }
-const KBS = (()=>{ let t=null, exp=0, p=null;
+const KBS = (()=>{ let t=null, exp=0, p=null, up=0;
   const load=()=>{ try{ const o=JSON.parse(localStorage.getItem('kbs')||'null'); if (o?.t && o.exp*1000>Date.now()+120e3){ t=o.t; exp=o.exp; } }catch(e){} };
   load();
   const get = force => {
     if (!force && !(t && exp*1000>Date.now()+120e3)) load();   // another tab may have opened one meanwhile
-    if (!force && t && exp*1000>Date.now()+120e3) return Promise.resolve(t);
+    if (!force && t && exp*1000>Date.now()+120e3){
+      if (t.startsWith('s1.l') && TS.tok && !p && Date.now()-up>600e3){ up=Date.now(); get(true); }   // light session: upgrade in the background once a token is ready
+      return Promise.resolve(t); }
     if (p) return p;
     p=(async()=>{ for (let i=0;i<3;i++){
         try{ const ts=await tsToken(); const r=await NATIVE_FETCH('/api/session',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({ts})}); if (r.ok){ const j=await r.json(); t=j.t; exp=j.exp; try{ localStorage.setItem('kbs', JSON.stringify({t,exp})); }catch(e){} return t; } if (r.status!==429 && r.status<500) return null; }catch(e){}

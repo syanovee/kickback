@@ -2,7 +2,7 @@
 // Each worker counts in memory and adds its count to a shared total in D1 every ~5 seconds (one small write),
 // so the total is right across all workers and data centers, only a moment late.
 // Normal scans stay far below these numbers (measured on the heaviest wallets we have).
-export const IP_WINDOWS = [[60, 1200], [3600, 8000], [86400, 30000]];   // [seconds, max units per address]
+export const IP_WINDOWS = [[60, 1200], [3600, 20000], [86400, 60000]];   // [seconds, max units per address]
 const FLUSH_MS = 5000;
 const mem = new Map();   // key -> {pend, total, last, busy}
 let ready = false;
