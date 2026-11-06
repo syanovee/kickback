@@ -4,15 +4,29 @@
 const NATIVE_FETCH = window.fetch.bind(window);
 const KB_PAID = /^\/api\/((helius|solscan|relay|price|soltx|solmem|run|partner)$|(alchemy|fomo|bs|stonk)\/)/;
 const TS_KEY = '0x4AAAAAAF2PDw_7Fq4NjfFK';   // Cloudflare Turnstile (public site key): proves a person opened the session
-let TS_P=null;
-const tsLoad = () => TS_P || (TS_P = new Promise(res=>{ const s=document.createElement('script'); s.src='https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit'; s.async=true;
-  s.onload=()=>res(window.turnstile||null); s.onerror=()=>res(null); document.head.appendChild(s); setTimeout(()=>res(window.turnstile||null), 8000); }));
-async function tsToken(){ const ts=await tsLoad(); if (!ts) return '';
-  return new Promise(res=>{ let done=false, id=null; const el=document.createElement('div'); el.style.cssText='position:fixed;left:-9999px;top:0;width:300px;height:65px'; document.body.appendChild(el);
-    const fin=v=>{ if (done) return; done=true; res(v||''); setTimeout(()=>{ try{ ts.remove(id); }catch(e){} el.remove(); },0); };
-    try{ id=ts.render(el,{sitekey:TS_KEY, callback:fin, 'error-callback':()=>fin(''), 'expired-callback':()=>fin('')}); }catch(e){ fin(''); }
-    setTimeout(()=>fin(''), 4000); }); }   // never hold a scan back: no token in 4s, go on with a light session
-setTimeout(tsLoad, 0);   // the script loads with the page, so a token is quick when the first check starts
+const TS = { tok:'', at:0, wait:[], id:null, diag:{} };
+const tsLog = (k,v) => { TS.diag[k]=v; if (/kickback-test\.pages\.dev$/.test(location.hostname)) try{ console.log('[turnstile]', k, v); }catch(e){} };
+function tsGive(t){ TS.tok=t||''; TS.at=Date.now(); const w=TS.wait; TS.wait=[]; w.forEach(f=>f(TS.tok)); }
+function tsStart(){
+  const t0=Date.now(), s=document.createElement('script'); s.src='https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit'; s.async=true;
+  s.onerror=()=>{ tsLog('script','blocked'); tsGive(''); };
+  s.onload=()=>{ tsLog('script', (Date.now()-t0)+'ms'); const ts=window.turnstile; if (!ts){ tsGive(''); return; }
+    const el=document.createElement('div'); el.style.cssText='position:fixed;right:0;bottom:0;width:1px;height:1px;overflow:hidden;opacity:0;pointer-events:none'; document.body.appendChild(el);
+    try{ TS.id=ts.render(el,{ sitekey:TS_KEY, callback:t=>{ tsLog('solved', (Date.now()-t0)+'ms'); tsGive(t); },
+      'error-callback':e=>{ tsLog('error', String(e)); tsGive(''); return true; },
+      'expired-callback':()=>{ tsLog('expired', 1); TS.tok=''; try{ ts.reset(TS.id); }catch(e){} },
+      'timeout-callback':()=>{ tsLog('timeout', 1); try{ ts.reset(TS.id); }catch(e){} } }); }
+    catch(e){ tsLog('render', String(e)); tsGive(''); } };
+  document.head.appendChild(s);
+}
+tsStart();
+// a token used once can't be used again: hand it out, then ask the widget for the next one
+async function tsToken(){
+  const fresh = TS.tok && Date.now()-TS.at < 270e3;
+  const t = fresh ? TS.tok : await Promise.race([new Promise(r=>TS.wait.push(r)), new Promise(r=>setTimeout(()=>r(''),4000))]);
+  TS.tok=''; if (t) try{ window.turnstile?.reset(TS.id); }catch(e){}
+  return t;
+}
 const KBS = (()=>{ let t=null, exp=0, p=null;
   const load=()=>{ try{ const o=JSON.parse(localStorage.getItem('kbs')||'null'); if (o?.t && o.exp*1000>Date.now()+120e3){ t=o.t; exp=o.exp; } }catch(e){} };
   load();

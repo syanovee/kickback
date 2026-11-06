@@ -30,17 +30,23 @@ export async function bump(ctx, who, windows, weight = 1) {
   if (due) {
     const take = rows.map(r => r.e.pend);
     rows.forEach(r => { r.e.pend = 0; r.e.busy = true; });
-    let done = false;
-    try {
-      if (!ready) { await env.DB.exec('CREATE TABLE IF NOT EXISTS rl (k TEXT PRIMARY KEY, n INTEGER NOT NULL, exp INTEGER NOT NULL)'); ready = true; }
-      const st = rows.map((r, i) => env.DB.prepare('INSERT INTO rl (k, n, exp) VALUES (?1, ?2, ?3) ON CONFLICT(k) DO UPDATE SET n = n + ?2 RETURNING n')
-        .bind(r.k, take[i], (r.slot + 1) * r.sec + 60));
-      if (Math.random() < 0.01) st.push(env.DB.prepare('DELETE FROM rl WHERE exp < ?1').bind(now));
-      const out = await env.DB.batch(st);
-      rows.forEach((r, i) => { const v = out[i]?.results?.[0]?.n; if (v) r.e.total = v; r.e.last = nowMs; });
-      done = true;
-    } catch {}   // if counting fails, let the request through: a broken counter must never break scans
-    rows.forEach((r, i) => { r.e.busy = false; if (!done) r.e.pend += take[i]; });
+    const bg = typeof ctx.waitUntil === 'function';
+    const flush = (async () => {
+      let done = false;
+      try {
+        if (!ready) { await env.DB.exec('CREATE TABLE IF NOT EXISTS rl (k TEXT PRIMARY KEY, n INTEGER NOT NULL, exp INTEGER NOT NULL)'); ready = true; }
+        const st = rows.map((r, i) => env.DB.prepare('INSERT INTO rl (k, n, exp) VALUES (?1, ?2, ?3) ON CONFLICT(k) DO UPDATE SET n = n + ?2 RETURNING n')
+          .bind(r.k, take[i], (r.slot + 1) * r.sec + 60));
+        if (Math.random() < 0.01) st.push(env.DB.prepare('DELETE FROM rl WHERE exp < ?1').bind(now));
+        const out = await env.DB.batch(st);
+        rows.forEach((r, i) => { const v = out[i]?.results?.[0]?.n; if (v) r.e.total = v; r.e.last = Date.now(); });
+        done = true;
+      } catch {}   // if counting fails, let requests through: a broken counter must never break scans
+      rows.forEach((r, i) => { r.e.busy = false; if (!done) { r.e.pend += take[i]; if (bg) r.e.total -= take[i]; } });
+    })();
+    // in the background when the platform allows it: the request doesn't wait for the database round trip
+    if (bg) { rows.forEach((r, i) => { r.e.total += take[i]; }); ctx.waitUntil(flush.then(() => {})); }
+    else await flush;
   }
   let wait = 0;
   for (const r of rows) if (r.e.total + r.e.pend > r.max) wait = Math.max(wait, (r.slot + 1) * r.sec - now);
