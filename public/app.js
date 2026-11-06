@@ -46,11 +46,18 @@ const KBS = (()=>{ let t=null, exp=0, p=null, up=0;
 window.fetch = async (input, init) => {
   let u=null; try{ if (typeof input==='string') u=new URL(input, location.href); }catch(e){}
   if (!u || u.origin!==location.origin || !KB_PAID.test(u.pathname)) return NATIVE_FETCH(input, init);
-  const go = async force => { const tk=await KBS.get(force); const h=new Headers(init?.headers||{}); if (tk) h.set('x-kb-s', tk); return NATIVE_FETCH(input, {...(init||{}), headers:h}); };
+  const go = async (force, sig) => { const tk=await KBS.get(force); const h=new Headers(init?.headers||{}); if (tk) h.set('x-kb-s', tk); return NATIVE_FETCH(input, {...(init||{}), headers:h, ...(sig?{signal:sig}:{})}); };
   let r = await go(false);
   // an expired session, or one that used up its budget: open a new one once and try again
-  if (r.status===401 || r.status===429){ const e=await r.clone().json().catch(()=>null); if (e?.error==='session' || e?.error==='budget') r = await go(true);
-    else if (r.status===429 && /too many/i.test(e?.error||'')) try{ window.kbLimited?.(+r.headers.get('retry-after')||60); }catch(x){} }
+  if (r.status===401 || r.status===429){ const e=await r.clone().json().catch(()=>null); if (e?.error==='session' || e?.error==='budget') r = await go(true); }
+  // the address is over its per-minute count: wait for the next minute and go on (the check just takes a little longer).
+  // The retry gets its own timeout, since the caller's may have run out while we waited.
+  for (let i=0; i<2 && r.status===429; i++){ const e=await r.clone().json().catch(()=>null); if (!/too many/i.test(e?.error||'')) break;
+    const ra=+r.headers.get('retry-after')||60;
+    if (ra>60){ try{ window.kbLimited?.(ra); }catch(x){} break; }
+    await new Promise(z=>setTimeout(z, ra*1000 + Math.random()*1500));
+    const ac=new AbortController(), tm=setTimeout(()=>ac.abort(), 15000);
+    try{ r = await go(false, ac.signal); } finally{ clearTimeout(tm); } }
   return r;
 };
 
