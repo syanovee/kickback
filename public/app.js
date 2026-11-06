@@ -11,7 +11,8 @@ async function tsToken(){ const ts=await tsLoad(); if (!ts) return '';
   return new Promise(res=>{ let done=false, id=null; const el=document.createElement('div'); el.style.cssText='position:fixed;left:-9999px;top:0;width:300px;height:65px'; document.body.appendChild(el);
     const fin=v=>{ if (done) return; done=true; res(v||''); setTimeout(()=>{ try{ ts.remove(id); }catch(e){} el.remove(); },0); };
     try{ id=ts.render(el,{sitekey:TS_KEY, callback:fin, 'error-callback':()=>fin(''), 'expired-callback':()=>fin('')}); }catch(e){ fin(''); }
-    setTimeout(()=>fin(''), 12000); }); }
+    setTimeout(()=>fin(''), 4000); }); }   // never hold a scan back: no token in 4s, go on with a light session
+setTimeout(tsLoad, 0);   // the script loads with the page, so a token is quick when the first check starts
 const KBS = (()=>{ let t=null, exp=0, p=null;
   const load=()=>{ try{ const o=JSON.parse(localStorage.getItem('kbs')||'null'); if (o?.t && o.exp*1000>Date.now()+120e3){ t=o.t; exp=o.exp; } }catch(e){} };
   load();

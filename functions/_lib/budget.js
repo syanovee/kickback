@@ -3,7 +3,7 @@
 import { bump, overLimit } from './ratelimit.js';
 export const SESSION_TTL = 6 * 3600;
 export const SESSION_WINDOWS = [[SESSION_TTL, 30000]];
-export const LIGHT_WINDOWS = [[SESSION_TTL, 3000]];   // sessions without a passed Turnstile check
+export const LIGHT_WINDOWS = [[SESSION_TTL, 15000]];   // sessions without a passed Turnstile check
 // charge n upstream calls (and ipUnits more to the address budget); returns a 429 Response when out of budget, else null
 export async function charge(ctx, n = 1, ipUnits = 0) {
   const sid = ctx.data?.sid; if (!sid || n <= 0) return null;
