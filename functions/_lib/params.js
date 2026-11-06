@@ -98,7 +98,7 @@ export const SOL_PARAMS = {
   getMinimumBalanceForRentExemption(p) { return Array.isArray(p) && p.length === 1 && INT(p[0], 0, 10240) ? [p[0]] : null; },
   getLatestBlockhash(p) { if (p === undefined || (Array.isArray(p) && !p.length)) return []; return Array.isArray(p) && p.length === 1 && isObj(p[0]) && Object.keys(p[0]).length === 1 && COMMIT.has(p[0].commitment) ? [{ commitment: p[0].commitment }] : null; },
   simulateTransaction(p) {
-    if (!Array.isArray(p) || p.length !== 2 || !B64(p[0]) || !isObj(p[1])) return null;
+    if (!Array.isArray(p) || p.length !== 2 || !B64(p[0]) || p[0].length > 1644 || !isObj(p[1])) return null;
     const o = {};
     for (const [k, v] of Object.entries(p[1])) {
       if (k === 'encoding' && v === 'base64') o.encoding = v;
@@ -111,7 +111,7 @@ export const SOL_PARAMS = {
     return [p[0], o];
   },
   sendTransaction(p) {
-    if (!Array.isArray(p) || p.length !== 2 || !B64(p[0]) || !isObj(p[1])) return null;
+    if (!Array.isArray(p) || p.length !== 2 || !B64(p[0]) || p[0].length > 1644 || !isObj(p[1])) return null;
     const o = {};
     for (const [k, v] of Object.entries(p[1])) {
       if (k === 'encoding' && v === 'base64') o.encoding = v;

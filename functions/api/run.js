@@ -17,6 +17,9 @@ export async function onRequestPost(ctx) {
     if (!p || !originOk(p, String(b.partner.origin || ''))) return json({ error: 'key check failed' }, 403);
     const limit = p.hour || 300, n = await bump(ctx, 'partner|' + (p.name || 'partner'), [[3600, limit]]);
     if (n.wait) return json({ error: `hourly limit reached (${limit}/h)` }, 429);
+    // and per address, so one caller can't use up a partner's whole hour
+    const pa = await bump(ctx, 'partnerip|' + (p.name || 'partner') + '|' + ipKey(ctx.request), [[3600, Math.max(20, Math.ceil(limit / 10))]]);
+    if (pa.wait) return json({ error: 'too many requests' }, 429);
     try {   // the admin's per-partner counts
       await ctx.env.DB.exec('CREATE TABLE IF NOT EXISTS partner_hits (k TEXT, h INTEGER, n INTEGER, PRIMARY KEY (k, h))');
       await ctx.env.DB.prepare('INSERT INTO partner_hits (k, h, n) VALUES (?1, ?2, 1) ON CONFLICT (k, h) DO UPDATE SET n = n + 1').bind(p.name || 'partner', Math.floor(Date.now() / 3600000)).run();

@@ -6,10 +6,9 @@
 const enc = new TextEncoder();
 const keys = new Map();
 async function key(env) {
-  // KB_SECRET is the real key; without it, one derived from a provider key keeps the site working (never sent anywhere)
-  const base = env.KB_SECRET || env.HELIUS_KEY || env.ALCHEMY_KEY;
-  if (!base) throw new Error('KB_SECRET is not set');
-  const raw = env.KB_SECRET || ('kb-derived|' + base);
+  // KB_SECRET only: no fallback to a provider key, so one secret never does two jobs
+  if (!env.KB_SECRET || String(env.KB_SECRET).length < 32) throw new Error('KB_SECRET is not set');
+  const raw = env.KB_SECRET;
   let k = keys.get(raw);
   if (!k) { k = await crypto.subtle.importKey('raw', enc.encode(raw), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']); keys.set(raw, k); }
   return k;

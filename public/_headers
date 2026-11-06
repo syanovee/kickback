@@ -17,11 +17,14 @@
   Cache-Control: no-store
   X-Robots-Tag: noindex
   ! Content-Security-Policy
-  Content-Security-Policy: frame-ancestors 'none'; object-src 'none'; base-uri 'self'; form-action 'self'
+  Content-Security-Policy: frame-ancestors 'none'; script-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'
+/admin-page.js
+  Cache-Control: no-store
+  X-Robots-Tag: noindex
 /admin
   Cache-Control: no-store
   X-Robots-Tag: noindex
   ! Content-Security-Policy
-  Content-Security-Policy: frame-ancestors 'none'; object-src 'none'; base-uri 'self'; form-action 'self'
+  Content-Security-Policy: frame-ancestors 'none'; script-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'
 /calc/
   Cache-Control: no-cache
