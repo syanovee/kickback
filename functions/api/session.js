@@ -19,7 +19,7 @@ const tooMany = wait => new Response('{"error":"too many sessions, try again soo
 export async function onRequestPost(ctx) {
   let b = {}; try { b = await ctx.request.json(); } catch {}
   const ip = ipKey(ctx.request), full = await human(ctx.env, b?.ts, ctx.request.headers.get('cf-connecting-ip'));
-  const { wait } = await bump(ctx, (full ? 'sess|' : 'sessl|') + ip, full ? [[3600, 300], [86400, 2000]] : [[3600, 30], [86400, 150]]);
+  const { wait } = await bump(ctx, (full ? 'sess|' : 'sessl|') + ip, full ? [[3600, 300], [86400, 2000]] : [[3600, 12], [86400, 60]]);
   if (wait) return tooMany(wait);
   const s = await makeSession(ctx.env, SESSION_TTL, full ? 'f' : 'l');
   return new Response(JSON.stringify({ t: s.t, exp: s.exp, full }), { headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' } });

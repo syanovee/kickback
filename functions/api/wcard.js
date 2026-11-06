@@ -1,7 +1,8 @@
 // The link preview picture for getkickback.fun/w/<wallet>: the wallet's own Kickback card, drawn by the browser that finished its check.
 // GET /api/wcard?w=<wallet>  -> jpeg     POST {w, run, tok, total, img}
 // Kept only with the run token /api/run signed for this one wallet, when the run's log entry has the same total,
-// and a wallet's preview changes at most once every 30 minutes.
+// and a wallet's preview changes at most once every 30 minutes. The 30 minutes count from when a session first set it,
+// so the same session refreshing it doesn't keep anyone else (the owner's own check) out.
 import { json } from '../_lib/cache.js';
 import { readRun } from '../_lib/sec.js';
 import { bump, ipKey } from '../_lib/ratelimit.js';
@@ -43,7 +44,7 @@ export async function onRequestPost(ctx) {
   const now = Math.floor(Date.now() / 1000);
   const cur = await env.DB.prepare(`SELECT ts, sid FROM ${T} WHERE w = ?1`).bind(w).first().catch(() => null);
   if (cur && cur.sid !== tok.sid && now - (cur.ts || 0) < 1800) return json({ ok: false, skipped: 'preview changed in the last 30 minutes' });
-  await env.DB.prepare(`INSERT INTO ${T} (w, ts, total, img, sid) VALUES (?1, ?2, ?3, ?4, ?5) ON CONFLICT(w) DO UPDATE SET ts = excluded.ts, total = excluded.total, img = excluded.img, sid = excluded.sid`)
+  await env.DB.prepare(`INSERT INTO ${T} (w, ts, total, img, sid) VALUES (?1, ?2, ?3, ?4, ?5) ON CONFLICT(w) DO UPDATE SET ts = CASE WHEN sid = excluded.sid THEN ts ELSE excluded.ts END, total = excluded.total, img = excluded.img, sid = excluded.sid`)
     .bind(w, now, Math.round(total * 100) / 100, bytes, tok.sid).run();
   return json({ ok: true });
 }

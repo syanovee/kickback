@@ -8,7 +8,12 @@ const mem = new Map();   // key -> {pend, total, last, busy}
 let ready = false;
 export const ipKey = request => {
   const ip = request.headers.get('cf-connecting-ip') || '';
-  return ip.includes(':') ? ip.split(':').slice(0, 4).join(':') : ip;   // IPv6: one /64 counts as one address
+  if (!ip.includes(':')) return ip;
+  // IPv6: one /64 counts as one address. Expand "::" first, so 2001:db8::1 and 2001:db8:0:0:5::9 land in the same /64.
+  const [head, tail = ''] = ip.toLowerCase().split('%')[0].split('::');
+  const a = head ? head.split(':') : [], b = ip.includes('::') ? (tail ? tail.split(':') : []) : [];
+  const g = ip.includes('::') ? [...a, ...Array(Math.max(0, 8 - a.length - b.length)).fill('0'), ...b] : a;
+  return g.slice(0, 4).map(x => (x || '0').replace(/^0+(?=.)/, '')).join(':');
 };
 const siteOf = request => new URL(request.url).hostname.endsWith('kickback-test.pages.dev') ? 't' : 'p';   // test and live counted apart (same database)
 

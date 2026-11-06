@@ -3,7 +3,7 @@ import { readRun, walletKey } from '../_lib/sec.js';
 import { bump, ipKey } from '../_lib/ratelimit.js';
 const isAddr = s => typeof s === 'string' && (/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(s) || /^0x[0-9a-fA-F]{40}$/.test(s));
 const ABC = 'abcdefghijkmnopqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-const MAX_B64 = 1_400_000;   // a 1600x900 card is well under this
+const MAX_B64 = 900_000;   // a 1600x900 card at the page's quality is well under this
 const DAY_BYTES = 40_000_000; // all new cards together, per day: the database can't be filled through here
 // POST {w, wallets, run, tok, total, handle, img}: a share card. Needs the run token /api/run signed for the check it came from,
 // the card's wallet must be one of that check's wallets, and its total can't be more than the check found.

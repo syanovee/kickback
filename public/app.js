@@ -431,7 +431,8 @@ const CARD_API = '/api/card';
 // the card as uploaded for its link: 1600 px wide JPEG (accepts a canvas or a data URL)
 async function cardUp(src){ let c=src; if (typeof src==='string'){ const im=new Image(); im.src=src; await (im.decode?im.decode().catch(()=>{}):Promise.resolve()); c=im; }
   const w=c.width||c.naturalWidth, h=c.height||c.naturalHeight, k=Math.min(1, 1600/w), o=document.createElement('canvas'); o.width=Math.round(w*k); o.height=Math.round(h*k);
-  const x=o.getContext('2d'); x.imageSmoothingQuality='high'; x.drawImage(c,0,0,o.width,o.height); return o.toDataURL('image/jpeg',0.88); }
+  const x=o.getContext('2d'); x.imageSmoothingQuality='high'; x.drawImage(c,0,0,o.width,o.height);
+  let out=''; for (const q of [0.88,0.78,0.66]){ out=o.toDataURL('image/jpeg',q); if (out.length<850000) break; } return out; }
 const RANK_API = '/api/rank';
 const LOG_API = '/api/log';
 const STUDIO = /[?&]studio\b/.test(location.search);
