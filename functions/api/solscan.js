@@ -3,8 +3,11 @@ import { TX_OPTS, txKey } from '../_lib/soltx.js';
 import { solCompact } from '../_lib/compact.js';
 import { memPut } from '../_lib/solmem.js';
 import { solRpc } from '../_lib/rpc.js';
+import { charge } from '../_lib/budget.js';
 const DAY = 86400, TAG = 'alchemy:solana-mainnet', SOL_F = { status: 'succeeded', tokenAccounts: 'balanceChanged' };
 const isAddr = s => typeof s === 'string' && /^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(s);
+// a slot range covers one slice of a wallet's own history; about seven months at most
+const MAX_SLOTS = 50_000_000;
 const isSig = s => typeof s === 'string' && /^[1-9A-HJ-NP-Za-km-z]{64,90}$/.test(s);
 
 export async function onRequestPost(ctx) {
@@ -25,20 +28,24 @@ export async function onRequestPost(ctx) {
   const miss = [];
   await Promise.all(sigs.map(async s => { const hit = await getCached(ctx, TAG, txKey(s)); if (hit) { try { const r = JSON.parse(hit).result; if (r) { out[s] = solCompact(r, W); return; } } catch {} } miss.push(s); }));
   if (!miss.length) return json({ txs: out, cached: sigs.length, hit: sigs.length });
+  // signatures are only checked for shape, so made-up ones always miss: every miss is an upstream call,
+  // charged to the session (and a tenth of a unit each to the address budget) before anything is fetched
+  const viaRange = b.src === 'h' && miss.length >= 8 && Number.isInteger(b.lo) && Number.isInteger(b.hi) && b.lo >= 0 && b.hi >= b.lo && b.hi - b.lo <= MAX_SLOTS;
+  const maxPages = Math.min(3, Math.ceil(miss.length / 100) + 1);
+  const over = await charge(ctx, viaRange ? maxPages : miss.length, Math.ceil(miss.length / 10));
+  if (over) return over;
 
-  if (b.src === 'h' && miss.length >= 8 && Number.isInteger(b.lo) && Number.isInteger(b.hi)) {
+  if (viaRange) {
     let tk = null, pages = 0;
     do {
       const o = { transactionDetails: 'full', limit: 100, encoding: 'jsonParsed', maxSupportedTransactionVersion: 1, filters: { ...SOL_F, slot: { gte: b.lo, lte: b.hi } } };
       if (tk) o.paginationToken = tk;
+      // one try: the router already moves to another provider or waits out a short limit
       let j = null;
-      for (let a = 0; a < 5 && !j; a++) {
-        if (a) await new Promise(r => setTimeout(r, 250 * a + Math.random() * 250));
-        try { const r = await solRpc(env, 'getTransactionsForAddress', [W, o]); const t = r.status === 200 ? JSON.parse(r.text) : null; if (t?.result) j = t; } catch {}
-      }
+      try { const r = await solRpc(env, 'getTransactionsForAddress', [W, o]); const t = r.status === 200 ? JSON.parse(r.text) : null; if (t?.result) j = t; } catch {}
       for (const tx of j?.result?.data || []) keep(tx);
       tk = j?.result?.paginationToken; pages++;
-    } while (tk && pages < 5);
+    } while (tk && pages < maxPages);
   } else {
     const url = `https://solana-mainnet.g.alchemy.com/v2/${env.ALCHEMY_KEY}`;
     const chunks = []; for (let i = 0; i < miss.length; i += 50) chunks.push(miss.slice(i, i + 50));

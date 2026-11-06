@@ -8,7 +8,7 @@ const HIST = new Set(['getTransactionsForAddress']);                       // fu
 const DAS = new Set(['getAssetBatch', 'getAsset']);                        // token names, icons
 // weights: higher = more of the traffic. OrbitFlare's free plan allows ~1 history read a second, so it only takes a little.
 const ROUTES = { hist: { helius: 5, quicknode: 4, orbitflare: 1 }, das: { helius: 1 }, std: { alchemy: 4, orbitflare: 2, quicknode: 2, helius: 1 } };
-const REST_MS = { auth: 30 * 60e3, limit: 60e3, down: 3 * 60e3 };        // how long a provider sits out after each kind of refusal
+const REST_MS = { auth: 30 * 60e3, limit: 60e3, down: 3 * 60e3, soft: 15e3 };        // how long a provider sits out after each kind of refusal
 const rest = new Map();                                                   // provider -> until (per worker instance)
 export const stats = {};                                                  // provider -> {ok, fail, skip}
 
@@ -29,7 +29,10 @@ function order(route, have) {
   while (pool.length) { let r = Math.random() * pool.reduce((a, [, w]) => a + w, 0), i = 0; for (; i < pool.length - 1 && (r -= pool[i][1]) > 0; i++); pick.push(pool.splice(i, 1)[0][0]); }
   return [...pick, ...tired.map(([p]) => p)];
 }
-// what a refusal means: the request is fine, this provider just can't serve it now
+// what a refusal means: the request is fine, this provider just can't serve it now.
+// Status codes and documented error codes decide first; an error message alone (which a caller's own params could provoke)
+// only rests the provider for a few seconds ('soft'), so one crafted request can't bench a healthy provider for long.
+const AUTH_CODES = new Set([-32401, -32403, -32404]), LIMIT_CODES = new Set([-32005, -32429]);
 function refusal(status, text) {
   if (status === 401 || status === 403) return 'auth';
   if (status === 429) return 'limit';
@@ -37,13 +40,16 @@ function refusal(status, text) {
   let j; try { j = JSON.parse(text); } catch { return 'down'; }
   const e = j?.error; if (!e) return null;
   const c = e.code, msg = String(e.message || '');
-  if (c === -32401 || c === -32403 || c === -32404 || /api.?key|unauthori[sz]ed|forbidden|suspend|whitelist|upgrade your plan|plan (limit|does not)/i.test(msg)) return 'auth';
-  if (c === -32005 || c === -32429 || /rate.?limit|too many requests|over capacity|exceeded|out of credits|credits? (limit|exhausted|exceeded)|request limit|daily limit|monthly limit/i.test(msg)) return 'limit';
-  // the request itself is wrong (bad params, bad page token, tx version): every provider would say the same, so answer as is
-  if (c === -32602 || /bad request|invalid|maxSupportedTransactionVersion|transaction version|wrongsize|expected/i.test(msg)) return null;
-  if (c === -32601 || /method not found|unsupported method|method .*not supported|not available on/i.test(msg)) return 'nomethod';
-  if (c === -32603 || /internal error|timeout|timed out|unavailable|try again/i.test(msg)) return 'down';
-  return null;                                                            // a real answer (e.g. bad params): every provider would say the same
+  if (AUTH_CODES.has(c)) return 'auth';
+  if (LIMIT_CODES.has(c)) return 'limit';
+  if (c === -32602) return null;                                          // bad params: every provider would say the same, so answer as is
+  if (c === -32601) return 'nomethod';
+  if (c === -32603) return 'down';
+  // the request itself is wrong (bad page token, tx version): answer as is
+  if (/bad request|invalid|maxSupportedTransactionVersion|transaction version|wrongsize|expected/i.test(msg)) return null;
+  if (/method not found|unsupported method|method .*not supported|not available on/i.test(msg)) return 'nomethod';
+  if (/api.?key|unauthori[sz]ed|forbidden|suspend|whitelist|upgrade your plan|plan (limit|does not)|rate.?limit|too many requests|over capacity|exceeded|out of credits|credits? (limit|exhausted|exceeded)|request limit|daily limit|monthly limit|internal error|timeout|timed out|unavailable|try again/i.test(msg)) return 'soft';
+  return null;                                                            // a real answer: every provider would say the same
 }
 // page tokens carry the provider that issued them: "qn~<token>"
 const TAG = { helius: 'he', quicknode: 'qn', orbitflare: 'of', alchemy: 'al' }, UNTAG = Object.fromEntries(Object.entries(TAG).map(([k, v]) => [v, k]));

@@ -1,10 +1,12 @@
 import { cached, getCached, putCached, okRpc, json } from '../../_lib/cache.js';
+import { EVM_PARAMS } from '../../_lib/params.js';
+import { charge } from '../../_lib/budget.js';
 const NETS = new Set(['bnb-mainnet', 'robinhood-mainnet', 'eth-mainnet', 'base-mainnet', 'solana-mainnet']);
 const ALLOWED = new Set(['alchemy_getAssetTransfers','eth_call','eth_getBalance','eth_getCode','eth_getTransactionByHash',
   'eth_getTransactionReceipt','eth_blockNumber',
   'getTransaction','getSlot']);
 const STATIC_SELECTORS = new Set(['0xfc0c546a','0xe7d015f2','0x6124e4e7','0x95d89b41','0x313ce567','0x6234b84f','0x999b93af']);
-const DAY = 86400, MAX_BATCH = 60;
+const DAY = 86400, MAX_BATCH = 40;   // the page sends at most 40 per batch
 
 function ttlFor(m, p) {
   if (m === 'eth_getTransactionReceipt' || m === 'eth_getTransactionByHash' || m === 'getTransaction') return 30 * DAY;
@@ -29,25 +31,34 @@ export async function onRequestPost(ctx) {
   try { body = await request.json(); } catch { return json({ error: { message: 'bad json' } }, 400); }
   const url = `https://${params.net}.g.alchemy.com/v2/${env.ALCHEMY_KEY}`, tag = 'alchemy:' + params.net;
 
+  if (!env.ALCHEMY_KEY) return json({ error: { message: 'not configured' } }, 503);
+  // params are rebuilt from the shapes the page sends (_lib/params.js), never forwarded as given
+  const clean = x => ALLOWED.has(x?.method) ? EVM_PARAMS[x.method](x.params) : null;
   if (!Array.isArray(body)) {
-    if (!ALLOWED.has(body?.method)) return json({ error: { message: 'method not allowed' } }, 403);
-    const m = body.method, p = body.params;
+    const m = body?.method, p = clean(body);
+    if (!p) return json({ error: { message: 'method not allowed' } }, 403);
     const upstream = async () => {
-      const r = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...body, id: 1 }) });
+      const over = await charge(ctx, 1); if (over) return { status: 429, text: '{"error":"budget"}' };
+      const r = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: m, params: p }) });
       return { status: r.status, text: await r.text() };
     };
     return cached(ctx, tag, JSON.stringify([m, p]), ttlFor(m, p), upstream, storable(m));
   }
 
-  if (body.length > MAX_BATCH || body.some(x => !ALLOWED.has(x?.method))) return json({ error: { message: 'batch not allowed' } }, 403);
+  if (!body.length || body.length > MAX_BATCH) return json({ error: { message: 'batch not allowed' } }, 403);
+  const ps = body.map(clean);
+  body = body.map((x, i) => ({ id: x?.id, method: x?.method, params: ps[i] }));
   const out = new Array(body.length), miss = [];
   await Promise.all(body.map(async (x, i) => {
+    if (!x.params) { out[i] = { jsonrpc: '2.0', id: x.id, error: { code: -32602, message: 'params not allowed' } }; return; }
     const ttl = ttlFor(x.method, x.params), ck = JSON.stringify([x.method, x.params]);
     if (ttl > 0) { const hit = await getCached(ctx, tag, ck); if (hit !== null) { out[i] = { ...JSON.parse(hit), id: x.id }; return; } }
     miss.push({ i, x, ttl, ck });
   }));
   if (miss.length) {
     let arr = null, status = 0;
+    const over = await charge(ctx, miss.length);   // every call in the batch counts against the session
+    if (over) return over;
     try {
       const r = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(miss.map((m, k) => ({ jsonrpc: '2.0', id: k, method: m.x.method, params: m.x.params }))) });

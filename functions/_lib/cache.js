@@ -4,7 +4,6 @@ async function keyFor(request, tag, body) {
   return new Request(new URL('/__c/' + h, request.url).toString());
 }
 export async function getCached(ctx, tag, body) {
-  if (ctx.request.headers.get('x-kb-nc')) return null;
   const hit = await caches.default.match(await keyFor(ctx.request, tag, body));
   return hit ? hit.text() : null;
 }

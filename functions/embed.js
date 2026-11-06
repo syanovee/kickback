@@ -6,6 +6,6 @@ export async function onRequestGet({ request, env }) {
   const anc = frameAncestors(env);
   return new Response(page.body, { headers: {
     'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-cache',
-    'Content-Security-Policy': `frame-ancestors ${anc || "'none'"}; base-uri 'self'; object-src 'none'`,
+    'Content-Security-Policy': `frame-ancestors ${anc || "'none'"}; script-src 'self' https://challenges.cloudflare.com; frame-src https://challenges.cloudflare.com; base-uri 'self'; object-src 'none'; form-action 'self'`,
     'X-Content-Type-Options': 'nosniff', 'Referrer-Policy': 'strict-origin-when-cross-origin' } });
 }

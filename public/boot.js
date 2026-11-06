@@ -1,0 +1,4 @@
+/* runs first, in <head>: redirect the old host, first-paint class, KNOTS look */
+if(location.hostname==="kickback-rewards.pages.dev")location.replace("https://getkickback.fun"+location.pathname+location.search+location.hash);
+document.documentElement.classList.add("fl");setTimeout(()=>document.documentElement.classList.remove("fl"),2500);
+if(/^\/knots\/?$/.test(location.pathname)||/[?&]knots\b/.test(location.search)){document.documentElement.classList.add("kn");document.documentElement.classList.add("knwait");setTimeout(function(){document.documentElement.classList.remove("knwait")},1800);(function(){var l=document.createElement("link");l.rel="stylesheet";l.href="https://fonts.googleapis.com/css2?family=Silkscreen:wght@400;700&family=Barlow:wght@400;500;600&display=swap";document.head.appendChild(l)})();document.title="KNOTS × Kickback · your STONK rewards from holding KNOTS"}

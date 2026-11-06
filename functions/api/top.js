@@ -9,7 +9,9 @@ export async function onRequestGet({ env }) {
       WHERE COALESCE(total_final, total) >= ?1 AND coins IS NOT NULL AND coins != '[]' ORDER BY t DESC LIMIT 400`).bind(MIN).all()).results || [];
   } catch {}
   // wallets already on the wall (posted cards) show there with their real post, so leave them out here
-  try { for (const r of (await env.DB.prepare('SELECT c.w FROM wall w JOIN cards c ON c.id = w.id').all()).results || []) for (const a of String(r.w || '').split(/[ ,]+/)) if (a) skip.add(a); } catch {}
+  // a typed X handle is shown only when that handle has a real post on the wall: anyone can type any handle into a check
+  const posted = new Set();
+  try { for (const r of (await env.DB.prepare('SELECT c.w, w.author FROM wall w JOIN cards c ON c.id = w.id').all()).results || []) { for (const a of String(r.w || '').split(/[ ,]+/)) if (a) skip.add(a); if (r.author) posted.add(String(r.author).toLowerCase()); } } catch {}
   // wallets the owner asked to keep off the homepage
   try { await env.DB.exec('CREATE TABLE IF NOT EXISTS top_hide (wallet TEXT PRIMARY KEY)'); for (const r of (await env.DB.prepare('SELECT wallet FROM top_hide').all()).results || []) skip.add(r.wallet); } catch {}
   const by = new Map();
@@ -44,7 +46,8 @@ export async function onRequestGet({ env }) {
     let coins = [], plats = [];
     try { coins = JSON.parse(r.coins).slice(0, 7).map(c => ({ s: String(c.s || '?').slice(0, 16), u: +c.u || 0, ...(c.i || icon[c.s] ? { i: c.i || icon[c.s] } : {}), ...(c.f ? { f: c.f } : {}) })); } catch {}
     try { plats = Object.entries(JSON.parse(r.plats || '{}')).sort((a, b) => b[1] - a[1]).slice(0, 3).map(([k]) => k); } catch {}
-    return { k: 's' + i + '-' + Math.round(r.t), total: Math.round(r.t * 100) / 100, handle: (r.handle || '').replace(/[^A-Za-z0-9_]/g, '').slice(0, 15), coins, n: (() => { try { return JSON.parse(r.coins).length; } catch { return coins.length; } })(), plats, payouts: r.payouts | 0, ts: r.ts | 0 };
+    const handle = (r.handle || '').replace(/[^A-Za-z0-9_]/g, '').slice(0, 15);
+    return { k: 's' + i + '-' + Math.round(r.t), total: Math.round(r.t * 100) / 100, handle: posted.has(handle.toLowerCase()) ? handle : '', coins, n: (() => { try { return JSON.parse(r.coins).length; } catch { return coins.length; } })(), plats, payouts: r.payouts | 0, ts: r.ts | 0 };
   });
   return json({ items });
 }

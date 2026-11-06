@@ -21,7 +21,7 @@ export async function memPut(env, W, list) {
     await init(env.DB);
     const d = await gz(JSON.stringify(list)), now = Math.floor(Date.now() / 1000);
     await env.DB.prepare(`INSERT OR REPLACE INTO ${T} (w, k, v, ts, n, d) VALUES (?1, ?2, ?3, ?4, ?5, ?6)`).bind(W, list[0].s.slice(0, 24), MEM_V, now, list.length, d).run();
-    if (Math.random() < 0.005) await env.DB.prepare(`DELETE FROM ${T} WHERE ts < ?1`).bind(now - KEEP_DAYS * 86400).run();
+    if (Math.random() < 0.02) await env.DB.prepare(`DELETE FROM ${T} WHERE ts < ?1`).bind(now - KEEP_DAYS * 86400).run();
   } catch {}
 }
 export async function memGet(env, W) {

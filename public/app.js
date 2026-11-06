@@ -1,0 +1,2738 @@
+/* Kickback page script. Served from our own origin only: the page runs under script-src 'self' (no inline scripts or handlers). */
+
+// --- api session: paid api routes need a short-lived signed session (x-kb-s header), opened once per visit ---
+const NATIVE_FETCH = window.fetch.bind(window);
+const KB_PAID = /^\/api\/((helius|solscan|relay|price|soltx|solmem|run|partner)$|(alchemy|fomo|bs|stonk)\/)/;
+const TS_KEY = '0x4AAAAAAF2PDw_7Fq4NjfFK';   // Cloudflare Turnstile (public site key): proves a person opened the session
+let TS_P=null;
+const tsLoad = () => TS_P || (TS_P = new Promise(res=>{ const s=document.createElement('script'); s.src='https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit'; s.async=true;
+  s.onload=()=>res(window.turnstile||null); s.onerror=()=>res(null); document.head.appendChild(s); setTimeout(()=>res(window.turnstile||null), 8000); }));
+async function tsToken(){ const ts=await tsLoad(); if (!ts) return '';
+  return new Promise(res=>{ let done=false, id=null; const el=document.createElement('div'); el.style.cssText='position:fixed;left:-9999px;top:0;width:300px;height:65px'; document.body.appendChild(el);
+    const fin=v=>{ if (done) return; done=true; res(v||''); setTimeout(()=>{ try{ ts.remove(id); }catch(e){} el.remove(); },0); };
+    try{ id=ts.render(el,{sitekey:TS_KEY, callback:fin, 'error-callback':()=>fin(''), 'expired-callback':()=>fin('')}); }catch(e){ fin(''); }
+    setTimeout(()=>fin(''), 12000); }); }
+const KBS = (()=>{ let t=null, exp=0, p=null;
+  const load=()=>{ try{ const o=JSON.parse(localStorage.getItem('kbs')||'null'); if (o?.t && o.exp*1000>Date.now()+120e3){ t=o.t; exp=o.exp; } }catch(e){} };
+  load();
+  const get = force => {
+    if (!force && !(t && exp*1000>Date.now()+120e3)) load();   // another tab may have opened one meanwhile
+    if (!force && t && exp*1000>Date.now()+120e3) return Promise.resolve(t);
+    if (p) return p;
+    p=(async()=>{ for (let i=0;i<3;i++){
+        try{ const ts=await tsToken(); const r=await NATIVE_FETCH('/api/session',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({ts})}); if (r.ok){ const j=await r.json(); t=j.t; exp=j.exp; try{ localStorage.setItem('kbs', JSON.stringify({t,exp})); }catch(e){} return t; } if (r.status!==429 && r.status<500) return null; }catch(e){}
+        await new Promise(z=>setTimeout(z,900*(i+1))); }
+      return null; })().finally(()=>{ p=null; });
+    return p; };
+  return { get };
+})();
+window.fetch = async (input, init) => {
+  let u=null; try{ if (typeof input==='string') u=new URL(input, location.href); }catch(e){}
+  if (!u || u.origin!==location.origin || !KB_PAID.test(u.pathname)) return NATIVE_FETCH(input, init);
+  const go = async force => { const tk=await KBS.get(force); const h=new Headers(init?.headers||{}); if (tk) h.set('x-kb-s', tk); return NATIVE_FETCH(input, {...(init||{}), headers:h}); };
+  let r = await go(false);
+  // an expired session, or one that used up its budget: open a new one once and try again
+  if (r.status===401 || r.status===429){ const e=await r.clone().json().catch(()=>null); if (e?.error==='session' || e?.error==='budget') r = await go(true);
+    else if (r.status===429 && /too many/i.test(e?.error||'')) try{ window.kbLimited?.(+r.headers.get('retry-after')||60); }catch(x){} }
+  return r;
+};
+
+// the address hit its request budget: say so once instead of a check that seems to hang
+let KB_LIM_T=0;
+window.kbLimited = secs => { if (Date.now()-KB_LIM_T<20000) return; KB_LIM_T=Date.now(); const m=Math.max(1, Math.ceil(secs/60));
+  try{ setStatus(`Too many checks from your network right now. Try again in ${m} min.`, true); }catch(e){} };
+// --- picture fallbacks (data-oe on error, data-ol on load) instead of inline handlers ---
+document.addEventListener('error', e=>{ const im=e.target; if (!(im instanceof HTMLImageElement) || !im.dataset.oe) return;
+  const k=im.dataset.oe;
+  if (k==='rm') im.remove();
+  else if (k==='hide') im.style.visibility='hidden';
+  else if (k==='raw'){ if (im.dataset.raw && im.src!==im.dataset.raw) im.src=im.dataset.raw; else im.remove(); }
+  else if (k==='pfp'){ if (!im.dataset.r){ im.dataset.r=1; const base=im.getAttribute('src').replace(/&r=\d+$/,''); setTimeout(()=>{ im.src=base+'&r='+Date.now(); },1500); } else im.remove(); }
+}, true);
+document.addEventListener('load', e=>{ const im=e.target; if (im instanceof HTMLImageElement && im.dataset.ol==='ok') im.parentNode?.classList.add('ok'); }, true);
+
+
+const W_SOL_DIST = {
+  'HuBMeYW3aDn8BH65fo8xxbP4oiexyup8udzKyccgi8Ga': 'StonkFun',
+  '5KXDF6QnqhBj72hDtJNkkpFaQVUfbFXNybMsp3DiK6tD': 'StonkFun',
+  'GZjYfGyUNQfDChcQ66Gc3ZMcQqPEisyRYe1nPyQhP9bp': 'Ember',
+};
+const PUMP_PROGRAM = '6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P';
+const SOL_MINT = 'So11111111111111111111111111111111111111112';
+const SOL_IGNORE_SIGNERS = new Set([
+  'AgmLJBMDCqWynYnQiPCuj9ewsNNsBJXyzoUhD9LJzN51',
+  'F7p3dFrjRTbtRp8FRF6qHLomXbKRBzpvBLjtQcfcgmNe',
+]);
+const TOKEN_PROGRAMS = ['TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA','TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb'];
+const STONK_API = 'https://www.stonkfun.xyz/api/public/v1';
+const stonkUrl = m => '/api/stonk/'+m;
+// /embed: same scanner, no UI, driven by a partner page through postMessage (see /kickback.js)
+const EMBED = location.pathname.replace(/\/+$/,'')==='/embed'; let EMB_HELIUS=null, EMB_P=null, EMB_CUR=null, EMB_HK=null, EMB_PARTNER=null;
+if (EMBED) document.documentElement.classList.add('emb');
+const KN = document.documentElement.classList.contains('kn'), KN_MINT='8RVBk8vxLiUHueLUW1f4izFVqN3nWippLhkohKg6EGkS', KN_STONK='6GmAFSYs4gk3FDao5FzzySQpPZaWsa4rUJHacpMpUNgx';
+const KN_LOGO='<img class="knlg" src="/kn/logo.png" alt="KNOTS" draggable="false">';
+if (KN) Promise.race([Promise.all(['16px Upheaval','16px Silkscreen','500 16px Barlow'].map(f=>document.fonts.load(f).catch(()=>{}))).then(()=>document.fonts.ready), new Promise(r=>setTimeout(r,1500))]).then(()=>requestAnimationFrame(()=>document.documentElement.classList.remove('knwait')));
+if (KN) document.addEventListener('DOMContentLoaded', ()=>{
+  const sc=document.createElement('div'); sc.className='knscan'; document.body.appendChild(sc);
+  const mk=document.querySelector('#home .mark'); $('home').innerHTML=`<span class="knb">${KN_LOGO}<i>×</i>${mk?mk.outerHTML:''}</span>`;
+  document.querySelector('.hero h1').innerHTML='How much $STONK<br><em>did you earn?</em>';
+  document.querySelector('.hero .sub').textContent='Drop your wallet and see how much $STONK you got from holding $KNOTS.';
+  $('wallet').placeholder='Paste your Solana wallet';
+  const st=document.createElement('div'); st.className='knst'; st.id='knSt'; $('stats').after(st);
+  fetchJson(stonkUrl(KN_MINT)).then(j=>{ const r=j?.data?.rewards; if(!r) return;
+    const n=v=>Math.round(+v||0).toLocaleString('en-US'), mm=v=>(v>=1e6?(v/1e6).toFixed(2)+'M':n(v));
+    const usdM=v=>'$'+(v>=1e6?(v/1e6).toFixed(2)+'M':Math.round(v).toLocaleString('en-US'));
+    st.innerHTML=`<span><em>paid out</em><b id="knPaid">${mm(+r.distributedTokens)} STONK</b></span><span><em>payouts</em><b>${n(r.payoutCount)}</b></span>`+(r.holderCount?`<span><em>holders</em><b>${n(r.holderCount)}</b></span>`:'');
+    solanaMeta([KN_STONK]).then(m=>{ const p=m?.[KN_STONK]?.price; if (p && $('knPaid')) $('knPaid').textContent=usdM(+r.distributedTokens*p); }).catch(()=>{}); }).catch(()=>{});
+  const box=document.createElement('div'); box.className='knres'; box.id='knRes'; $('result').prepend(box);
+  const sp=document.querySelector('.kbspin'); if (sp) sp.insertAdjacentHTML('afterend', KN_LOGO.replace('class="knlg"','class="knspin"'));
+  const hd=$('kbHead'); if (hd) new MutationObserver(()=>{ if (/kickbacks/i.test(hd.textContent)) hd.textContent=hd.textContent.replace(/your kickbacks/i,'your $STONK rewards').replace(/kickbacks/i,'payouts'); }).observe(hd,{childList:true,characterData:true,subtree:true});
+});
+let KN_SHOWN=0;
+const knAmt=v=>{ v=+v||0; return v>=100?Math.round(v).toLocaleString('en-US'):v.toLocaleString('en-US',{maximumFractionDigits:2}); };
+function knRender(rows, total, wallet){
+  if (!KN) return; const box=$('knRes'); if (!box) return;
+  const mine=rows.filter(r=>r.platform==='StonkFun' && r.payer===KN_MINT);
+  const maybe=rows.filter(r=>r.platform==='StonkFun' && !r.payer && (r.from||[]).some(f=>/^\$?KNOTS\b/.test(f)));
+  const sum=(a,k)=>a.reduce((s,r)=>s+(+r[k]||0),0), usd=sum(mine,'usd'), amt=sum(mine,'amount'), n=sum(mine,'count'), mUsd=sum(maybe,'usd'), mN=sum(maybe,'count');
+  const other=Math.max(0,total-usd-mUsd), all=(/kickback-test\.|localhost/.test(location.host)?location.origin:'https://getkickback.fun')+'/?wallet='+encodeURIComponent(wallet||'')+'&go&from=knots';
+  const oth=rows.filter(r=>r.usd>=1 && !(r.platform==='StonkFun' && (r.payer===KN_MINT || (!r.payer && (r.from||[]).some(f=>/^\$?KNOTS\b/.test(f)))))).sort((a,b)=>b.usd-a.usd);
+  const othSyms=[...new Set(oth.map(r=>r.sym||'?'))];
+  const kb=document.querySelector('.mtag svg')?.outerHTML||'';
+  // the deep check found more: keep the card, count it up and say what was added
+  const prev=KN_CARD; if (n && prev?.n && $('knCard') && (Math.abs(usd-prev.usd)>=0.5 || n!==prev.n)){
+    KN_CARD={...prev, usd, amt, n, mN, mUsd};
+    const em=box.querySelector('.all em'); if (em) em.textContent=n.toLocaleString('en-US')+' txs →';
+    const oa=box.querySelector('.ft a b'); if (oa && other>=1) oa.textContent=fmtUsd(other);
+    knGrowCard(prev, KN_CARD); return; }
+  box.innerHTML = n ? `<div class="hd"><span class="vf"><i></i>checking older payouts</span><div class="pw">powered by ${kb}<b>kickback</b></div></div>
+    <img class="cv" id="knCard" alt="STONK earned from holding KNOTS: ${fmtUsd(usd)}">
+    ${mN>=3 && mUsd>=10 && mUsd>=usd*0.02?`<div class="knmay"><i></i><span>+ up to <b>$${Math.round(mUsd).toLocaleString('en-US')}</b> more may be from $KNOTS</span><button type="button" data-knwhy>why?</button></div>`:''}
+    <label class="knx"><span class="px">your X</span><img id="knPfp" alt="" hidden><input id="knHandle" placeholder="@handle for your pfp" autocomplete="off" spellcheck="false" value="${esc(pfpHandle||'')}"><button type="button" class="hide${KN_HIDE?' on':''}" data-knhide title="Hide wallet on the card"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="square"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/><path class="sl" d="M3 3l18 18"/></svg><span>${KN_HIDE?'wallet hidden':'hide wallet'}</span></button></label>
+    <div class="bt"><button class="f" type="button" data-knpost>Share on X</button><button class="sq" type="button" data-knsave aria-label="Copy card" title="Copy card"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="square"><rect x="8" y="8" width="13" height="13"/><path d="M4 16V4h12"/></svg></button></div>
+    <div class="knrow"><button class="all" type="button" data-knopen><span>See every payout</span><em>${n.toLocaleString('en-US')} txs →</em></button>${other>=1?`<a class="all more" href="${all}" target="_blank" rel="noopener" title="${esc(othSyms.slice(0,5).join(', '))}"><span>Check all rewards</span><em>+$${other>=1e4?(other/1e3).toFixed(1)+'k':Math.round(other).toLocaleString('en-US')} ↗</em></a>`:''}</div>
+    <div class="ft"><span></span><button type="button" data-knagain>↺ check another</button></div>`
+  : (()=>{ const st=rows.filter(r=>r.platform==='StonkFun' && r.asset===KN_STONK), stUsd=st.reduce((a,r)=>a+(r.usd||0),0);
+      const unk=st.filter(r=>!r.payer && !(r.from||[]).length), oth=[...new Set(st.filter(r=>r.payer && r.payer!==KN_MINT).flatMap(r=>r.from||[]))];
+      if (mN) return `<div class="k">$STONK that may be from $KNOTS</div><div class="v" style="font-size:52px">$${Math.round(mUsd).toLocaleString('en-US')}</div>
+        <div class="m">${mN} payout${mN>1?'s':''} came while this wallet held $KNOTS and other coins that also pay in $STONK. The chain doesn't say which coin sent ${mN>1?'them':'it'}, so we don't count ${mN>1?'them':'it'} as KNOTS for sure.</div>
+        <div class="knrow"><button class="all" type="button" data-knopen-any><span>See these payouts</span><em>${mN} txs →</em></button></div>`;
+      if (unk.length) return `<div class="k">Couldn't match $STONK payouts</div><div class="m" style="margin-top:12px">This wallet got <b>${fmtUsd(unk.reduce((a,r)=>a+(r.usd||0),0))}</b> in $STONK, but StonkFun didn't answer in time, so we can't tell which coin sent it. Try again in a minute.</div>
+        <div class="knrow"><button class="all" type="button" data-knagain><span>Try again</span><em>↺</em></button></div>`;
+      if (st.length) return `<div class="k">No $STONK from $KNOTS here</div><div class="m" style="margin-top:12px">This wallet got <b>${fmtUsd(stUsd)}</b> in $STONK, but from other coins${oth.length?`: ${oth.slice(0,4).map(esc).join(', ')}`:''}, not from holding $KNOTS.</div>`;
+      return `<div class="k">No $STONK rewards from $KNOTS yet</div><div class="m" style="margin-top:12px">We didn't find $STONK rewards from holding $KNOTS in this wallet. Payouts go to wallets holding at least $20 of $KNOTS when a round is sent.</div>`; })()
+    + `
+${total>=1?`<div class="knrow"><a class="all more" href="${all}" target="_blank" rel="noopener"><span>Check all rewards</span><em>+$${total>=1e4?(total/1e3).toFixed(1)+'k':Math.round(total).toLocaleString('en-US')} ↗</em></a></div>`:''}
+    <div class="ft"><span></span><button type="button" data-knagain>↺ check another</button></div>`;
+  KN_CARD={usd, amt, n, wallet, mN, mUsd}; KN_ALL=all;
+  if (pfp && $('knPfp')){ $('knPfp').src=pfp.src; $('knPfp').hidden=false; }
+  if (n) knGrowCard({usd:0, amt:0, n:0}, KN_CARD, true);   // the card counts up when it first shows
+}
+let KN_CARD=null, KN_ALL=''; const KN_IMG={};
+const knImg=u=>KN_IMG[u]||(KN_IMG[u]=new Promise(r=>{ const i=new Image(); i.onload=()=>r(i); i.onerror=()=>r(null); i.src=u; }));
+document.addEventListener('click', e=>{ if (!e.target.closest('[data-knwhy]')) return; KB_CUR={i:-1}; 
+  const c=KN_CARD||{};
+  KBOV.firstChild.innerHTML=`<div class="knm knwm"><div class="knmh"><div><div class="k">about this number</div><div class="t">Why some $STONK isn't counted</div></div><button class="kbx" type="button" data-kbclose aria-label="Close">×</button></div>
+    <div class="knwb"><p>This wallet holds <b>$KNOTS</b> and other coins that also pay in <b>$STONK</b>. StonkFun sends them all from one wallet, so a payout doesn't say which coin it's for.</p>
+      <p>We match recent payouts by round timing. For older ones (before Sep 20) we can't be sure, so ${c.mN?`<b>${c.mN} payouts ($${Math.round(c.mUsd||0).toLocaleString('en-US')})</b> stay`:'they stay'} out of your $KNOTS total.</p>
+      <div class="ok">The number on your card is only what we can prove. The real one can be higher, never lower.</div></div>
+    ${KN_ALL?`<a class="knwgo" href="${KN_ALL}" target="_blank" rel="noopener"><span><b>See every coin split on kickback</b><em>all your rewards, each coin on its own line</em></span><i>↗</i></a>`:''}</div>`;
+  KBOV.classList.add('open'); document.documentElement.style.overflow='hidden'; });
+let KN_DAYS=null, KN_ANIM=0, KN_HIDE=false; try{ KN_HIDE=localStorage.getItem('kn_hide')==='1'; }catch(e){}
+document.addEventListener('click', async e=>{ const b=e.target.closest('[data-knhide]'); if (!b) return; e.preventDefault();
+  KN_HIDE=!KN_HIDE; try{ localStorage.setItem('kn_hide',KN_HIDE?'1':'0'); }catch(_){}
+  b.classList.toggle('on',KN_HIDE); const sp=b.querySelector('span'); sp.classList.add('sw'); setTimeout(()=>{ sp.textContent=KN_HIDE?'wallet hidden':'hide wallet'; sp.classList.remove('sw'); },250);
+  const im=$('knCard'); if (!im) return; const c=await knDraw(); if (!c) return;
+  const g=im.cloneNode(); g.removeAttribute('id'); g.className='cv ghost'; g.style.cssText=`position:absolute;left:${im.offsetLeft}px;top:${im.offsetTop}px;width:${im.offsetWidth}px;height:${im.offsetHeight}px;margin:0;pointer-events:none;transition:opacity .55s ease`;
+  im.parentNode.appendChild(g); im.src=c.toDataURL('image/jpeg',0.9); requestAnimationFrame(()=>requestAnimationFrame(()=>g.style.opacity=0)); setTimeout(()=>g.remove(),650); });
+async function knGrowCard(a, b, quiet){
+  const id=++KN_ANIM, im=$('knCard'), box=$('knRes'); if (!im || !box) return;
+  const add=b.usd-a.usd, addN=b.n-a.n;
+  if (!quiet && add>=0.5){ const hd=box.querySelector('.hd'); box.querySelector('.knadd')?.remove(); const t=document.createElement('span'); t.className='knadd';
+    t.textContent=`+$${Math.round(add).toLocaleString('en-US')} from older payouts`;
+    hd?.prepend(t); setTimeout(()=>t.classList.add('out'),4200); setTimeout(()=>t.remove(),5200); }
+  if (!quiet){ im.classList.remove('glow'); void im.offsetWidth; im.classList.add('glow'); }
+  const T=1400, t0=performance.now();
+  while (id===KN_ANIM){ const k=Math.min(1,(performance.now()-t0)/T), e=1-Math.pow(1-k,3);
+    const c=await knDraw({usd:a.usd+(b.usd-a.usd)*e, amt:a.amt+(b.amt-a.amt)*e, n:Math.round(a.n+(b.n-a.n)*e), fast:k<1});
+    if (id!==KN_ANIM || !c) return; im.src=c.toDataURL('image/jpeg',k<1?0.7:0.9); if (k>=1) break;
+    await new Promise(r=>requestAnimationFrame(r)); }
+}
+const knTip=(x,pr,tag)=>x?`<span>${tag?tag+' · ':''}${fmtDate(x.k*86400)}</span><span><b>${fmtAmt(x.v)} STONK</b>${pr!=null?' · '+fmtUsd(x.v*pr):''}</span>`:'';
+['mouseover','click'].forEach(ev=>document.addEventListener(ev, e=>{ const b=e.target.closest('.knch .bars b'); if (!b || !KN_DAYS) return;
+  document.querySelectorAll('.knch .bars b.on').forEach(x=>x.classList.remove('on')); b.classList.add('on');
+  const t=$('knTip'); if (t) t.innerHTML=knTip(KN_DAYS.DAYS[+b.dataset.kd], KN_DAYS.pr); }));
+// the payouts window on the KNOTS page: only KNOTS payouts, a per-day bar strip, every tx
+function knModal(r){
+  const lab=KB_CUR.only, list=r.proofs.filter(p=>lab==null||p.lab===lab).sort((a,b)=>b.t-a.t), pr=r.price;
+  const amt=list.reduce((a,p)=>a+(+p.d||0),0), usd=pr!=null?amt*pr:null, n=list.length;
+  const day={}; for (const p of list){ const k=Math.floor(p.t/86400); day[k]=(day[k]||0)+(+p.d||0); }
+  const ks=Object.keys(day).map(Number); const lo=Math.min(...ks), hi=Math.max(...ks), span=Math.max(1,hi-lo+1), mx=Math.max(...Object.values(day),1);
+  const DAYS=ks.length?Array.from({length:span},(_,i)=>({k:lo+i, v:day[lo+i]||0})):[];
+  let best=DAYS[0]; for (const x of DAYS) if (x.v>best.v) best=x;
+  const bars=DAYS.map((x,i)=>`<b data-kd="${i}"><i style="height:${x.v?Math.max(3,x.v/mx*100):0}%;animation-delay:${(i*35)}ms"></i></b>`).join('');
+  KN_DAYS={DAYS, pr};
+  const big=v=>'$'+Math.round(v).toLocaleString('en-US');
+  KBOV.firstChild.innerHTML=`<div class="knm">
+    <div class="knmh"><div><div class="k">${lab && !/^KNOTS$/.test(lab) ? '$STONK that may be from $KNOTS' : '$STONK earned from holding $KNOTS'}</div><div class="v2">${usd!=null?big(usd):knAmt(amt)+' STONK'}</div>
+      <div class="m"><b>${knAmt(amt)} STONK</b> · <b>${n.toLocaleString('en-US')}</b> payout${n>1?'s':''}</div></div>
+      <button class="kbx" type="button" data-kbclose aria-label="Close">×</button></div>
+    ${ks.length>1?`<div class="knch"><div class="k">$STONK per day</div><div class="bars">${bars}</div><div class="ax"><span>${fmtDate(lo*86400)}</span><span>${fmtDate(hi*86400)}</span></div><div class="tip" id="knTip">${knTip(best,pr,'best day')}</div></div>`:''}
+    <div class="knl">${list.slice(0,KB_CUR.show).map(p=>`<a class="kr" href="${p.link}" target="_blank" rel="noopener"><span class="d">${fmtDT(p.t)}</span><span class="a">+${fmtAmt(p.d)} STONK</span><span class="u">${pr!=null?fmtUsd(p.d*pr):''}</span><span class="tx">tx ↗</span></a>`).join('')}
+      ${n>KB_CUR.show?`<button class="more" type="button" data-kbmore>+ ${(n-KB_CUR.show).toLocaleString('en-US')} more payouts</button>`:''}</div>
+    ${KN_CARD?.mN?`<div class="qn">+ ${KN_CARD.mN} more payout${KN_CARD.mN>1?'s':''} (${fmtUsd(KN_CARD.mUsd)}) came while this wallet held KNOTS and another coin that also pays in STONK. The chain doesn't say which one sent ${KN_CARD.mN>1?'them':'it'}, so ${KN_CARD.mN>1?'they are':'it is'} not counted.</div>`:''}</div>`;
+}
+const KN_D='M13 19 L26 13 Q28 12 30 14 L36 21 Q43 22 43 27 Q43 31 38 31 L27 28 L21 30 Q19 30.5 18 29 Z';
+async function knDraw(ov){
+  const d=ov?{...KN_CARD,...ov}:KN_CARD; if (!d) return null;
+  try{ await Promise.all(['400 40px Upheaval, Silkscreen','400 40px Silkscreen','500 40px Barlow','600 40px Barlow'].map(f=>document.fonts.load(f))); }catch(e){}
+  const W=2400, H=1350, SC=d.fast?.5:1, c=document.createElement('canvas'); c.width=W*SC; c.height=H*SC; const x=c.getContext('2d'); x.scale(SC,SC);   // half-res frames while counting, smooth on phones
+  x.fillStyle='#0a1217'; x.fillRect(0,0,W,H);
+  const g=x.createRadialGradient(W*.3,0,0,W*.3,0,1300); g.addColorStop(0,'rgba(169,200,208,.10)'); g.addColorStop(1,'rgba(169,200,208,0)'); x.fillStyle=g; x.fillRect(0,0,W,H);
+  // their glyph, tiled big on the right like their stats cards
+  const LG=await knImg('/kn/logo.png'); const P=new Path2D(KN_D); const glyph=(cx,cy,sc,rot,fill,stroke)=>{ x.save(); x.translate(cx,cy); x.rotate(rot); x.scale(sc,sc); x.translate(-32,-32);
+    for (const r of [0,Math.PI]){ x.save(); if(r){ x.translate(32,32); x.rotate(r); x.translate(-32,-32); } if(fill){ x.fillStyle=fill; x.fill(P); } if(stroke){ x.lineWidth=2.4; x.strokeStyle=stroke; x.stroke(P); } x.restore(); } x.restore(); };
+  glyph(2020,300,12,-.25,null,'rgba(153,188,203,.55)'); glyph(1790,740,12,.2,null,'rgba(127,236,108,.5)'); glyph(2240,820,8,-.6,null,'rgba(153,188,203,.35)');
+  // header: logos
+  if (LG) x.drawImage(LG,110,110,120,120); else glyph(170,170,1.7,0,'#99bccb');
+  x.fillStyle='#5f6d74'; x.font='400 34px Upheaval, Silkscreen'; x.fillText('×',262,183);
+  x.save(); x.translate(360,170); x.lineWidth=7*1.25; x.strokeStyle='#7fec6c'; x.lineCap='round'; x.lineJoin='round'; x.scale(1.25,1.25); x.translate(-26,-26);
+  x.beginPath(); x.arc(26,26,18,-Math.PI/4+.02,Math.PI*0.07,true); x.stroke(); x.beginPath(); x.moveTo(30,12); x.lineTo(42,14); x.lineTo(40,26); x.stroke();
+  x.fillStyle='#e6eef0'; x.beginPath(); x.arc(26,26,6,0,7); x.fill(); x.restore();
+  // the number
+  const left=150; x.fillStyle='#94a3aa'; x.font='400 44px Upheaval, Silkscreen'; x.fillText('$STONK EARNED FROM HOLDING $KNOTS',left,500);
+  const num='$'+Math.round(d.usd).toLocaleString('en-US'); let fs=300; x.font=`400 ${fs}px Upheaval, Silkscreen`; while (x.measureText(num).width>1400 && fs>120){ fs-=10; x.font=`400 ${fs}px Upheaval, Silkscreen`; }
+  const ty=500+40+fs*0.9; x.save(); x.beginPath(); x.rect(0,ty-fs,W,fs*1.2); x.clip();
+  const stripes=x.createLinearGradient(0,0,0,12); x.fillStyle='#eef3f4'; x.fillText(num,left-10,ty);
+  x.globalCompositeOperation='source-atop'; x.fillStyle='rgba(10,14,18,.45)'; for (let yy=ty-fs; yy<ty+fs*.3; yy+=12) x.fillRect(0,yy+8,W,4); x.restore();
+  x.fillStyle='#e6eef0'; x.font='600 64px Barlow'; const line=`${knAmt(d.amt)} STONK · ${d.n.toLocaleString('en-US')} payouts`; x.fillText(line,left,ty+130);
+  // footer
+  x.fillStyle='#24313b'; x.fillRect(left,H-290,W-left*2,2);
+  x.fillStyle='#99bccb'; x.font='400 46px Upheaval, Silkscreen'; x.fillText('GETKICKBACK.FUN/KNOTS',left,H-110);
+  { const who=(pfpHandle?pfpHandle:KN_HIDE?'anon holder':short(d.wallet||'')).toUpperCase(); let fs=64; x.font=`400 ${fs}px Upheaval, Silkscreen`;
+    while (x.measureText(who).width>760 && fs>40){ fs-=4; x.font=`400 ${fs}px Upheaval, Silkscreen`; }
+    const tw=x.measureText(who).width, S=150, base=H-104, top=base-S+18;
+    x.fillStyle='#ffffff'; x.textAlign='right'; x.fillText(who,W-left,base); x.textAlign='left';
+    if (pfp){ const ox=W-left-tw-40-S; const t=document.createElement('canvas'); t.width=t.height=48; t.getContext('2d').drawImage(pfp,0,0,48,48);
+      x.fillStyle='#0a1217'; x.fillRect(ox-8,top-8,S+16,S+16);
+      x.save(); x.imageSmoothingEnabled=false; x.drawImage(t,ox,top,S,S); x.restore(); x.lineWidth=6; x.strokeStyle='#99bccb'; x.strokeRect(ox,top,S,S); } }
+  // scanlines over everything
+  x.fillStyle='rgba(255,255,255,.018)'; for (let yy=0; yy<H; yy+=6) x.fillRect(0,yy,W,2);
+  return c;
+}
+let knPosting=false, knHT;
+document.addEventListener('input', e=>{ if (e.target.id!=='knHandle') return; clearTimeout(knHT);
+  knHT=setTimeout(async()=>{ await loadPfp(e.target.value); const im=$('knPfp'); if (im){ im.hidden=!pfp; if (pfp) im.src=pfp.src; }
+    const c=await knDraw(); if (c && $('knCard')) $('knCard').src=c.toDataURL('image/jpeg',0.9); }, 450); });
+document.addEventListener('click', async e=>{
+  const sv=e.target.closest('[data-knsave]'), po=e.target.closest('[data-knpost]'); if (!sv && !po) return;
+  const c=await knDraw(); if (!c) return; const d=KN_CARD;
+  if (sv){ logEvent({kind:'copy', handle:pfpHandle||''});
+    try{ if (navigator.clipboard && window.ClipboardItem){ await navigator.clipboard.write([new ClipboardItem({'image/png': new Promise(r=>c.toBlob(r,'image/png'))})]); sv.classList.add('ok'); setTimeout(()=>sv.classList.remove('ok'),2000); return; } }catch(err){}
+    const blob=await new Promise(r=>c.toBlob(r,'image/png')); const file=new File([blob],'knots-stonk-rewards.png',{type:'image/png'});
+    try{ if (navigator.canShare && navigator.canShare({files:[file]})){ await navigator.share({files:[file]}); return; } }catch(err){ if (err?.name==='AbortError') return; }
+    const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=file.name; document.body.appendChild(a); a.click(); a.remove(); sv.classList.add('ok'); setTimeout(()=>sv.classList.remove('ok'),2000); return; }
+  if (knPosting) return; knPosting=true; const label=po.textContent; po.textContent='Preparing…';
+  logEvent({kind:'post', handle:pfpHandle||''});
+  let copied=false; try{ if (navigator.clipboard && window.ClipboardItem){ await navigator.clipboard.write([new ClipboardItem({'image/png': new Promise(r=>c.toBlob(r,'image/png'))})]); copied=true; } }catch(err){}
+  const win=window.open('about:blank','_blank'); const home=/kickback-test\.|localhost|^file:/.test(location.href)?location.origin:LINKS.site;
+  let link=home+'/knots/';
+  if (!TESTRUN || TESTSITE){ // save the card so the post previews it; retry smaller if the first upload fails
+    const send=async img=>{ const a=await runAuth(); if (!a) return null; return postJson(CARD_API,{w:d.wallet, ...a, total:Math.round(d.usd*100)/100, handle:pfpHandle||'', img:await cardUp(img), kind:'knots'},20000).catch(()=>null); };
+    let j=await send(c.toDataURL('image/jpeg',0.92));
+    if (!j?.id){ const s2=document.createElement('canvas'); s2.width=1600; s2.height=900; s2.getContext('2d').drawImage(c,0,0,1600,900); j=await send(s2.toDataURL('image/jpeg',0.8)); }
+    if (j?.id) link=home+'/s/'+j.id; }
+  const text=`My $KNOTS bag earned me ${'$'+Math.round(d.usd).toLocaleString('en-US')} in $STONK so far\n\nsee yours: ${link}`;
+  const url='https://x.com/intent/post?text='+encodeURIComponent(text);
+  if (win){ try{ win.opener=null; }catch(err){} win.location.href=url; } else location.href=url;
+  po.textContent=copied?'Card copied ✓ paste it in':label; setTimeout(()=>po.textContent=label,5000); knPosting=false;
+});
+document.addEventListener('click', e=>{ if (!e.target.closest('[data-knopen-any]')) return;
+  const i=KB_P.findIndex(r=>r.platform==='StonkFun' && r.asset===KN_STONK); if (i<0) return; const p=KB_P[i].parts.find(p=>p.q && (p.from||[]).some(f=>/^\$?KNOTS\b/.test(f))); kbOpen(i, p?p.lab:null); });
+document.addEventListener('click', e=>{ if (e.target.closest('[data-knagain]')){ $('againBtn').click(); return; } if (!e.target.closest('[data-knopen]')) return;
+  const i=KB_P.findIndex(r=>r.platform==='StonkFun' && (r.payer===KN_MINT || r.parts.some(p=>p.payer===KN_MINT))); if (i<0) return;
+  const p=KB_P[i].parts.find(p=>p.payer===KN_MINT); kbOpen(i, p?p.lab:null); });
+// reward coins we know, by the token they pay in: label shows instantly, without waiting for StonkFun's API
+const STONK_KNOWN = { '8RVBk8vxLiUHueLUW1f4izFVqN3nWippLhkohKg6EGkS':{sym:'KNOTS', pays:'STONK', paysMint:'6GmAFSYs4gk3FDao5FzzySQpPZaWsa4rUJHacpMpUNgx'} };
+const RH_API = 'https://robinhoodchain.blockscout.com/api/v2';
+const RELAY_PROXY = '/api/relay';
+let relayV3;
+const PONS_ESCROW = '0xd3afeb2a57f70ef218aa82451c51b2fb0416ac9e';
+const RELAY_ROUTER = '0xb92fe925dc43a0ecde6c8b1a2709c170ec4fff4f';
+const SEL_DIVIDEND = '0x6124e4e7';
+const SEL_SYMBOL = '0x95d89b41';
+const PROOFS = 8;
+const CG_IMG = 'https://coin-images.coingecko.com/coins/images/';
+const MAJOR_ICON = {BTC:CG_IMG+'1/large/bitcoin.png', BTCB:CG_IMG+'1/large/bitcoin.png', WBTC:CG_IMG+'1/large/bitcoin.png',
+  ETH:CG_IMG+'279/large/ethereum.png', WETH:CG_IMG+'279/large/ethereum.png', BNB:CG_IMG+'825/large/bnb-icon2_2x.png', WBNB:CG_IMG+'825/large/bnb-icon2_2x.png',
+  SOL:CG_IMG+'4128/large/solana.png', WSOL:CG_IMG+'4128/large/solana.png', USDT:CG_IMG+'325/large/Tether.png', USDC:CG_IMG+'6319/large/usdc.png'};
+
+const $ = id => document.getElementById(id);
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+const esc = s => String(s??'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const short = a => a ? a.slice(0,4)+'…'+a.slice(-4) : '';
+const fmtUsd = v => '$'+v.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+const fmtAmt = v => v>=1000?v.toLocaleString('en-US',{maximumFractionDigits:0}):v.toLocaleString('en-US',{maximumSignificantDigits:6});
+const REPORT_DM = 'https://x.com/messages/compose?recipient_id=1354812939778150409';
+const earnedOn = names => { const n=names.filter(Boolean); return 'earned holding coins from '+(n.length<2?n.join(''):n.slice(0,-1).join(', ')+' and '+n[n.length-1]); };
+const fmtDate = t => t?new Date(t*1000).toLocaleDateString('en-US',{month:'short',day:'numeric'}):'·';
+const fmtDT = t => t?new Date(t*1000).toLocaleString('en-US',{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'}):'·';
+const rawToNum = (raw, dec) => Number(BigInt(raw)) / 10**dec;
+let progBase = 0, progSpan = 100;
+const statusLines = {};
+function setStatus(t, err){
+  if (EMBED && EMB_CUR) try{ parent.postMessage({type:'kickback:progress', id:EMB_CUR.id, text:String(t||''), error:!!err}, EMB_CUR.origin); }catch(e){}
+  const s=$('status'); const m=/^(Solana|Robinhood Chain|BNB Chain|Ethereum|Base|Monad):/.exec(t||'');
+  if (m && !err){ if (s.classList.contains('err')) return;
+    statusLines[m[1]]=t; s.textContent=Object.values(statusLines).join('\n'); s.className='status'; return; }
+  for (const k in statusLines) delete statusLines[k];
+  s.textContent=t; s.className='status'+(err?' err':'');
+}
+function setProg(p){ $('prog').style.width = Math.max(0,Math.min(100,progBase+p*progSpan/100))+'%'; }
+
+// busy (429), server errors and one-off 400s get a couple more tries with a short wait
+const RETRY=st=>st===429||st>=500||st===400;
+async function fetchJson(url, opts){ for (let i=0;i<3;i++){ const ac=new AbortController(), tm=setTimeout(()=>ac.abort(),9000); let st=0;
+  try{ const r=await fetch(url,{...opts, signal:ac.signal}); st=r.status; if(r.ok) return await r.json(); }catch(e){ st=-1; }finally{ clearTimeout(tm); }
+  if (st===-1 || !RETRY(st) || (st===400&&i>0)) return null; await new Promise(z=>setTimeout(z,600*(i+1)*(st===429?2:1))); } return null; }
+
+const NC = /[?&]nc\b/.test(location.search);
+const MC=new MessageChannel(), MCQ=[]; MC.port1.onmessage=()=>{ const f=MCQ.shift(); if (f) f(); };
+const soon = f => { if (document.hidden){ let k=0; const hop=()=>{ if (++k>=40) f(); else { MCQ.push(hop); MC.port2.postMessage(0); } }; MCQ.push(hop); MC.port2.postMessage(0); return -1; } return setTimeout(f,15); };
+const AQ={q:[], inflight:0, max:3, size:24, pause:0, timer:0, gather:0};
+function viaBatch(url, body){
+  return new Promise(res=>{ AQ.q.push({url, body, res, tries:0}); if (!AQ.gather){ AQ.gather=1; soon(()=>{ AQ.gather=0; pumpAQ(); }); } });
+}
+function pumpAQ(){
+  while (AQ.inflight<Math.floor(AQ.max) && AQ.q.length){
+    const wait=AQ.pause-Date.now();
+    if (wait>0){ if (!AQ.timer) AQ.timer=setTimeout(()=>{ AQ.timer=0; pumpAQ(); }, wait); return; }
+    const url=AQ.q[0].url, items=[];
+    for (let i=0; i<AQ.q.length && items.length<AQ.size; ){ if (AQ.q[i].url===url) items.push(AQ.q.splice(i,1)[0]); else i++; }
+    AQ.inflight++; sendAQ(url, items).finally(()=>{ AQ.inflight--; pumpAQ(); });
+  }
+}
+const busyMsg = m => /rate|limit|too many|capacity|busy|missing reply/i.test(m||'');
+async function sendAQ(url, items){
+  let arr=null, status=0;
+  try{
+    const r=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(items.map((x,i)=>({...x.body,id:i})))});
+    status=r.status; if (r.ok) arr=await r.json().catch(()=>null);
+  }catch(e){ status=0; }
+  const by={}; if (Array.isArray(arr)) for (const a of arr) by[a.id]=a;
+  const again=[];
+  items.forEach((x,i)=>{
+    const a=by[i], busy = !arr || (a ? busyMsg(a.error?.message) : true);
+    if (busy && status!==401 && status!==403 && ++x.tries<25) again.push(x);
+    else x.res(a ? {status:200, j:a} : {status:status||0, j:null});
+  });
+  if (again.length){
+    AQ.q.unshift(...again);
+    AQ.max=Math.max(1, AQ.max-1); AQ.size=Math.max(6, Math.floor(AQ.size*.7));
+    AQ.pause=Math.max(AQ.pause, Date.now()+1000+Math.random()*600);   // Alchemy said slow down: back off for real, so retries don't pile up
+  } else { AQ.max=Math.min(4, AQ.max+.25); AQ.size=Math.min(30, AQ.size+2); }   // fewer big bursts per second (Alchemy limits throughput per second)
+}
+async function post(url, body){
+  if (url.startsWith('/api/alchemy/')) return viaBatch(url, body);
+  try{ const r=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({...body,id:1})}); return {status:r.status, j:await r.json().catch(()=>({}))}; }
+  catch(e){ return {status:0,j:null}; }
+}
+async function rpc(url, method, params){
+  let last;
+  for (let i=0;i<10;i++){
+    const {status, j} = await post(url,{jsonrpc:'2.0',method,params});
+    if (!status){ last='network error'; await sleep(Math.min(8000,700*2**i)); continue; }
+    if (status===429 || status>=500){ last='rate limited'; await sleep(Math.min(8000,700*2**i)); continue; }
+    if (j?.error){
+      if (/rate|limit|too many|timeout|busy|capacity/i.test(j.error.message||'')){ last=j.error.message; await sleep(Math.min(8000,700*2**i)); continue; }
+      throw new Error(j.error.message||JSON.stringify(j.error));
+    }
+    if (status===401 || status===403) throw new Error('API key rejected');
+    return j?.result;
+  }
+  SCAN_PARTIAL=true; throw new Error('RPC kept failing ('+last+')');
+}
+
+const bsToken = a => bs('/tokens/'+a.toLowerCase());
+async function bs(path){
+  for (let i=0;i<10;i++){
+    try{ const r = await fetch(path.startsWith('/tokens/') ? '/api/bs'+path : RH_API+path); if (r.ok) return await r.json(); if (r.status!==429 && r.status<500) return null; }catch(e){}
+    await sleep(Math.min(10000, 800*2**i));
+  }
+  SCAN_PARTIAL=true; throw new Error('Robinhood Chain explorer is not responding');
+}
+
+const REWARDS_SINCE = Math.floor(Date.parse('2026-07-15T00:00:00Z')/1000);
+const SOL_F = {status:'succeeded', tokenAccounts:'balanceChanged'};
+async function solAccounts(url, W){
+  const accs = {};
+  const rs = await Promise.all(TOKEN_PROGRAMS.map(p=>rpc(url,'getTokenAccountsByOwner',[W,{programId:p},{encoding:'jsonParsed'}])));
+  for (const r of rs) for (const a of r.value){ const i=a.account.data.parsed.info; accs[a.pubkey]={mint:i.mint, raw:BigInt(i.tokenAmount.amount)}; }
+  return accs;
+}
+const SOL_CAP = 25000;
+async function solIndex(url, W, lo, hi, onP, onFirst, cap){
+  const out=[];
+  const f = await rpc(url,'getTransactionsForAddress',[W,{transactionDetails:'signatures',limit:1000,filters:{...SOL_F, blockTime:{gte:lo,lt:hi}}}]);
+  for (const x of f.data||[]) out.push({sig:x.signature, slot:x.slot, t:x.blockTime});
+  if (onP) onP(out.length);
+  if (onFirst) onFirst(out.slice());
+  if (!f.paginationToken || !out.length) return out;
+  const hi0 = hi;
+  hi = Math.min(...out.map(x=>x.t||hi));
+  if (cap){
+    // the rate comes from the first page's own time span (hi0 is 'now + 5 min', using it made busy wallets look 10-100x slower and read far past the cap)
+    const newest = Math.min(hi0, Math.max(...out.map(x=>x.t||0))), rate = out.length/Math.max(1, newest-hi), est = Math.round(rate*(newest-lo));
+    if (est > cap){ lo = Math.max(lo, Math.floor(hi - (cap-out.length)/rate*1.15)); out.est = est; }
+  }
+  const seen = new Set(out.map(x=>x.sig));
+  const K=12, DAYS=86400, step=Math.max(DAYS, Math.ceil((hi+1-lo)/K/DAYS)*DAYS), wins=[];
+  for (let s=lo; s<=hi; s+=step) wins.push([s, Math.min(hi+1, s+step)]);
+  wins.reverse();   // newest first: the cut below keeps the newest
+  const over = () => cap && out.length > cap*3;   // a hard stop so a mis-estimate can never read a whole exchange-size history
+  await pool(wins, K, async ([a,b])=>{
+    if (over()) return;
+    let tk=null;
+    do{ const o={transactionDetails:'signatures',limit:1000,filters:{...SOL_F, blockTime:{gte:a,lt:b}}}; if (tk) o.paginationToken=tk;
+      const r=await rpc(url,'getTransactionsForAddress',[W,o]);
+      for (const x of r.data||[]) if (!seen.has(x.signature)){ seen.add(x.signature); out.push({sig:x.signature, slot:x.slot, t:x.blockTime}); }
+      tk=r.paginationToken; if (onP) onP(out.length);
+    }while(tk && !over());
+  });
+  if (cap && out.length > cap){ const est=out.est||out.length; out.sort((a,b)=>(b.t||0)-(a.t||0)); out.length=cap; out.est=est; }
+  if (cap && out.est){ out.truncated=true; out.cutoff=Math.min(...out.map(x=>x.t||Infinity)); }
+  return out;
+}
+const CARD_API = '/api/card';
+// the card as uploaded for its link: 1600 px wide JPEG (accepts a canvas or a data URL)
+async function cardUp(src){ let c=src; if (typeof src==='string'){ const im=new Image(); im.src=src; await (im.decode?im.decode().catch(()=>{}):Promise.resolve()); c=im; }
+  const w=c.width||c.naturalWidth, h=c.height||c.naturalHeight, k=Math.min(1, 1600/w), o=document.createElement('canvas'); o.width=Math.round(w*k); o.height=Math.round(h*k);
+  const x=o.getContext('2d'); x.imageSmoothingQuality='high'; x.drawImage(c,0,0,o.width,o.height); return o.toDataURL('image/jpeg',0.88); }
+const RANK_API = '/api/rank';
+const LOG_API = '/api/log';
+const STUDIO = /[?&]studio\b/.test(location.search);
+if (STUDIO){ const m=location.search.match(/[?&]studio=(\w+)/); window.__studioStyle = m ? m[1] : 'blur'; const sc=document.createElement('script'); sc.src='/studio.js'; document.head.appendChild(sc); }
+const TESTRUN = /[?&]test\b/.test(location.search) || !/(^|\.)getkickback\.fun$/.test(location.hostname);
+const TESTSITE = /(^|\.)kickback-test\.pages\.dev$/.test(location.hostname) && !/[?&]test\b/.test(location.search);   // partners on the test site: logged to a separate table
+// every write about a check carries the run token /api/run signed for exactly this check's wallets
+function kbRun(ws, partner){ return fetch('/api/run',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({wallets:ws, ...(partner?{partner}:{})})})
+  .then(async r=>{ const j=await r.json().catch(()=>null); if (!r.ok || !j?.t) throw new Error(j?.error||'could not start the check'); return {run:j.run, t:j.t, wallets:ws.slice()}; }); }
+const runAuth = async () => { try{ const r=await window.__runP; return r?{wallets:r.wallets, run:r.run, tok:r.t}:null; }catch(e){ return null; } };
+// writes that are checked against the check's own log entry wait for it (a few seconds at most)
+const afterLog = () => Promise.race([Promise.resolve(window.__lastLog), sleep(4000)]).catch(()=>{});
+function logEvent(o){ if ((TESTRUN && !TESTSITE) || !LOG_API || !window.__runP) return Promise.resolve();
+  const p=window.__runP.then(r=>{ const body=JSON.stringify({run:r.run, tok:r.t, ...(o.kind==='copy'||o.kind==='post'?{wallets:r.wallets}:{}), ...o});
+    return fetch(LOG_API,{method:'POST',keepalive:true,headers:{'Content-Type':'application/json'},body}).catch(()=>{}); }).catch(()=>{});
+  if (o.kind==='first'||o.kind==='final') window.__lastLog=p;
+  return p; }
+const SOLSCAN = '/api/solscan';
+const DIAG={req:0, sigs:0, hit:0, ms:0, colo:''};
+/* test only: keep the last error so a reload doesn't lose it */
+function kbErr(e){ if (!TESTRUN) return; try{ localStorage.setItem('kbLastErr', new Date().toLocaleString()+'\n'+(e?.message||e)+'\n'+String(e?.stack||'').split('\n').slice(0,6).join('\n')); }catch{} }
+if (TESTRUN){ addEventListener('error', ev=>kbErr(ev.error||ev.message)); addEventListener('unhandledrejection', ev=>kbErr(ev.reason));
+  addEventListener('DOMContentLoaded', ()=>{ let t=null; try{ t=localStorage.getItem('kbLastErr'); }catch{} if (!t) return;
+    const b=document.createElement('pre'); b.style.cssText='position:fixed;left:12px;right:12px;bottom:12px;z-index:999;max-height:40vh;overflow:auto;margin:0;padding:12px 14px;background:#2a1418;border:1px solid #5a2430;color:#ffb3bc;font:11px/1.45 monospace;border-radius:12px;white-space:pre-wrap;cursor:pointer';
+    b.textContent='[test] last error (tap to clear)\n'+t; b.onclick=()=>{ try{ localStorage.removeItem('kbLastErr'); }catch{} b.remove(); }; document.body.appendChild(b); }); }
+if (TESTRUN) fetch('/cdn-cgi/trace').then(r=>r.text()).then(t=>{ DIAG.colo=(t.match(/colo=(\w+)/)||[])[1]||''; }).catch(()=>{});
+async function postJson(url, body, ms=30000){ if (url===SOLSCAN){ const t=performance.now(); const j=await postJson0(url, body, ms); DIAG.req++; DIAG.sigs+=body.sigs?.length||0; DIAG.hit+=j?.hit??0; DIAG.ms+=performance.now()-t; return j; } return postJson0(url, body, ms); }
+async function postJson0(url, body, ms=30000){ const ac=new AbortController(), tm=setTimeout(()=>ac.abort(),ms);
+  try{ for (let i=0;i<3;i++){ const r=await fetch(url,{method:'POST',signal:ac.signal,headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+      if (r.ok) return await r.json(); if (!RETRY(r.status) || (r.status===400&&i>0)) return null; await new Promise(z=>setTimeout(z,600*(i+1)*(r.status===429?2:1))); } return null; }catch(e){ return null; }finally{ clearTimeout(tm); } }
+function solSlices(index, size){
+  const bySlot = {}; for (const x of index) (bySlot[x.slot]=bySlot[x.slot]||[]).push(x.sig);
+  const ranges=[]; let cur=null;
+  for (const s of Object.keys(bySlot).map(Number).sort((a,b)=>b-a)){ if (!cur) cur={lo:s, hi:s, sigs:[]}; cur.lo=s; cur.sigs.push(...bySlot[s]); if (cur.sigs.length>=size){ ranges.push(cur); cur=null; } }
+  if (cur) ranges.push(cur);
+  // one slot can hold more of this wallet's txs than one request may carry (big distributors): split, same slot range
+  return ranges.flatMap(r=>{ if (r.sigs.length<=size) return [r]; const out=[]; for (let i=0;i<r.sigs.length;i+=size) out.push({lo:r.lo, hi:r.hi, sigs:r.sigs.slice(i,i+size)}); return out; });
+}
+let solAlchemyOk;
+// what the server already read for this wallet (once per page load): only txs that are in the fresh signature list are used, the rest is read from the chain
+const SOL_PRE={};
+const solMem = W => SOL_PRE[W] ??= Promise.race([
+  fetch('/api/solmem?w='+W).then(r=>r.ok?r.json():null).then(async j=>{ const m=new Map(); for (const p of j?.p||[]) try{ for (const c of JSON.parse(await ungz(p))) m.set(c.s,c); }catch(e){} return m; }).catch(()=>null),
+  sleep(4000).then(()=>null)]);
+async function solRead(url, W, index, all, onP, aurl, bySig){
+  const put=(sig,c)=>{ all.set(sig,c); liveSol(c, W); };
+  if (SOLSCAN && !EMB_HELIUS){ const pre=await solMem(W); if (pre?.size) for (const x of index) if (!all.has(x.sig)){ const c=pre.get(x.sig); if (c) put(x.sig,c); } }
+  if (bySig){
+    for (let k=0;k<4;k++){
+      const left = index.filter(x=>!all.has(x.sig)); if (!left.length) break;
+      if (k) await sleep(800*k);
+      const chunks=[]; for (let i=0;i<left.length;i+=50) chunks.push(left.slice(i,i+50).map(x=>x.sig));
+      if (SOLSCAN) await pool(chunks, 6, async sigs=>{ const j=await postJson(SOLSCAN,{w:W, sigs, src:'a'}); for (const [sig,c] of Object.entries(j?.txs||{})) put(sig,c); if (onP) onP(); });
+      else await pool(left, 12, async x=>{ const tx=await rpc(url,'getTransaction',[x.sig,{encoding:'jsonParsed',maxSupportedTransactionVersion:0}]).catch(()=>null); if (tx) put(x.sig, solCompact(tx, W)); });
+    }
+    return index.filter(x=>!all.has(x.sig)).length;
+  }
+  if (SOLSCAN){
+    const ranges = solSlices(index.filter(x=>!all.has(x.sig)), 100);
+    let qi=0; const next=()=>qi<ranges.length?ranges[qi++]:null;
+    const worker = src => async()=>{ for (let r; (r=next());){ const j=await postJson(SOLSCAN,{w:W, sigs:r.sigs, lo:r.lo, hi:r.hi, src}); for (const [sig,c] of Object.entries(j?.txs||{})) put(sig,c); if (onP) onP(); } };
+    await Promise.all([...Array(14)].map(worker('h')));
+    for (let k=0;k<5;k++){
+      const left = index.filter(x=>!all.has(x.sig)); if (!left.length) return;
+      if (k) await sleep(800*k);
+      await pool(solSlices(left, 50), 6, async r=>{ const j=await postJson(SOLSCAN,{w:W, sigs:r.sigs, lo:r.lo, hi:r.hi, src:k%2&&r.sigs.length<=20?'a':'h'}); for (const [sig,c] of Object.entries(j?.txs||{})) put(sig,c); });
+    }
+    return index.filter(x=>!all.has(x.sig)).length;
+  }
+  const ranges = solSlices(index.filter(x=>!all.has(x.sig)), 50);
+  let qi=0; const next=()=>qi<ranges.length?ranges[qi++]:null;
+  const helius = async()=>{ for (let r; (r=next());){
+    let tk=null;
+    do{ const o={transactionDetails:'full',limit:100,encoding:'jsonParsed',maxSupportedTransactionVersion:1,filters:{...SOL_F, slot:{gte:r.lo,lte:r.hi}}}; if (tk) o.paginationToken=tk;
+      const res=await rpc(url,'getTransactionsForAddress',[W,o]);
+      for (const tx of res.data||[]) put(tx.transaction.signatures[0], solCompact(tx, W));
+      tk=res.paginationToken;
+    }while(tk);
+    if (onP) onP();
+  } };
+  const alchemy = async()=>{ for (let r; (r=next());){
+    await Promise.all(r.sigs.map(sig=>rpc(aurl,'getTransaction',[sig,{encoding:'jsonParsed',maxSupportedTransactionVersion:0,commitment:'confirmed'}]).then(tx=>{ if (tx) put(sig, solCompact(tx, W)); }).catch(()=>null)));
+    if (onP) onP();
+  } };
+  const useA = aurl ? await (solAlchemyOk ??= rpc(aurl,'getSlot',[]).then(()=>true).catch(()=>false)) : false;
+  await Promise.all([...Array(16)].map(helius).concat(useA?[...Array(1)].map(alchemy):[]));
+  const missing = index.filter(x=>!all.has(x.sig));
+  await pool(missing, 16, async x=>{ const tx=await rpc(url,'getTransaction',[x.sig,{encoding:'jsonParsed',maxSupportedTransactionVersion:0}]).catch(()=>null); if (tx) put(x.sig, solCompact(tx, W)); });
+}
+function solCompact(tx, W){
+  const msg = tx.transaction.message, keys = msg.accountKeys, kp = keys.map(k=>k.pubkey), sg = keys.filter(k=>k.signer).map(k=>k.pubkey);
+  const c = {s:tx.transaction.signatures[0], sl:tx.slot||0, t:tx.blockTime||0};
+  if (tx.meta.err){ c.err=1; return c; }
+  const d = {};
+  for (const [ph,arr] of [['pre',tx.meta.preTokenBalances],['post',tx.meta.postTokenBalances]]){
+    for (const b of arr||[]){
+      if (b.owner!==W) continue;
+      const a = kp[b.accountIndex];
+      const e = d[a] || (d[a]={a, m:b.mint, dec:b.uiTokenAmount.decimals, pre:'0', post:'0'});
+      e[ph] = b.uiTokenAmount.amount;
+    }
+  }
+  c.d = Object.values(d); c.sg = sg;
+  if (sg.includes(W)){ c.sw=1; return c; }
+  const wi = kp.indexOf(W);
+  c.wg = wi>=0 ? String(tx.meta.postBalances[wi]-tx.meta.preBalances[wi]) : '0';
+  const logs = tx.meta.logMessages||[];
+  const scribe = logs.map(l=>/scribe:rewards (\w{32,44})/.exec(l)).find(Boolean); if (scribe) c.sc = scribe[1];
+  if (logs.some(l=>l.includes('DistributeFeeToHolders')) && kp.includes(PUMP_PROGRAM)){
+    const ix = msg.instructions.find(i=>i.programId===PUMP_PROGRAM);
+    c.pf = 1; c.pc = (ix?.accounts||[]).find(a=>a.endsWith('pump')) || ix?.accounts?.[2] || null;
+  }
+  /* batch payouts: who else got the same token in this tx and how much (owner prefix, raw). Lets us tell which coin's round it was */
+  { const mine = c.d.filter(e=>BigInt(e.post)>BigInt(e.pre)).map(e=>e.m);
+    if (mine.length){ const per={};
+      for (const b of tx.meta.postTokenBalances||[]){ if (b.owner===W || !mine.includes(b.mint)) continue;
+        const p=(tx.meta.preTokenBalances||[]).find(x=>x.accountIndex===b.accountIndex); const g=BigInt(b.uiTokenAmount.amount)-BigInt(p?.uiTokenAmount.amount||'0');
+        if (g>0n){ const k=b.mint+'|'+(b.owner||'').slice(0,8); per[k]=(per[k]||0n)+g; } }
+      const co={}; for (const [k,v] of Object.entries(per)){ const [m,o]=k.split('|'); (co[m]=co[m]||[]).push([o,String(v)]); }
+      for (const m in co){ if (co[m].length<2){ delete co[m]; continue; } co[m].sort((a,b)=>BigInt(b[1])>BigInt(a[1])?1:-1); co[m]=co[m].slice(0,12); }
+      if (Object.keys(co).length) c.co=co; } }
+  const gainers = new Set();
+  for (const b of tx.meta.postTokenBalances||[]){
+    const p=(tx.meta.preTokenBalances||[]).find(x=>x.accountIndex===b.accountIndex);
+    if (BigInt(b.uiTokenAmount.amount)>BigInt(p?.uiTokenAmount.amount||'0')) gainers.add(b.owner);
+  }
+  let solGainers=0; kp.forEach((k,j)=>{ if (tx.meta.postBalances[j]>tx.meta.preBalances[j]) solGainers++; });
+  if (Math.max(gainers.size, solGainers) >= 5){
+    const senders = new Set(sg);
+    const ixs = [...msg.instructions, ...(tx.meta.innerInstructions||[]).flatMap(x=>x.instructions)];
+    for (const i of ixs){ const inf=i.parsed?.info; if (inf?.authority) senders.add(inf.authority); if (inf?.multisigAuthority) senders.add(inf.multisigAuthority); if (i.parsed?.type==='transfer' && inf?.source && inf?.lamports) senders.add(inf.source); }
+    const groups = {};
+    for (const i of ixs){ const t=i.parsed?.type, inf=i.parsed?.info; if(!inf) continue;
+      if ((t==='transfer'||t==='transferChecked') && inf.destination){ const amt = inf.tokenAmount?.amount ?? inf.amount ?? inf.lamports; if (amt==null) continue;
+        const k=(inf.mint||(inf.lamports!=null?'SOL':'tok'))+'|'+(inf.authority||inf.source); (groups[k]=groups[k]||new Map()).set(inf.destination, String(amt)); } }
+    c.b = {snd:[...senders], pr:Object.values(groups).some(g=>g.size>=5 && new Set(g.values()).size>=3)?1:0};
+  }
+  return c;
+}
+function solAnalyze(W, all, initBal){
+  const payouts=[], cands=[], accSum={}, stonkMints=new Set(), everMints=new Set();
+  const ordered = [...all.values()].sort((a,b)=>a.sl-b.sl || a.t-b.t);
+  const bal = {...initBal};
+  for (const c of ordered){
+    if (c.err) continue;
+    const sig = c.s;
+    for (const e of c.d){ accSum[e.a]=(accSum[e.a]||0n)+(BigInt(e.post)-BigInt(e.pre)); everMints.add(e.m); }
+    const heldBefore = Object.keys(bal).filter(m=>bal[m]>0n);
+    for (const e of c.d) bal[e.m]=(bal[e.m]||0n)+(BigInt(e.post)-BigInt(e.pre));
+    if (c.sw) continue;
+    const solGain = BigInt(c.wg||'0');
+    const tokenGains = c.d.filter(e=>BigInt(e.post)>BigInt(e.pre)).map(e=>({mint:e.m, dec:e.dec, pre:BigInt(e.pre), post:BigInt(e.post)}));
+    if (solGain<=0n && !tokenGains.length) continue;
+    const base = {chain:'solana', sig, t:c.t||0, link:'https://solscan.io/tx/'+sig};
+    const signers = c.sg||[];
+
+    const sf = signers.find(s=>W_SOL_DIST[s] && !(window.__prDisable||{})[W_SOL_DIST[s]]);
+    if (sf){ const plat=W_SOL_DIST[sf];
+      for (const e of tokenGains){ payouts.push({...base, platform:plat, asset:e.mint, raw:e.post-e.pre, dec:e.dec, held:heldBefore, co:c.co?.[e.mint]||null}); if (plat==='StonkFun') stonkMints.add(e.mint); }
+      if (plat!=='StonkFun' && solGain>0n) payouts.push({...base, platform:plat, asset:SOL_MINT, raw:solGain, dec:9});
+      continue; }
+    if (c.sc && solGain>0n && !(window.__prDisable||{}).Scribe){ payouts.push({...base, platform:'Scribe', asset:SOL_MINT, raw:solGain, dec:9, coin:c.sc}); continue; }
+    if (c.pf){
+      if (solGain>0n) payouts.push({...base, platform:'pump.fun', asset:SOL_MINT, raw:solGain, dec:9, coin:c.pc});
+      for (const e of tokenGains) payouts.push({...base, platform:'pump.fun', asset:e.mint, raw:e.post-e.pre, dec:e.dec, coin:c.pc});
+      continue;
+    }
+    if (signers.some(s=>SOL_IGNORE_SIGNERS.has(s))) continue;
+    if (c.b){
+      if (!tokenGains.length && solGain < 100000n) continue;
+      cands.push({base, signer:signers[0], senders:new Set(c.b.snd), held:heldBefore.filter(m=>!tokenGains.some(e=>e.mint===m)), tokenGains, solGain, prorata:!!c.b.pr});
+    }
+  }
+  return {payouts, cands, accSum, stonkMints, everMints};
+}
+async function scanSolana(W, key, akey){
+  const url = EMB_HELIUS || '/api/helius', aurl = (akey && !EMB_HELIUS) ? '/api/alchemy/solana-mainnet' : null;
+  setStatus('Solana: finding token accounts…');
+  const accsP = solAccounts(url, W);
+  const all = new Map();
+  let total = 0; const reads = [], firstSigs = new Set();
+  const prog = ()=>{ setStatus(`Solana: reading history · ${all.size}/${total||'…'} transactions`); solProgress(all.size, total); };
+  const recent = await solIndex(url, W, REWARDS_SINCE, Math.floor(Date.now()/1000)+300, n=>{ total=n; setStatus(`Solana: indexing history · ${n} transactions`); },
+    first=>{ for (const x of first) firstSigs.add(x.sig); reads.push(solRead(url, W, first, all, prog, aurl)); }, SOL_CAP);
+  total = recent.length;
+  logLine(`reading <b>${total.toLocaleString('en-US')}</b> txs`, false, 'solana');
+  reads.push(solRead(url, W, recent.filter(x=>!firstSigs.has(x.sig)), all, prog, aurl));
+  const [accs, ...miss] = await Promise.all([accsP, ...reads]);
+  const missing = miss.reduce((a,b)=>a+(b||0),0);
+  const trunc = recent.truncated ? {read:recent.length, est:recent.est, since:recent.cutoff} : null;
+  KB_SOL[W]=all;
+  const initBal = {}; for (const a of Object.values(accs)) initBal[a.mint]=(initBal[a.mint]||0n)+a.raw;
+  for (const c of all.values()){ if (c.err) continue; for (const e of c.d) initBal[e.m]=(initBal[e.m]||0n)-(BigInt(e.post)-BigInt(e.pre)); }
+  const A1 = solAnalyze(W, all, initBal);
+  for (const a of Object.values(accs)) A1.everMints.add(a.mint);
+  for (const m of Object.keys(initBal)) A1.everMints.add(m);
+  const first = {payouts:A1.payouts, suspects:[], recon:null, txCount:all.size, stonkMints:A1.stonkMints, everMints:A1.everMints, partial:true, trunc, missing};
+
+  first.deep = async ()=>{
+    const o = await rpc(url,'getTransactionsForAddress',[W,{transactionDetails:'signatures',limit:1,sortOrder:'asc',filters:SOL_F}]).catch(()=>null);
+    const t0 = o?.data?.[0]?.blockTime;
+    let missOld = 0;
+    if (!trunc && t0 && t0<REWARDS_SINCE){ const old = await solIndex(url, W, t0, REWARDS_SINCE); missOld = await solRead(url, W, old, all, null, aurl) || 0; }
+    if (trunc){
+      const rm = new Set([...A1.payouts.map(p=>p.asset), ...A1.stonkMints].filter(m=>m && m!==SOL_MINT));
+      const ata = Object.entries(accs).filter(([,v])=>rm.has(v.mint)).map(([a])=>a);
+      const seen = new Set(all.keys()), extra = [];
+      await pool(ata, 6, async a=>{ const ix = await solIndex(url, a, REWARDS_SINCE, trunc.since+1, null, null, 15000).catch(()=>[]);
+        for (const x of ix) if (!seen.has(x.sig)){ seen.add(x.sig); extra.push(x); } });
+      if (extra.length){ setStatus(`Solana: reading older rewards · ${extra.length} transactions`); missOld += await solRead(url, W, extra, all, null, aurl, true) || 0; }
+      trunc.deep = {accounts:ata.length, read:extra.length};
+    }
+    const A = solAnalyze(W, all, trunc ? initBal : {});
+    for (const a of Object.values(accs)) A.everMints.add(a.mint);
+    const payouts = A.payouts, suspects = {};
+    if (A.cands.length){
+      const mints=[...new Set(A.cands.flatMap(c=>[...c.held, ...c.tokenGains.map(e=>e.mint)]))], creators={};
+      await pool(mints, 16, async m=>{
+        const r=await rpc(url,'getTransactionsForAddress',[m,{transactionDetails:'full',limit:1,sortOrder:'asc',encoding:'jsonParsed',maxSupportedTransactionVersion:1}]).catch(()=>null);
+        const t=r?.data?.[0]; creators[m]=new Set((t?.transaction?.message?.accountKeys||[]).filter(k=>k.signer).map(k=>k.pubkey).filter(k=>k!==m));
+      });
+      for (const c of A.cands){
+        const coin = c.held.find(m=>[...(creators[m]||[])].some(s=>c.senders.has(s)));
+        const selfMinted = c.tokenGains.length && c.tokenGains.every(e=>[...(creators[e.mint]||[])].some(s=>c.senders.has(s)));
+        if (coin && selfMinted){ const k='solana:promo:'+c.signer; const s=suspects[k]||(suspects[k]={chain:'Solana', sender:c.signer, n:0, ex:c.base.link, note:'promo airdrop of the sender\'s own token'}); s.n++; continue; }
+        if (coin){
+          if (c.solGain>0n) payouts.push({...c.base, platform:'Creator rewards', asset:SOL_MINT, raw:c.solGain, dec:9, coin, distributor:c.signer});
+          for (const e of c.tokenGains) payouts.push({...c.base, platform:'Creator rewards', asset:e.mint, raw:e.post-e.pre, dec:e.dec, coin, distributor:c.signer});
+        } else {
+          const k='solana:'+c.signer;
+          const s=suspects[k]||(suspects[k]={chain:'Solana', chainKey:'solana', sender:c.signer, n:0, ex:c.base.link, gains:{}, prorata:false, last:0});
+          s.n++; s.prorata = s.prorata || c.prorata; if (c.base.t>s.last){ s.last=c.base.t; s.ex=c.base.link; }
+          if (c.solGain>0n) s.gains[SOL_MINT]={raw:(s.gains[SOL_MINT]?.raw||0n)+c.solGain, dec:9};
+          for (const e of c.tokenGains) s.gains[e.mint]={raw:(s.gains[e.mint]?.raw||0n)+(e.post-e.pre), dec:e.dec};
+        }
+      }
+      const bySender={}; for (const x of payouts) if (x.platform==='Creator rewards') (bySender[x.distributor]=bySender[x.distributor]||new Set()).add(x.sig);
+      for (const [snd,sigs] of Object.entries(bySender)) if (sigs.size<2){
+        const k='solana:once:'+snd, s=suspects[k]={chain:'Solana', chainKey:'solana', sender:snd, n:sigs.size, ex:'', gains:{}, prorata:false, last:0};
+        for (let i=payouts.length-1;i>=0;i--){ const x=payouts[i]; if (x.platform!=='Creator rewards' || x.distributor!==snd) continue;
+          s.ex=x.link; s.last=x.t; s.gains[x.asset]={raw:(s.gains[x.asset]?.raw||0n)+x.raw, dec:x.dec}; payouts.splice(i,1); }
+      }
+    }
+    const recheck = await solAccounts(url, W);
+    let ok=0, moved=0, bad=0;
+    for (const a of Object.keys(accs)){
+      const now = recheck[a]?.raw ?? 0n;
+      if (now!==accs[a].raw){ moved++; continue; }
+      if ((A.accSum[a]||0n)===now) ok++; else bad++;
+    }
+    return {payouts, suspects:Object.values(suspects), recon:trunc?{ok:0,moved:0,bad:0,skipped:true}:{ok,moved,bad}, txCount:all.size, stonkMints:A.stonkMints, everMints:A.everMints, trunc, missing:missing+missOld};
+  };
+  return first;
+}
+
+async function evmCreatorRewards(ev){
+  const payouts=[], suspects={};
+  const cand = ev.inc.filter(x=>!ev.classified.has(x.hash));
+  if (!cand.length) return {payouts, suspects:[], batchHashes:[]};
+  const hashes=[...new Set(cand.map(x=>x.hash))], info={};
+  let i=0, d=0;
+  await Promise.all(Array.from({length:12},async()=>{ while(i<hashes.length){ const h=hashes[i++]; info[h]=await ev.batch(h); d++; setStatus(`${ev.label}: checking airdrops ${d}/${hashes.length}`); } }));
+  for (const h of hashes){
+    const mine = cand.filter(x=>x.hash===h), t=info[h]?.rows||[];
+    const grp = x=>t.filter(r=>r.token===x.token && r.from===x.from?.toLowerCase());
+    info[h].n = Math.max(0, ...mine.map(x=>new Set(grp(x).map(r=>r.to)).size));
+    info[h].prorata = mine.some(x=>{ const g=grp(x); return new Set(g.map(r=>r.to)).size>=5 && new Set(g.map(r=>r.amt)).size>=3; });
+  }
+  const batches = hashes.filter(h=>info[h].n>=5);
+  if (ev.txFrom){ let bi=0; await Promise.all(Array.from({length:12},async()=>{ while(bi<batches.length){ const h=batches[bi++]; info[h].from = await ev.txFrom(h).catch(()=>null); } })); }
+  if (!batches.length) return {payouts, suspects:[], batchHashes:[]};
+  const moves = [...(ev.allInc||ev.inc).map(x=>({...x,sign:1n})), ...ev.out.map(x=>({...x,sign:-1n}))].sort((a,b)=>a.block-b.block);
+  const heldAt = block => { const b={}; for (const m of moves){ if (m.block>=block) break; b[m.token]=(b[m.token]||0n)+m.sign*m.raw; } return Object.keys(b).filter(k=>b[k]>0n); };
+  const held={}; for (const h of batches){ const blk=cand.find(x=>x.hash===h).block; held[h]=heldAt(blk).filter(tk=>!cand.some(x=>x.hash===h&&x.token===tk)); }
+  const toks=[...new Set(Object.values(held).flat())], creators={};
+  i=0; d=0;
+  await Promise.all(Array.from({length:20},async()=>{ while(i<toks.length){ const tk=toks[i++]; creators[tk]=(await ev.creator(tk).catch(()=>null))?.toLowerCase()||null; d++; setStatus(`${ev.label}: checking creators of held coins ${d}/${toks.length}`); } }));
+  for (const h of batches){
+    const rows = cand.filter(x=>x.hash===h);
+    const senders = new Set([info[h].from, ...rows.map(x=>x.from)].filter(Boolean).map(x=>x.toLowerCase()));
+    const coin = held[h].find(tk=>creators[tk] && senders.has(creators[tk]));
+    if (coin){ const own = await Promise.all(rows.map(x=>creators[x.token]!==undefined?creators[x.token]:ev.creator(x.token).then(c=>creators[x.token]=c?.toLowerCase()||null).catch(()=>null)));
+      if (rows.every((x,k)=>own[k] && senders.has(own[k]))){ const k2=ev.chain+':promo:'+(info[h].from||rows[0].from); const s=suspects[k2]||(suspects[k2]={chain:ev.label, sender:info[h].from||rows[0].from, n:0, ex:ev.link(h), note:'promo airdrop of the sender\'s own token'}); s.n++; continue; } }
+    if (coin){ for (const x of rows) payouts.push({chain:ev.chain, platform:'Creator rewards', asset:x.token, sym:x.sym, raw:x.raw, dec:x.dec, t:x.t, sig:h, link:ev.link(h), coin, coinSym:ev.symOf?.(coin)}); continue; }
+    // a reward tracker paying many holders inside a trade of a coin this wallet held (Uniswap-style tax reward coins)
+    const moved = new Set((info[h]?.rows||[]).map(r=>r.token));
+    const coin2 = held[h].find(tk=>moved.has(tk) && !rows.some(x=>x.token===tk) && !senders.has(tk));
+    if (coin2){ for (const x of rows) payouts.push({chain:ev.chain, platform:'Coin rewards', asset:x.token, sym:x.sym, raw:x.raw, dec:x.dec, t:x.t, sig:h, link:ev.link(h), coin:coin2, coinSym:ev.symOf?.(coin2), distributor:rows[0].from}); }
+    else {
+      const k=ev.chain+':'+(rows[0].from||'').toLowerCase(); const s=suspects[k]||(suspects[k]={chain:ev.label, chainKey:ev.chain, sender:rows[0].from, n:0, ex:ev.link(h), gains:{}, prorata:false, last:0});
+      s.n++; s.prorata = s.prorata || info[h].prorata; if (rows[0].t>s.last){ s.last=rows[0].t; s.ex=ev.link(h); }
+      for (const x of rows) s.gains[x.token]={raw:(s.gains[x.token]?.raw||0n)+x.raw, dec:x.dec, sym:x.sym}; }
+  }
+  return {payouts, suspects:Object.values(suspects), batchHashes:batches};
+}
+
+const EVM_CHAINS = {
+  bsc:       {label:'BNB Chain',       net:'bnb-mainnet',       dex:'bsc',      tx:'https://bscscan.com/tx/',                     native:'BNB', cg:'binancecoin', internal:false},
+  robinhood: {label:'Robinhood Chain', net:'robinhood-mainnet', dex:null,       tx:'https://robinhoodchain.blockscout.com/tx/',   native:'ETH', cg:'ethereum',    internal:false},
+  eth:       {label:'Ethereum',        net:'eth-mainnet',       dex:'ethereum', tx:'https://etherscan.io/tx/',                    native:'ETH', cg:'ethereum',    internal:true},
+  base:      {label:'Base',            net:'base-mainnet',      dex:'base',     tx:'https://basescan.org/tx/',                    native:'ETH', cg:'ethereum',    internal:true},
+};
+const RELAY_TXS = new Set();
+const BRIDGE_ADDRS = new Set([RELAY_ROUTER, '0xf70da97812cb96acdf810712aa562db8dfa3dbef']);
+const SEL_CLAIMED_FEE = '0x89661ea2', SEL_CLAIMABLE_FEE = '0xa1c59afc', SEL_QUOTE = '0x999b93af';
+const SEL_TOKEN = '0xfc0c546a', SEL_INDEX_TOKEN = '0xe7d015f2', SEL_RATE_HOLDER = '0x6234b84f', SEL_BALANCE = '0x70a08231';
+const TRANSFER_TOPIC = '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef';
+const decStr = h=>{ try{ const len=parseInt(h.slice(66,130),16); return decodeURIComponent(h.slice(130,130+len*2).replace(/(..)/g,'%$1')); }catch(e){ return null; } };
+const addrOf = r => (r && r.length>=66 && !/^0x0*$/.test(r)) ? ('0x'+r.slice(26,66)).toLowerCase() : null;
+async function pool(items, n, fn){ let i=0; await Promise.all(Array.from({length:Math.min(n,items.length)},async()=>{ while(i<items.length){ const x=items[i++]; await fn(x); } })); }
+
+async function evmReachable(url){
+  try{ await rpc(url,'eth_blockNumber',[]); return true; }
+  catch(e){ if (/not enabled|not supported|unsupported|invalid.*(network|chain)|does not exist|api key rejected/i.test(e.message||'')) return false; throw new Error('the network is busy right now'); }
+}
+const SWAP_TOPICS = new Set(['0xd78ad95fa46c994b6551d0da85fc275fe613ce37657fb8d5e3d130840159d822','0xc42079f94a6350d7e6235f29174924f928cc2ac818eb64fed8004e115fbcca67','0x40e9cecb9f5f1f1c5b9c97dec2917b7ee92e57ba5563708daca94dd84ad7112f','0x19b47279256b2a23a1665c810c8d55a1758940ee09377d4f8d26497a3577dc83']);
+const WRAPPED_NATIVE = new Set(['WBNB','WETH','WMON']);
+const FLAP_CHAINS = new Set(['bsc']);
+
+async function scanEvm(chain, A, key, relayReady){
+  const C = EVM_CHAINS[chain], url = `/api/alchemy/${C.net}`, a = A.toLowerCase(), L = C.label;
+  if (!await evmReachable(url)) { const e=new Error(`${L} is not enabled for this API key`); e.notEnabled=true; throw e; }
+  const call = (to,data)=>rpc(url,'eth_call',[{to,data},'latest']);
+  const get = async (dir, cats, zero) => { let pk, out=[]; do{ const p={fromBlock:'0x0',toBlock:'latest',category:cats,withMetadata:true,excludeZeroValue:!zero,maxCount:'0x3e8'}; p[dir]=A; if(pk)p.pageKey=pk; const r=await rpc(url,'alchemy_getAssetTransfers',[p]); out=out.concat(r.transfers); pk=r.pageKey; setStatus(`${L}: reading history · ${out.length} transfers`); }while(pk); return out; };
+  const incCats = ['erc20','external'].concat(C.internal?['internal']:[]);
+  const [incAll, out] = await Promise.all([get('toAddress', incCats), get('fromAddress', ['erc20','external'], true)]);
+  const inc = incAll.filter(t=>t.from?.toLowerCase()!==a);
+  if (relayReady) await relayReady;
+  const norm = t => { const native = t.category!=='erc20'; return {hash:t.hash, block:parseInt(t.blockNum,16), from:(t.from||'').toLowerCase(), cat:t.category,
+    token: native ? 'native:'+chain : t.rawContract.address?.toLowerCase(), raw:BigInt(t.rawContract.value||'0x0'),
+    dec: native ? 18 : parseInt(t.rawContract.decimal||'0x12',16), sym: native ? C.native : t.asset, t:Math.floor(Date.parse(t.metadata.blockTimestamp)/1000)}; };
+  const I = inc.map(norm).filter(x=>x.raw>0n), O = out.map(norm);
+  const myTx = new Set(out.filter(t=>t.category==='external').map(t=>t.hash));
+  const paid = new Set(O.filter(x=>x.raw>0n).map(x=>x.hash));
+  const syms = {}; for (const x of I.concat(O)) if (x.token && x.sym) syms[x.token]=x.sym;
+  const link = h => C.tx+h;
+
+  const moves = [...I.map(x=>({...x,s:1n})), ...O.filter(x=>x.cat==='erc20').map(x=>({...x,s:-1n}))].sort((p,q)=>p.block-q.block);
+  const heldAt = (tok, block) => { let b=0n; for (const m of moves){ if (m.block>=block) break; if (m.token===tok) b+=m.s*m.raw; } return b>0n; };
+  const tokens = [...new Set(moves.map(m=>m.token).filter(t=>t && !t.startsWith('native:')))];
+
+  const acc = {incoming:I.length, trades:0, bridge:0, rewards:0, direct:0, spam:0, review:0};
+  let rest = [];
+  for (const x of I){
+    if (paid.has(x.hash)) { acc.trades++; continue; }
+    if (BRIDGE_ADDRS.has(x.from) || RELAY_TXS.has(x.hash)) { acc.bridge++; continue; }
+    rest.push(x);
+  }
+
+  const MAJOR_SYM = /^(W?BNB|W?ETH|USDT|USDC|USD1|FDUSD|DAI|BUSD|USDG|USDE)$/i;
+  const touched = new Set([...O.map(x=>x.token), ...I.filter(x=>paid.has(x.hash)||myTx.has(x.hash)).map(x=>x.token)]);
+  const early = x => x.token?.startsWith('native:') || MAJOR_SYM.test(x.sym||'') || touched.has(x.token);
+  const later = rest.filter(x=>!early(x)); rest = rest.filter(early);
+  const isContract={}, coinOfSender={}, ponsFunded={};
+  let d=0;
+  const checkSenders = senders => { d=0; return pool(senders, 24, async s=>{
+    const code = await rpc(url,'eth_getCode',[s,'latest']).catch(()=>'0x');
+    isContract[s] = !!code && code!=='0x' && !code.startsWith('0xef0100');
+    if (isContract[s]){
+      const [tk, ix, pons] = await Promise.all([
+        tokens.includes(s) ? null : call(s,SEL_TOKEN).catch(()=>null),
+        tokens.includes(s) ? null : call(s,SEL_INDEX_TOKEN).catch(()=>null),
+        chain==='robinhood' ? rpc(url,'alchemy_getAssetTransfers',[{fromBlock:'0x0',toBlock:'latest',category:['erc20'],fromAddress:PONS_ESCROW,toAddress:s,maxCount:'0x1'}]).catch(()=>null) : null ]);
+      if (tokens.includes(s)) coinOfSender[s]={coin:s, how:'self'};
+      else if (addrOf(tk)) coinOfSender[s]={coin:addrOf(tk), how:'token'};
+      else if (addrOf(ix)) coinOfSender[s]={coin:addrOf(ix), how:'index'};
+      if (chain==='robinhood') ponsFunded[s]=(pons?.transfers||[]).length>0;
+    }
+    d++; setStatus(`${L}: checking senders ${d}/${senders.length}`);
+  }); };
+  await checkSenders([...new Set(rest.map(x=>x.from))]);
+  const FLAP_LIKELY = t => /(7777|8888)$/.test(t), FOUR_LIKELY = t => /(4444|ffff)$/.test(t);
+  const flapCheck = list => { let n=0; return pool(list, 24, async tk=>{ const dv=addrOf(await call(tk,SEL_DIVIDEND).catch(()=>null)); if (dv && !coinOfSender[dv]) coinOfSender[dv]={coin:tk, how:'flap'}; n++; setStatus(`${L}: checking coins ${n}/${list.length}`); }); };
+  if (FLAP_CHAINS.has(chain)) await flapCheck(tokens.filter(t=>FLAP_LIKELY(t) && touched.has(t)));
+  const platformOf = async (s, info) => {
+    if (info.how==='flap') return 'Flap';
+    if (chain==='robinhood' && ponsFunded[s] && info.how==='token') return 'Pons';
+    if (info.how==='self'){ const r=await call(s,SEL_RATE_HOLDER).catch(()=>null); if (r && r.length>=66 && BigInt(r)>0n) return 'Four.meme'; }
+    return 'Coin rewards';
+  };
+  const coinSym = {};
+  const symOf = async c => { if (coinSym[c]!==undefined) return coinSym[c]; const r=await call(c,SEL_SYMBOL).catch(()=>null); return coinSym[c]=r?decStr(r):(syms[c]||null); };
+
+  const payouts=[], left=[];
+  const platCache={};
+  const infoSenders=[...new Set(rest.map(x=>x.from).filter(f=>coinOfSender[f]))];
+  await Promise.all([
+    pool(infoSenders, 24, async f=>{ platCache[f]=await platformOf(f, coinOfSender[f]); }),
+    pool([...new Set(infoSenders.map(f=>coinOfSender[f].coin))], 24, async c=>{ await symOf(c); }) ]);
+  const batchSeen={};
+  const isBatchPayout = (h, from, token) => batchSeen[h+from+token] ??= (async()=>{
+    if (token.startsWith('native:')) return false;
+    const r = await rpc(url,'eth_getTransactionReceipt',[h]).catch(()=>null);
+    const to = new Set((r?.logs||[]).filter(l=>l.topics?.[0]===TRANSFER_TOPIC && l.topics.length===3 && l.address?.toLowerCase()===token && ('0x'+l.topics[1].slice(26)).toLowerCase()===from).map(l=>l.topics[2].toLowerCase()));
+    return to.size>=3;
+  })();
+  const classify = async items => { for (const x of items){
+    const info = coinOfSender[x.from];
+    if (!info) { left.push(x); continue; }
+    const plat = platCache[x.from] ??= await platformOf(x.from, info);
+    if ((plat==='Coin rewards' || plat==='Four.meme') && !heldAt(info.coin, x.block)) { left.push(x); continue; }
+    if (plat==='Coin rewards' && x.token===info.coin) { left.push(x); continue; }
+    if (plat==='Coin rewards' && info.how!=='index' && !(await isBatchPayout(x.hash, x.from, x.token))) { left.push(x); continue; }
+    payouts.push({chain, platform:plat, asset:x.token, sym:x.sym, raw:x.raw, dec:x.dec, t:x.t, sig:x.hash, link:link(x.hash), coin:info.coin, coinSym:await symOf(info.coin), distributor:x.from});
+    acc.rewards++;
+  } };
+  await classify(rest);
+
+  let unclaimed = [];
+  const fourCheck = list => { const pad = a.slice(2).padStart(64,'0');
+    return pool(list, 12, async tk=>{
+      const rate = await call(tk,SEL_RATE_HOLDER).catch(()=>null); if (!rate || rate.length<66 || BigInt(rate)===0n) return;
+      const [claimed, claimable, quote] = await Promise.all([call(tk,SEL_CLAIMED_FEE+pad).catch(()=>null), call(tk,SEL_CLAIMABLE_FEE+pad).catch(()=>null), call(tk,SEL_QUOTE).catch(()=>null)]);
+      const q = addrOf(quote), asset = q || 'native:bsc';
+      const seen = payouts.filter(p=>p.coin===tk && p.asset===asset).reduce((s,p)=>s+p.raw,0n);
+      const total = claimed && claimed.length>=66 ? BigInt(claimed) : 0n;
+      const dec = q ? (I.find(x=>x.token===q)?.dec ?? 18) : 18, sym = q ? (syms[q]||null) : 'BNB';
+      if (total>seen){ const t=moves.filter(m=>m.token===tk).at(-1)?.t||0;
+        payouts.push({chain, platform:'Four.meme', asset, sym, raw:total-seen, dec, t, sig:'record:'+tk, link:C.tx.replace('/tx/','/token/')+tk+'?a='+a, coin:tk, coinSym:await symOf(tk), distributor:tk, fromRecord:true}); acc.rewards++; }
+      if (claimable && claimable.length>=66 && BigInt(claimable)>0n) unclaimed.push({coin:tk, sym:await symOf(tk), asset, raw:BigInt(claimable), dec});
+    }); };
+  if (chain==='bsc') await fourCheck(tokens.filter(t=>FOUR_LIKELY(t) && touched.has(t)));
+  left.push(...later);
+
+  const first = {payouts:[...payouts], suspects:[], transfers:inc.length+out.length, acc:{...acc}, recon:null, chain, unclaimed, partial:true};
+  first.deep = async ()=>{
+  await checkSenders([...new Set(later.map(x=>x.from))].filter(s=>!(s in isContract)));
+  if (FLAP_CHAINS.has(chain)) await flapCheck(tokens.filter(t=>!(FLAP_LIKELY(t) && touched.has(t))));
+  { const now = left.filter(x=>coinOfSender[x.from]);
+    if (now.length){ for (const x of now) left.splice(left.indexOf(x),1); await classify(now); } }
+  if (chain==='bsc') await fourCheck(tokens.filter(t=>!(FOUR_LIKELY(t) && touched.has(t))));
+  const cr = await evmCreatorRewards({chain, label:L, inc:left.filter(x=>!x.token.startsWith('native:')), allInc:I.filter(x=>!x.token.startsWith('native:')), out:O.filter(x=>x.cat==='erc20'), classified:new Set(),
+    txFrom: async h=>(await rpc(url,'eth_getTransactionByHash',[h]))?.from,
+    batch: async h=>{ const r=await rpc(url,'eth_getTransactionReceipt',[h]); return {from:r?.from, rows:(r?.logs||[]).filter(l=>l.topics?.[0]===TRANSFER_TOPIC && l.topics.length===3).map(l=>({token:l.address.toLowerCase(), from:'0x'+l.topics[1].slice(26), to:'0x'+l.topics[2].slice(26), amt:l.data}))}; },
+    creator: async tk=>{ const r=await rpc(url,'alchemy_getAssetTransfers',[{fromBlock:'0x0',toBlock:'latest',contractAddresses:[tk],category:['erc20'],maxCount:'0x1',order:'asc'}]); const h=r?.transfers?.[0]?.hash; if(!h) return null; const rc=await rpc(url,'eth_getTransactionReceipt',[h]); return rc?.from||null; },
+    link, symOf: c=>syms[c]||coinSym[c]});
+  for (const p of cr.payouts){ payouts.push(p); acc.rewards++; }
+  const inBatch = new Set([...cr.payouts.map(p=>p.sig), ...cr.batchHashes]);
+  const suspects = cr.suspects.map(s=>({...s, kind:'batch'}));
+  acc.spam += cr.batchHashes.length - new Set(cr.payouts.map(p=>p.sig)).size;
+
+  const byKey = {}, txInfo = {};
+  const open = left.filter(x=>!inBatch.has(x.hash));
+  d=0;
+  await pool([...new Set(open.map(x=>x.hash))], 16, async h=>{
+    const [tx, rc] = await Promise.all([rpc(url,'eth_getTransactionByHash',[h]).catch(()=>null), rpc(url,'eth_getTransactionReceipt',[h]).catch(()=>null)]);
+    const lg = rc?.logs||[];
+    txInfo[h] = {from:tx?.from?.toLowerCase(), to:tx?.to?.toLowerCase(), value:BigInt(tx?.value||'0x0'), swap:lg.some(l=>SWAP_TOPICS.has(l.topics?.[0])),
+      moved:[...new Set(lg.filter(l=>l.topics?.[0]===TRANSFER_TOPIC).map(l=>l.address?.toLowerCase()))], swappers:new Set(lg.filter(l=>SWAP_TOPICS.has(l.topics?.[0])).map(l=>l.address?.toLowerCase()))};
+    const ti = txInfo[h];
+    if (!ti.swap && (ti.from===a || ti.to===a) && tx?.blockNumber){
+      const bn=BigInt(tx.blockNumber); const [b1,b0]=await Promise.all([rpc(url,'eth_getBalance',[a,'0x'+bn.toString(16)]).catch(()=>null), rpc(url,'eth_getBalance',[a,'0x'+(bn-1n).toString(16)]).catch(()=>null)]);
+      if (b1!=null && b0!=null && BigInt(b1)<BigInt(b0)) ti.paidNative=true;
+    }
+    d++; setStatus(`${L}: checking the rest ${d}`);
+  });
+  const divCand = {};
+  for (const x of open){
+    const tx = txInfo[x.hash]||{};
+    const own = myTx.has(x.hash) || tx.from===a || (tx.to===a && tx.from!==x.from);
+    // Uniswap-style reward coins: the coin's tax is swapped to ETH/WETH/a token and its tracker pays holders inside other people's trades of the coin.
+    // So: paid by a contract that is not the pool, in a tx where a coin this wallet held at that moment moved -> that coin's reward.
+    if (!own && isContract[x.from] && !tx.swappers?.has(x.from)){
+      const coin = (tx.moved||[]).find(T=>T!==x.token && T!==x.from && !WRAPPED_NATIVE.has((syms[T]||'').toUpperCase()) && heldAt(T, x.block));
+      if (coin){ (divCand[x.from+'|'+coin] ||= []).push(x); continue; }
+    }
+    if (own && (tx.swap || tx.paidNative || (tx.from===a && tx.value>0n))) { acc.trades++; continue; }
+    let kind;
+    if (own) kind='claim';
+    else if (tx.swap) { acc.trades++; continue; }
+    else if (isContract[x.from]) kind = x.token.startsWith('native:') ? 'native' : 'contract';
+    else { acc.direct++; continue; }
+    const k=chain+':'+kind+':'+x.from;
+    const s=byKey[k]||(byKey[k]={chain:L, chainKey:chain, sender:x.from, n:0, ex:link(x.hash), gains:{}, prorata:false, last:0, kind, hashes:new Set()});
+    if (!s.hashes.has(x.hash)){ s.n++; s.hashes.add(x.hash); }
+    if (x.t>s.last){ s.last=x.t; s.ex=link(x.hash); }
+    s.gains[x.token]={raw:(s.gains[x.token]?.raw||0n)+x.raw, dec:x.dec, sym:x.sym};
+  }
+  // a tracker pays again and again; a single one-off from some contract is more likely a trade sent to this wallet
+  for (const [k, xs] of Object.entries(divCand)){
+    const [from, coin] = k.split('|');
+    if (new Set(xs.map(x=>x.hash)).size >= 2){ for (const x of xs){ payouts.push({chain, platform:'Coin rewards', asset:x.token, sym:x.sym, raw:x.raw, dec:x.dec, t:x.t, sig:x.hash, link:link(x.hash), coin, coinSym:await symOf(coin), distributor:from}); acc.rewards++; } }
+    else for (const x of xs){ const kk=chain+':contract:'+from; const s=byKey[kk]||(byKey[kk]={chain:L, chainKey:chain, sender:from, n:0, ex:link(x.hash), gains:{}, prorata:false, last:0, kind:'contract', hashes:new Set()});
+      if (!s.hashes.has(x.hash)){ s.n++; s.hashes.add(x.hash); } if (x.t>s.last){ s.last=x.t; s.ex=link(x.hash); } s.gains[x.token]={raw:(s.gains[x.token]?.raw||0n)+x.raw, dec:x.dec, sym:x.sym}; }
+  }
+  for (const s of Object.values(byKey)){ s.hx=[...s.hashes]; delete s.hashes; suspects.push(s); if (s.kind==='native') acc.direct++; else acc.review++; }
+
+  const recon = {ok:0, bad:0, grew:[]};
+  const bal = {}; for (const m of moves) if (!m.token.startsWith('native:')) bal[m.token]=(bal[m.token]||0n)+m.s*m.raw;
+  const check = tokens.filter(tk=>!WRAPPED_NATIVE.has((syms[tk]||'').toUpperCase())).slice(0,400);
+  d=0;
+  await pool(check, 16, async tk=>{
+    const r = await call(tk, SEL_BALANCE+a.slice(2).padStart(64,'0')).catch(()=>null);
+    d++; if (d%20===0) setStatus(`${L}: balance check ${d}/${check.length}`);
+    if (!r || r==='0x') return;
+    const actual = BigInt(r), diff = actual-(bal[tk]||0n);
+    if (diff===0n) { recon.ok++; return; }
+    recon.bad++;
+    if (diff>0n){ const dec=I.concat(O).find(x=>x.token===tk)?.dec??18; recon.grew.push({token:tk, raw:diff, dec, sym:syms[tk]}); }
+  });
+  for (const g of recon.grew) suspects.push({chain:L, chainKey:chain, sender:g.token, n:1, ex:C.tx.replace('/tx/','/token/')+g.token, gains:{[g.token]:{raw:g.raw, dec:g.dec, sym:g.sym}}, prorata:false, last:0, kind:'grew'});
+
+  return {payouts, suspects, transfers:inc.length+out.length, acc, recon, chain, unclaimed};
+  };
+  return first;
+}
+
+async function evmMeta(chain, addrs){
+  const C = EVM_CHAINS[chain], info = {};
+  const nat = addrs.filter(x=>x.startsWith('native:')), tok = addrs.filter(x=>!x.startsWith('native:'));
+  if (nat.length){ const j=await fetchJson(`/api/price?ids=${C.cg}`) || await fetchJson(`https://api.coingecko.com/api/v3/simple/price?ids=${C.cg}&vs_currencies=usd`); if (j?.[C.cg]?.usd==null) SCAN_PARTIAL=true; for (const n of nat) info[n]={price:j?.[C.cg]?.usd??null, sym:C.native, src:'CoinGecko'}; }
+  if (chain==='robinhood') return {...info, ...(tok.length?await robinhoodMeta(tok):{})};
+  const dexChunks=[]; for (let i=0;i<tok.length;i+=30) dexChunks.push(tok.slice(i,i+30));
+  const dexRes = await Promise.all(dexChunks.map(c=>fetchJson(`https://api.dexscreener.com/tokens/v1/${C.dex}/`+c.join(',')).then(p=>[c,p])));
+  for (const [chunk, pairs] of dexRes){
+    for (const p of (Array.isArray(pairs)?pairs:[])){
+      const m=p.baseToken?.address?.toLowerCase(); if(!chunk.includes(m)) continue;
+      const liq=p.liquidity?.usd||0;
+      if (!info[m] || liq>info[m].liq) info[m]={price:+p.priceUsd, sym:p.baseToken.symbol, icon:p.info?.imageUrl, liq, src:'DexScreener'};
+    }
+  }
+  const CG_PLAT={bnb:'binance-smart-chain', base:'base', eth:'ethereum'};
+  if (CG_PLAT[chain]) await pool(tok.filter(m=>!info[m]?.icon).slice(0,12), 4, async m=>{
+    const j=await fetchJson(`https://api.coingecko.com/api/v3/coins/${CG_PLAT[chain]}/contract/${m}`);
+    if (j?.image?.small){ info[m]=info[m]||{sym:j.symbol?.toUpperCase(), price:j.market_data?.current_price?.usd??null, src:'CoinGecko'}; info[m].icon=j.image.small; }
+  });
+  if (nat.length) for (const n of nat) info[n].icon = info[n].icon || ({bnb:'https://coin-images.coingecko.com/coins/images/825/large/bnb-icon2_2x.png', base:'https://coin-images.coingecko.com/coins/images/279/large/ethereum.png', eth:'https://coin-images.coingecko.com/coins/images/279/large/ethereum.png'})[chain];
+  for (const m in info) if (info[m].liq!=null && info[m].liq<1000) info[m].price=null;
+  return info;
+}
+
+async function solanaMeta(mints){
+  const info = {};
+  const chunks=(n)=>{ const o=[]; for (let i=0;i<mints.length;i+=n) o.push(mints.slice(i,i+n)); return o; };
+  const [jups, dexs] = await Promise.all([
+    Promise.all(chunks(50).map(c=>fetchJson('https://lite-api.jup.ag/price/v3?ids='+c.join(',')))),
+    Promise.all(chunks(30).map(c=>fetchJson('https://api.dexscreener.com/tokens/v1/solana/'+c.join(',')).then(p=>[c,p]))) ]);
+  for (const j of jups) if (j) for (const m in j) info[m]={...info[m], price:j[m].usdPrice, src:'Jupiter'};
+  for (const [chunk, pairs] of dexs){
+    for (const p of (Array.isArray(pairs)?pairs:[])) for (const side of ['baseToken','quoteToken']){
+      const m=p[side]?.address; if(!chunk.includes(m)) continue;
+      const c=info[m]||{}; if(!c.sym) c.sym=p[side].symbol; if(!c.name && p[side].name) c.name=p[side].name;
+      if (side==='baseToken'){ if(!c.icon && p.info?.imageUrl) c.icon=p.info.imageUrl; if(c.price==null && p.priceUsd){ c.price=+p.priceUsd; c.src='DexScreener'; } }
+      info[m]=c;
+    }
+  }
+  const noIcon=mints.filter(m=>!info[m]?.icon), noIconChunks=[];
+  for (let i=0;i<noIcon.length;i+=50) noIconChunks.push(noIcon.slice(i,i+50));
+  for (const j of await Promise.all(noIconChunks.map(c=>fetchJson('https://lite-api.jup.ag/tokens/v2/search?query='+c.join(','))))){
+    for (const t of (Array.isArray(j)?j:[])) if (info[t.id]!==undefined || noIcon.includes(t.id)){ const c=info[t.id]||{}; if(!c.icon&&t.icon) c.icon=t.icon; if(!c.sym&&t.symbol) c.sym=t.symbol; if(!c.name&&t.name) c.name=t.name; info[t.id]=c; }
+  }
+  if (info[SOL_MINT]) info[SOL_MINT].sym = 'SOL';
+  return info;
+}
+async function robinhoodMeta(addrs){
+  const info={};
+  await pool(addrs, 4, async a=>{ const j=await bsToken(a).catch(()=>null); if (j) info[a]={price:j.exchange_rate!=null?+j.exchange_rate:null, sym:j.symbol, icon:j.icon_url, src:'Blockscout'}; });
+  return info;
+}
+/* StonkFun pays many coins' holders in the same token (e.g. KNOTS, HODL, DONK all pay STONK) and the chain doesn't say which coin a payout was for.
+   Each payout tx is one batch of one coin's round, split pro-rata by that coin's holdings, so the same co-recipients get the same ratio
+   to you across that coin's rounds. Payouts that share 2+ co-recipients at a steady ratio are one coin; then we name the coin:
+   the only reward coin held at all of them, or the one whose latest StonkFun round matches the cluster's latest payout. */
+function stonkSplit(payouts, pairs){
+  const byAsset={};
+  for (const p of payouts) if (p.platform==='StonkFun'){ delete p.src; (byAsset[p.asset]=byAsset[p.asset]||[]).push(p); }
+  for (const [asset, ps] of Object.entries(byAsset)){
+    const coins=Object.entries(pairs||{}).filter(([c,v])=>v.quote===asset).map(([c])=>c);
+    if (pairs?.[asset]?.base) coins.push(asset);
+    if (!coins.length) continue;                       // StonkFun hasn't told us who pays in this token: don't guess
+    const cand=p=>coins.filter(c=>c===asset || (p.held||[]).includes(c));
+    // one coin's rounds go to the same holders: payouts sharing 3+ co-recipients are one coin's stream
+    const par=ps.map((_,i)=>i), f=i=>{ while(par[i]!==i){ par[i]=par[par[i]]; i=par[i]; } return i; };
+    // a co-recipient only links two payouts if your share relative to theirs stayed about the same (same coin, similar balances); big holders of several coins otherwise glue different coins together
+    const byOwner={}; ps.forEach((p,i)=>{ const me=Number(p.raw); for (const [o,a] of (p.co||[])) if (+a>0 && me>0) (byOwner[o]=byOwner[o]||[]).push([i, Math.log(me/Number(a))]); });
+    const hits=new Map();
+    const LT=Math.log(1.5); for (const arr of Object.values(byOwner)) if (arr.length<400) for (let a=0;a<arr.length;a++) for (let b=a+1;b<arr.length;b++){ if (Math.abs(arr[a][1]-arr[b][1])>LT) continue; const k=arr[a][0]*100000+arr[b][0]; hits.set(k,(hits.get(k)||0)+1); }
+    for (const [k,n] of hits) if (n>=3){ const x=Math.floor(k/100000), y=k%100000; par[f(x)]=f(y); }
+    const cl={}; ps.forEach((p,i)=>(cl[f(i)]=cl[f(i)]||[]).push(p));
+    const groups=Object.values(cl).map(m=>{ let cs=cand(m[0]); for (const p of m){ const c2=cand(p); cs=cs.filter(c=>c2.includes(c)); } return {m, cs, last:Math.max(...m.map(p=>p.t||0))}; });
+    // a coin whose latest StonkFun round is older than the cluster's latest payout can't have sent it (StonkFun data is cached up to 1h)
+    for (const g of groups){ const alive=g.cs.filter(c=>!pairs?.[c]?.last || pairs[c].last >= g.last-7200); if (alive.length) g.cs=alive; }
+    for (const g of groups) g.pick = g.cs.length===1 ? g.cs[0] : null;
+    // still ambiguous: a coin's latest StonkFun round lands on the cluster whose latest payout is closest (within 15 min)
+    for (const c of coins){ const L=pairs?.[c]?.last; if (!L) continue;
+      const o=groups.filter(g=>!g.pick && g.cs.includes(c)).map(g=>[Math.abs(g.last-L),g]).filter(x=>x[0]<900).sort((a,b)=>a[0]-b[0]);
+      if (o.length && (o.length===1 || o[1][0]-o[0][0]>120)) o[0][1].pick=c; }
+    // a coin can't have paid after its last StonkFun round (2h slack for cached data)
+    for (const g of groups) if (g.pick) for (const p of g.m){ const L=pairs?.[g.pick]?.last; if (!L || !p.t || p.t<=L+7200) p.src=g.pick; }   // the rest stays a shared row listing every coin
+  }
+}
+async function stonkPairs(mints){
+  const out={}; let idx=0;
+  const worker=async()=>{ while(idx<mints.length){ const m=mints[idx++]; const j=await fetchJson(stonkUrl(m)); if(j?.data?.mode==='reward') out[m]={quote:j.data.quote?.mint, base:(j.data.base?.payoutCount||0)>0, last:Date.parse(j.data.rewards?.lastPayoutAt||'')/1000||0}; } };
+  await Promise.all(Array.from({length:24},worker));
+  return out;
+}
+
+const CHAIN_LABEL = {solana:'Solana', robinhood:'Robinhood Chain', bsc:'BNB Chain', eth:'Ethereum', base:'Base', monad:'Monad', all:'all chains'};
+const PLAT_COLOR = {'StonkFun':'#7b4dff','pump.fun':'#5ee6a8','Pons':'#ff8a3d','Flap':'#e0a800','Four.meme':'#f0b90b','Ember':'#ff6b6b','Scribe':'#a996ff','Coin rewards':'#4cc9f0','Creator rewards':'#ff7ad9'};
+const platColor = p => PLAT_COLOR[p]||'#9aa0a6';
+const MIN_ROW_USD = 2;
+let KB_P=[]; const KB_SOL={};   // KB_SOL: wallet -> compact Solana txs of the last scan, for hold receipts   // wallet -> compact Solana txs of the last scan, for hold receipts
+// rows come split by the coin that paid them; the list shows one line per reward token with that split under it
+function mergeRows(rows){
+  const m=new Map(), key=r=>r.chain+'|'+r.platform+'|'+r.asset;
+  // the same ticker can belong to different coins (clones), so a coin's line shows its mint when its ticker repeats
+  const symN={}; for (const r of rows) if (r.payer){ const k=key(r)+'|'+(r.from[0]||''); symN[k]=(symN[k]||0)+1; }
+  for (const r of rows){ const k=key(r); let g=m.get(k);
+    if (!g){ g={...r, parts:[], proofs:[], usd:0, count:0, amount:0}; m.set(k,g); }
+    const sf = !r.payer && r.platform==='StonkFun';   // StonkFun payouts we couldn't tie to one coin
+    let lab = r.payer ? (r.from[0]||'') : sf ? (r.from.length===2 ? r.from.join(' or ') : r.from.length>2 ? `one of ${r.from.length} coins` : 'not matched') : r.from.join(', ');
+    if (r.payer && symN[k+'|'+lab]>1) lab += ' · '+short(r.payer);
+    const q = sf;
+    const same=g.parts.find(x=>x.lab===lab && x.q===q);
+    if (same){ same.usd+=r.usd||0; same.count+=r.count; } else g.parts.push({lab, q, from:r.from, usd:r.usd||0, count:r.count, payer:r.payer||null});
+    for (const p of r.proofs) g.proofs.push({...p, lab});
+    g.usd+=r.usd||0; g.count+=r.count; g.amount+=r.amount||0;
+  }
+  return [...m.values()].map(g=>{ g.parts.sort((a,b)=>b.usd-a.usd);
+    if (g.parts.length===1){ g.from=g.parts[0].from; g.parts=[]; } else g.from=[...new Set(g.parts.flatMap(p=>p.from))];
+    return g; }).sort((a,b)=>b.usd-a.usd);
+}
+/* month filter: every payout day as a square, pick a month to see what it paid */
+const HEAT={};
+function heatAgg(rows){
+  const byPlat={}; for (const r of rows){ const k=r.platform; byPlat[k]=byPlat[k]||{usd:0,n:0,chain:r.chain}; if(byPlat[k].chain!==r.chain) byPlat[k].chain='all'; byPlat[k].usd+=r.usd; byPlat[k].n+=r.count; }
+  const platList=Object.entries(byPlat).filter(([k,v])=>v.usd>=0.01).sort((a,b)=>b[1].usd-a[1].usd);
+  const coinMap={}; for (const r of rows){ if(!r.usd) continue; const k=r.chain+'|'+r.platform+'|'+r.asset; const c=coinMap[k]=coinMap[k]||{key:k, sym:r.sym||'?', usd:0, n:0, icon:r.icon, platform:r.platform, from:(r.from||[])[0]||'', best:0}; c.usd+=r.usd; c.n+=r.count||0; if(!c.icon&&r.icon) c.icon=r.icon; if(r.usd>c.best){ c.best=r.usd; c.platform=r.platform; if((r.from||[])[0]) c.from=String(r.from[0]).replace(/ \(own round.*$/,''); } }
+  return {platList, coins:Object.values(coinMap).sort((a,b)=>b.usd-a.usd)};
+}
+// sel: null (all time), 'm<monthKey>' or 'd<dayNumber>'
+function heatPick(sel){
+  const hm=$('heat'); if (!hm || HEAT.sel===sel) return; HEAT.sel=sel;
+  const D=86400, all=sel==null, isDay=!all&&sel[0]==='d', n=all?0:+sel.slice(1), mk=isDay?null:n; let rows=HEAT.rows, total=HEAT.total;
+  const cy=new Date().getUTCFullYear(), today=Math.floor(Date.now()/1000/D);
+  const lab=all?'':isDay?(n===today?'today':n===today-1?'yesterday':new Date(n*D*1000).toLocaleDateString('en-US',{month:'short',day:'numeric',timeZone:'UTC'})+(new Date(n*D*1000).getUTCFullYear()!==cy?', '+new Date(n*D*1000).getUTCFullYear():''))
+    :new Date(Date.UTC(Math.floor(mk/12),mk%12,1)).toLocaleDateString('en-US',{month:'long',timeZone:'UTC'})+(Math.floor(mk/12)!==cy?' '+Math.floor(mk/12):'');
+  HEAT.label=all?'':(isDay?(/^(today|yesterday)$/.test(lab)?lab:'on '+lab):'in '+lab);
+  if (!all){ const a=isDay?n:Date.UTC(Math.floor(mk/12),mk%12,1)/1000/D, b=isDay?n+1:Date.UTC(Math.floor(mk/12),mk%12+1,1)/1000/D;
+    rows=HEAT.rows.map(r=>{ const pr=(r.proofs||[]).filter(p=>{ const k=Math.floor(p.t/D); return k>=a&&k<b; }); if (!pr.length) return null;
+      const amount=pr.reduce((s,p)=>s+(+p.d||0),0); return {...r, proofs:pr, count:pr.length, amount, usd:r.price!=null?amount*r.price:0}; }).filter(Boolean).sort((x,y)=>y.usd-x.usd);
+    total=rows.reduce((s,r)=>s+r.usd,0); }
+  hm.classList.toggle('sel',!all); hm.querySelectorAll('.g i[data-m]').forEach(c=>c.classList.toggle('out',!all&&(isDay?+c.dataset.d!==n:+c.dataset.m!==mk)));
+  if (!all) hm.querySelectorAll('.g i.out').forEach(c=>{ if (isDay && +c.dataset.m===+hm.querySelector(`.g i[data-d="${n}"]`)?.dataset.m) c.classList.remove('out'); });
+  hm.querySelectorAll('.g i.pick').forEach(c=>c.classList.remove('pick')); if (isDay) hm.querySelector(`.g i[data-d="${n}"]`)?.classList.add('pick');
+  const dm=isDay?+hm.querySelector(`.g i[data-d="${n}"]`)?.dataset.m:mk;
+  hm.querySelectorAll('.g i[data-m]').forEach(c=>c.classList.toggle('mon',isDay&&+c.dataset.m===dm&&+c.dataset.d!==n));
+  hm.querySelectorAll('.ml span').forEach(l=>l.classList.toggle('on',l.classList.contains('all')?all:+l.dataset.m===dm));
+  const eb=document.querySelector('#result .eyebrow');
+  if (eb){ if (all) eb.innerHTML=HEAT.eb+' <span class="ebSub">· all time</span>'; else { const w=HEAT.label.split(' '), pre=w.length>1?w[0]+' ':'', rest=w.length>1?w.slice(1).join(' '):w[0];
+    eb.innerHTML=`${HEAT.eb} ${pre}<span style="color:var(--text)">${esc(rest)}</span><button class="ebAll" type="button">✕ all time</button>`;
+    eb.querySelector('.ebAll').onclick=()=>heatPick(null); } }
+  countUp($('total'), total, HEAT.shown); HEAT.shown=total;
+  const ag=heatAgg(rows);
+  $('stack').innerHTML = ag.platList.filter(([k,v])=>v.usd>0).map(([k,v])=>`<i title="${esc(k)}" style="flex:${v.usd};background:${platColor(k)}"></i>`).join('');
+  $('plats').innerHTML = ag.platList.map(([k,v],n)=>`<div class="plat" style="--pd:${(n*0.08).toFixed(2)}s" title="${v.n} payouts · ${esc(CHAIN_LABEL[v.chain])}"><span class="dot" style="background:${platColor(k)}"></span><span class="nm">${esc(k)}</span><b>${fmtUsd(v.usd)}</b></div>`).join('');
+  window.__share = all ? {...HEAT.share} : {...HEAT.share, period:HEAT.label, total, payouts:rows.reduce((s,r)=>s+r.count,0), plats:ag.platList.map(([k,v])=>({name:k, usd:v.usd})), coins:ag.coins};
+  window.__topKey=null; renderCoins(window.__share);
+  renderRows(rows);
+  const dh=document.querySelector('.dhead span'); if (dh) dh.textContent='By coin'+(all?'':' · '+lab.replace(/^./,c=>c.toUpperCase()));
+}
+function kbHeat(rows, total, again){
+  const prev=again?HEAT.sel:null, res=$('result'); $('heat')?.remove(); res.classList.remove('hasheat');
+  const D=86400, today=Math.floor(Date.now()/1000/D), day={}; let first=today;
+  for (const r of rows) if (r.price!=null) for (const p of (r.proofs||[])) if (p.t){ const k=Math.floor(p.t/D); day[k]=(day[k]||0)+(+p.d||0)*r.price; if (k<first) first=k; }
+  if (!Object.values(day).some(v=>v>0)) return;
+  const eb=document.querySelector('#result .eyebrow');
+  Object.assign(HEAT,{rows, total, shown:total, share:{...window.__share}, sel:null, label:'', eb:HEAT.eb||eb?.innerHTML||'Your bags paid you'});
+  if (eb && !again) eb.innerHTML=HEAT.eb+' <span class="ebSub">· all time</span>';   // a new scan starts on all time
+  const wd=d=>new Date(d*D*1000).getUTCDay(), mkOf=d=>{ const x=new Date(d*D*1000); return x.getUTCFullYear()*12+x.getUTCMonth(); };
+  const need=Math.floor(((today-wd(today))-(first-wd(first)))/7)+1, W=Math.min(26,Math.max(10,need)), start=today-wd(today)-(W-1)*7;
+  const mx=Math.max(...Object.values(day),1e-9), pal=['#2a231d','#5a341b','#8f4a1f','#d0692b','#ff8a3d'];
+  let g=''; for (let d=start; d<=today; d++){ const v=day[d]||0, lv=v>0?1+Math.min(3,Math.floor(Math.sqrt(v/mx)*4)):0;
+    g+=`<i data-d="${d}" data-m="${mkOf(d)}" data-v="${v}" style="--c:${Math.floor((d-start)/7)};background:${pal[lv]}"></i>`; }
+  const hm=document.createElement('div'); hm.className='hm'; hm.id='heat'; hm.innerHTML=`<div class="g">${g}</div><div class="ml"></div>`;
+  document.querySelector('#result .total-row').appendChild(hm); res.classList.add('hasheat');
+  // month labels under the week each month starts in
+  const ml=hm.querySelector('.ml'); let lastCol=-9;   // placed in % of the grid, so it is right even while the card is still hidden or animating
+  for (let mk=mkOf(start); mk<=mkOf(today); mk++){ const d0=Math.max(start, Date.UTC(Math.floor(mk/12),mk%12,1)/1000/D), col=Math.floor((d0-start)/7); if (col-lastCol<3) ml.lastChild?.remove(); lastCol=col;
+    const sp=document.createElement('span'); sp.dataset.m=mk; sp.textContent=new Date(Date.UTC(Math.floor(mk/12),mk%12,1)).toLocaleDateString('en-US',{month:'short',timeZone:'UTC'}).toUpperCase();
+    sp.style.left=`calc(${col} * (100% - 46px + 3px) / ${W})`; ml.appendChild(sp); }
+  { const al=document.createElement('span'); al.className='all on'; al.textContent='ALL'; al.style.right='0'; ml.appendChild(al); }
+  if (prev){ HEAT.shown=HEAT.total; setTimeout(()=>heatPick(prev),0); }
+  // hover: the day and what it paid; click a day or a month to filter
+  let tip=null;
+  hm.addEventListener('mouseover',e=>{ const c=e.target.closest('.g i'); if (!c) return; tip?.remove(); tip=document.createElement('div'); tip.className='tip';
+    const dt=new Date(+c.dataset.d*D*1000).toLocaleDateString('en-US',{month:'short',day:'numeric',timeZone:'UTC'}), v=+c.dataset.v;
+    tip.innerHTML=`${dt} <em>·</em> ${v>0?fmtUsd(v):'<em>no payouts</em>'}`; const a=c.getBoundingClientRect(), b=hm.getBoundingClientRect();
+    tip.style.left=Math.min(b.width-50,Math.max(50,a.left-b.left+a.width/2))+'px'; tip.style.top=(a.top-b.top-6)+'px'; hm.appendChild(tip); });
+  hm.addEventListener('mouseleave',()=>{ tip?.remove(); tip=null; });
+  hm.addEventListener('click',e=>{ const c=e.target.closest('.g i,.ml span'); if (!c) return; if (c.classList.contains('all')){ heatPick(null); return; }
+    const k=c.matches('.g i')&&+c.dataset.v>0?'d'+c.dataset.d:'m'+c.dataset.m; heatPick(HEAT.sel===k?null:k); });
+}
+function renderRows(rows){
+  rows=mergeRows(rows); KB_P=rows; HOLD_LIST=null;
+  const big=rows.filter(r=>r.usd>=MIN_ROW_USD), small=rows.filter(r=>!(r.usd>=MIN_ROW_USD));
+  const smallUsd=small.reduce((a,r)=>a+r.usd,0);
+  const tail = small.length ? `<details class="small"><summary><span>${KN?`+ ${small.length} smaller reward${small.length>1?'s':''} under $${MIN_ROW_USD}`:`+${small.length} more under $${MIN_ROW_USD}`}</span><b>${fmtUsd(smallUsd)}</b></summary>${rowHtml(small,big.length)}</details>` : '';
+  const TOP_ROWS=KN?8:7, head=big.slice(0,TOP_ROWS), rest=big.slice(TOP_ROWS), restUsd=rest.reduce((a,r)=>a+r.usd,0)+smallUsd;
+  $('rows').innerHTML = rest.length
+    ? rowHtml(head,0) + `<div class="rows-more hidden" id="rowsMore">${rowHtml(rest,TOP_ROWS)}${tail}</div><button class="showall" id="showAll" type="button">${KN?`Show all ${big.length+small.length} rewards · ${fmtUsd(restUsd)} more ↓`:`+${rest.length+small.length} more coins, ${fmtUsd(restUsd)}`}</button>`
+    : rowHtml(big,0) + tail;
+  kickIcons($('rows'));
+}
+// tokenized stocks: several companies issue the same stock on Solana (SpaceX as xStocks' SPCXx and Backpack's SPCX), so name the issuer
+function issuer(r){ const n=(r.name||'')+' '+(r.sym||'');
+  if (/backpack/i.test(n)) return 'Backpack'; if (/xstock/i.test(n) || (/^Xs/.test(r.asset||'') && /x$/i.test(r.sym||''))) return 'xStocks';
+  if (/\bondo\b/i.test(n)) return 'Ondo'; if (/dinari|dshare/i.test(n)) return 'Dinari'; return null; }
+const CHEV='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>';
+// what you held to get this coin, short: "for $GP, $WOW +2"
+function heldFor(r){ const labs=r.parts.length>1 ? [...new Set(r.parts.flatMap(p=>p.q?(p.from||[]):[p.lab]).filter(Boolean))] : (r.from||[]);
+  if (!labs.length) return esc(CHAIN_LABEL[r.chain]||''); return 'for '+labs.slice(0,2).map(esc).join(', ')+(labs.length>2?` +${labs.length-2}`:''); }
+// the icon resizer (wsrv) is sometimes slow: if a coin icon hasn't shown up after 2.5s, load the original instead
+function kickIcons(root){ setTimeout(()=>(root||document).querySelectorAll('img[data-raw]').forEach(im=>{ if (!(im.complete && im.naturalWidth) && im.dataset.raw && im.src!==im.dataset.raw) im.src=im.dataset.raw; }),2500); }
+function rowHtml2(rows, off){
+  const mx=Math.max(...(KB_P||[]).map(x=>x.usd||0),0.01);
+  const dup={}; for (const x of (KB_P||[])){ const t=(x.sym||'').toUpperCase(); (dup[t]=dup[t]||new Set()).add(x.asset); }
+  return rows.map((r,j)=>{ const i=j+off, sym=r.sym||short(r.asset), w=r.price!=null?Math.max(2,r.usd/mx*100):0, twin=dup[(r.sym||'').toUpperCase()]?.size>1;
+    return `<div class="rw rw2" data-p="${i}" style="--ri:${Math.min(i,14)}">
+      <div class="ic">${esc(sym.replace(/[^A-Za-z0-9]/g,'').slice(0,3).toUpperCase())}${r.icon?`<img src="${esc(thumb(r.icon))}" data-raw="${esc(r.icon)}" alt="" loading="lazy" decoding="async" data-oe="raw">`:''}</div>
+      <div class="nmw"><div class="nm1">${esc(tk(sym))}${twin?`<span class="twin">${esc(short(r.asset))}</span>`:''}</div><div class="from">${heldFor(r)}</div></div>
+      <div class="bar2"><i style="width:${w}%;--bc:${i===0?'var(--acc)':i<3?'#c96a2e':'#7a5b45'}"></i></div>
+      <div class="val"><b>${r.price!=null?fmtUsd(r.usd):'<span class="muted">no price</span>'}</b></div><span class="chev">${CHEV}</span></div>`; }).join('');
+}
+function rowHtml(rows, off){
+  if (!KN) return rowHtml2(rows, off);
+  const dupSym={}; for (const x of (KB_P||[])) { const t=(x.sym||'').toUpperCase(); dupSym[t]=(dupSym[t]||new Set()).add(x.asset); }
+  return rows.map((r,j)=>{ const i=j+off, sym=r.sym||short(r.asset), lbl=tk(sym)+((dupSym[(r.sym||'').toUpperCase()]?.size>1)?' · '+short(r.asset):''), multi=r.parts.length>1, top=multi?Math.max(...r.parts.map(p=>p.usd),0.01):1;
+    const sub = multi ? `${r.count} payouts · from ${r.parts.length} sources` : `${r.from.length?'for holding '+r.from.slice(0,3).map(esc).join(', ')+(r.from.length>3?` +${r.from.length-3}`:''):esc(CHAIN_LABEL[r.chain])} · ${r.count} payout${r.count>1?'s':''}`;
+    return `
+    <div class="rw${multi?' has-kids':''}" data-p="${i}" style="--ri:${Math.min(i,14)}">
+      <div class="ic">${esc(sym.replace(/[^A-Za-z0-9]/g,'').slice(0,3).toUpperCase())}${r.icon?`<img src="${esc(thumb(r.icon))}" alt="" loading="lazy" decoding="async" data-oe="rm">`:''}</div>
+      <div style="min-width:0"><div class="nm1">${esc(lbl)}${issuer(r)?`<span class="iss">${issuer(r)}</span>`:''}<span class="tag" style="background:${platColor(r.platform)}">${esc(r.platform)}</span></div>
+        <div class="from">${sub}</div></div>
+      <div class="val"><b>${r.price!=null?fmtUsd(r.usd):'<span class="muted">no price</span>'}</b><small>${fmtAmt(r.amount)} ${esc(tk(sym))}</small></div>
+    </div>${multi?`<div class="kids">${r.parts.map((p,k)=>`<div class="kid" data-p="${i}" data-k="${k}"><span class="c${p.q?' q':''}">${p.q?esc(p.lab):'for '+esc(p.lab||'?')}</span><span class="bar"><i style="width:${Math.max(2,p.usd/top*100)}%;background:${p.q?'var(--dim)':platColor(r.platform)}"></i></span><span class="n">${p.count} payout${p.count>1?'s':''}</span><b>${r.price!=null?fmtUsd(p.usd):''}</b></div>`).join('')}</div>`:''}`;
+  }).join('');
+}
+// the payouts window
+const KBOV=document.createElement('div'); KBOV.className='kbov'; KBOV.innerHTML='<div class="kbmd" role="dialog" aria-modal="true"></div>';
+document.addEventListener('DOMContentLoaded',()=>document.body.appendChild(KBOV)); if (document.body) document.body.appendChild(KBOV);
+let KB_CUR=null;
+// ---- hold receipt: how long you held the coin that paid, what it paid in that time, and the trade around it
+const STABLE_MINTS=new Set(['EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v','Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB','USD1ttGY1N17NEEHLmELoaybftRBUSErhqYiQzvEmuB','2b1kV6DkPAnxd5ixfnxCpjxmKwqjjaYmCZfHsFu24GXo']);
+let HOLD_CUR=null;
+const fmtDur=s=>{ s=Math.max(60,s); const m=Math.round(s/60); if (m<60) return m+' min'; const h=Math.floor(m/60); if (h<48) return h+'h'+(m%60?' '+(m%60)+'m':''); const d=Math.floor(h/24); return d+'d'+(h%24?' '+(h%24)+'h':''); };
+const tk=t=>'$'+String(t||'?').replace(/^\$/,'');
+function holdFor(r, only){
+  if (!r || r.chain!=='solana' || r.price==null) return null;
+  let mint=null;
+  if (r.platform==='StonkFun'){ const part=only!=null?r.parts.find(p=>p.lab===only):(r.parts.length?null:r); mint=part&&!part.q?(part.payer||null):null; }
+  else if (r.cm && r.cm.size===1) mint=[...r.cm][0];
+  if (!mint) return null;
+  const proofs=(r.proofs||[]).filter(p=>only==null||p.lab===only).filter(p=>p.t).sort((a,b)=>a.t-b.t); if (!proofs.length) return null;
+  const all=Object.values(KB_SOL).find(a=>a.has(proofs[proofs.length-1].sig)); if (!all) return null;
+  const paySig=new Set(proofs.map(p=>p.sig));
+  const txs=[...all.values()].filter(c=>!c.err && c.d.some(e=>e.m===mint)).sort((a,b)=>a.sl-b.sl||a.t-b.t); if (!txs.length) return null;
+  let bal=0n; for (const e of txs[0].d) if (e.m===mint) bal+=BigInt(e.pre);
+  const ivs=[]; let cur=bal>0n?{s:txs[0].t, open:true, steps:[[txs[0].t,bal]], usd:0, ok:false}:null;
+  for (const c of txs){
+    let d=0n; for (const e of c.d) if (e.m===mint) d+=BigInt(e.post)-BigInt(e.pre);
+    const prev=bal; bal+=d;
+    if (prev<=0n && bal>0n) cur={s:c.t, steps:[], usd:0, ok:true};
+    if (!cur) continue;
+    cur.steps.push([c.t, bal>0n?bal:0n]);
+    if (d!==0n){ let st=0; for (const e of c.d) if (STABLE_MINTS.has(e.m)) st+=Number(BigInt(e.post)-BigInt(e.pre))/10**e.dec;
+      if (st) cur.usd+=st; else if (!paySig.has(c.s)) cur.ok=false; }   // coin against a stablecoin in one tx is a trade; anything else (a transfer, a SOL swap) and we don't claim a PnL
+    if (prev>0n && bal<=0n){ cur.e=c.t; ivs.push(cur); cur=null; }
+  }
+  if (cur){ cur.e=null; ivs.push(cur); }
+  // the latest stretch of holding that got paid
+  for (let k=ivs.length-1;k>=0;k--){ const iv=ivs[k], end=iv.e?iv.e+120:Infinity;
+    const ps=proofs.filter(p=>p.t>=iv.s-60 && p.t<=end); if (!ps.length) continue;
+    const amt=ps.reduce((a,p)=>a+(+p.d||0),0), usd=amt*r.price, now=Date.now()/1000, dur=(iv.e||now)-iv.s;
+    const held=coinStats(r).held, coinSym=(r.platform==='StonkFun'?held:(r.from&&r.from[0]))||short(mint);
+    return {mint, coinSym, sym:r.sym||short(r.asset), s:iv.s, e:iv.e, dur, holding:!iv.e, start:!iv.open, ps, amt, usd, perH:dur>0?usd/(dur/3600):0,
+      trade:(iv.e && iv.ok && !iv.open)?iv.usd:null, steps:iv.steps, coinIcon:HELD_ICON[mint]||null};
+  }
+  return null;
+}
+function holdBlock(r, only){
+  const h=holdFor(r, only); if (!h || h.usd<0.01) return '';
+  setTimeout(()=>holdPreview(h),0);
+  // the window already charts the payouts: here just one line with a small preview, the full card opens on tap
+  return `<button type="button" class="kbhold" data-kbhold><img id="kbHoldImg" alt=""><span><b>${fmtUsd(h.usd)} back for holding ${esc(tk(h.coinSym))} ${fmtDur(h.dur)}${h.holding?' so far':''}</b><small>Hold receipt · post it on X</small></span><i>›</i></button>`;
+}
+async function holdPreview(h){
+  if (!(h.mint in HELD_ICON)){ HELD_ICON[h.mint]=null; try{ const m=await solanaMeta([h.mint]); if (m?.[h.mint]?.icon) HELD_ICON[h.mint]=m[h.mint].icon; }catch(e){} }
+  h.coinIcon=HELD_ICON[h.mint]; if (h.coinIcon && !(h.coinIcon in iconCache)) iconCache[h.coinIcon]=await imgFromUrl(h.coinIcon);
+  await document.fonts.ready; const im=$('kbHoldImg'); if (im) im.src=drawHold(h).toDataURL('image/jpeg',0.9); HOLD_CUR=h;
+}
+// bucket size for the hold card: whole days when the hold is long, otherwise the hour/minute size that gives at most 8 buckets
+const hb=(t0,t1)=>{ const span=Math.max(60,t1-t0); if (span>=2*86400 && span/86400<=12) return 86400; for (const b of [60,300,900,1800,3600,10800,21600,43200,86400,172800,604800]) if (span/b<=8) return b; return 604800; };
+function drawHold(h){
+  const W=1200,H=675,S=2,c=document.createElement('canvas'); c.width=W*S; c.height=H*S; const x=c.getContext('2d'); x.scale(S,S);
+  const U=(w,s)=>`${w} ${s}px Unbounded, "Inter Tight", sans-serif`, I=(w,s)=>`${w} ${s}px "Inter Tight", sans-serif`;
+  const BG='#141210', TX='#fff6ea', MU='#a89c8c', OR='#ff8a3d', BAR='#3a3129';
+  x.fillStyle=BG; x.fillRect(0,0,W,H);
+  // logo
+  x.save(); x.translate(60,48); x.scale(44/52,44/52); x.strokeStyle=OR; x.lineWidth=7; x.lineCap='round'; x.lineJoin='round';
+  x.stroke(new Path2D('M40 14A18 18 0 1 0 44 30')); x.stroke(new Path2D('M30 12l12 2-2 12')); x.fillStyle='#fff1d6'; x.beginPath(); x.arc(26,26,6,0,7); x.fill(); x.restore();
+  x.fillStyle=TX; x.font=U(900,32); x.fillText('kickback',116,82);
+  // the coin you held, with its picture
+  x.font=I(800,32); const ct=tk(h.coinSym), cw=x.measureText(ct).width; x.textAlign='right'; x.fillText(ct,W-60,82); x.textAlign='left';
+  const R=26, cx=W-60-cw-16-R, cy=71, im=h.coinIcon&&iconCache[h.coinIcon];
+  x.save(); x.beginPath(); x.arc(cx,cy,R,0,7); x.clip(); if (im){ const s=Math.max(2*R/im.width,2*R/im.height); x.drawImage(im,cx-im.width*s/2,cy-im.height*s/2,im.width*s,im.height*s); } else { x.fillStyle='#2e2721'; x.fill(); } x.restore();
+  // the amount, big, with what it was for beside it
+  const amt=fmtUsd(h.usd); let fz=140; x.font=U(900,fz); while (x.measureText(amt).width>620 && fz>80){ fz-=6; x.font=U(900,fz); }
+  x.fillStyle=OR; x.fillText(amt,56,244); const aw=x.measureText(amt).width, RX=56+aw+44;
+  x.font=I(700,38); x.fillStyle=TX; x.fillText('back in '+tk(h.sym),RX,176); x.fillText('for holding '+fmtDur(h.dur)+(h.holding?' so far':''),RX,222);
+  const sg=v=>(v>=0?'+':'−')+fmtUsd(Math.abs(v)); x.font=I(600,24); x.fillStyle=MU;
+  x.fillText(h.trade!=null && h.trade+h.usd>=0 ? `trade ${sg(h.trade)}, total ${sg(h.trade+h.usd)}` : `${h.ps.length} payout${h.ps.length===1?'':'s'}`+(h.holding?', still holding':''), RX, 262);
+  // the climb: the line is what you had earned so far, the bars behind it what came in each day (or hour, for short holds)
+  const X0=60,X1=W-60, t0=h.s, t1=Math.max(h.s+60,h.e||Date.now()/1000), sx=t=>X0+(Math.min(t1,Math.max(t0,t))-t0)/(t1-t0)*(X1-X0);
+  const px1=h.usd/h.amt||0, ps=[...h.ps].sort((p,q)=>p.t-q.t), usdOf=p=>(+p.d||0)*px1;
+  const YB=500, BH=160, BK=hb(t0,t1), k0=Math.floor(t0/BK), nb=Math.max(1,Math.floor(t1/BK)-k0+1), bv=Array(nb).fill(0);
+  for (const p of ps){ const k=Math.floor(p.t/BK)-k0; if (k>=0&&k<nb) bv[k]+=usdOf(p); }
+  const bmx=Math.max(...bv,1e-9);
+  for (let k=0;k<nb;k++){ const a1=sx((k0+k)*BK), b1=sx((k0+k+1)*BK), w=b1-a1; if (w<4) continue; const cxm=(a1+b1)/2;
+    if (bv[k]>0){ const hh=Math.max(6,bv[k]/bmx*BH*.75); x.fillStyle='rgba(255,246,234,.06)'; x.fillRect(a1+5,YB-hh,w-10,hh); }
+    if (w>=90){ x.textAlign='center'; x.font=I(700,19); x.fillStyle=bv[k]>0?TX:MU; x.fillText(bv[k]>0?'+'+fmtUsd(bv[k]):'·',cxm,YB+32);
+      x.font=I(500,16); x.fillStyle=MU; const tt=(k0+k)*BK; x.fillText(BK>=86400?fmtDate(tt+43200):new Date(tt*1000).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'}),cxm,YB+54); x.textAlign='left'; } }
+  let cum=0; const pts=[[X0,0]]; for (const p of ps){ const xx=sx(p.t); pts.push([xx,cum]); cum+=usdOf(p); pts.push([xx,cum]); } pts.push([X1,cum]);
+  const top=Math.max(cum,1e-9), sy=v=>YB-v/top*BH;
+  x.beginPath(); x.moveTo(X0,YB); for (const [px,v] of pts) x.lineTo(px,sy(v)); x.lineTo(X1,YB); x.closePath(); x.fillStyle='rgba(255,138,61,.10)'; x.fill();
+  x.strokeStyle='rgba(255,246,234,.12)'; x.lineWidth=2; x.beginPath(); x.moveTo(X0,YB+1); x.lineTo(X1,YB+1); x.stroke();
+  x.beginPath(); pts.forEach(([px,v],k)=>k?x.lineTo(px,sy(v)):x.moveTo(px,sy(v))); x.strokeStyle=OR; x.lineWidth=4; x.lineJoin='round'; x.stroke();
+  x.fillStyle=OR; x.beginPath(); x.arc(X1,sy(cum),9,0,7); x.fill(); x.fillStyle=BG; x.beginPath(); x.arc(X1,sy(cum),3.5,0,7); x.fill();
+  // footer: who and where
+  if (pfp || pfpHandle){ const R2=20, ax=60+R2, ay=614; x.save(); x.beginPath(); x.arc(ax,ay,R2,0,7); x.closePath();
+    if (pfp){ x.clip(); const s2=Math.max(2*R2/pfp.width,2*R2/pfp.height); x.drawImage(pfp,ax-pfp.width*s2/2,ay-pfp.height*s2/2,pfp.width*s2,pfp.height*s2); } else { x.fillStyle='#2e2721'; x.fill(); x.fillStyle=OR; x.font=I(800,18); x.textAlign='center'; x.fillText((pfpHandle[0]||'?').toUpperCase(),ax,ay+6); x.textAlign='left'; }
+    x.restore(); x.strokeStyle=OR; x.lineWidth=3; x.beginPath(); x.arc(ax,ay,R2+1.5,0,7); x.stroke();
+    if (pfpHandle){ x.font=I(700,24); x.fillStyle=TX; x.fillText('@'+pfpHandle,ax+R2+14,622); } }
+  x.font=I(600,24); x.fillStyle=MU; x.textAlign='right'; x.fillText('getkickback.fun',W-60,622); x.textAlign='left';
+  return c;
+}
+
+function kbModal(){
+  const r=KB_P[KB_CUR.i]; if(!r) return;
+  if (KN){ knModal(r); return; } const sym=r.sym||short(r.asset), multi=r.parts.length>1, only=KB_CUR.only;
+  const list=r.proofs.filter(p=>only==null||p.lab===only).sort((a,b)=>b.t-a.t), total=only==null?r.count:(r.parts.find(p=>p.lab===only)?.count||list.length);
+  KBOV.firstChild.innerHTML=`${KBOV.classList.contains('pane')?'<button type="button" class="kbback" data-kbclose>← All coins</button>':''}
+   <div class="kbmh"><div class="ic">${esc(sym.replace(/[^A-Za-z0-9]/g,'').slice(0,3).toUpperCase())}${r.icon?`<img src="${esc(thumb(r.icon))}" alt="">`:''}</div>
+     <div style="min-width:0"><div class="nm1">${esc(tk(sym))}<span class="tag" style="background:${platColor(r.platform)}">${esc(r.platform)}</span></div><div class="from">${KN?`${r.count} payouts · ${fmtAmt(r.amount)} ${esc(tk(sym))}`:`${heldFor(r)}, ${r.count} payout${r.count===1?'':'s'}`}</div></div>
+     <div class="tot"><b>${r.price!=null?fmtUsd(r.usd):'no price'}</b><small>${KN?"today's price":`${fmtAmt(r.amount)} ${esc(tk(sym))}`}</small>${r.usd>=0.5?`<button type="button" class="kbsh" data-kbshare="${KB_CUR.i}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15V3M7 8l5-5 5 5M5 13v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6"/></svg>Share card</button>`:''}</div><button class="kbx" type="button" data-kbclose aria-label="Close">×</button></div>
+   ${multi?`<div class="kbch"><button type="button" class="${only==null?'on':''}" data-kbonly="">all · ${r.count}</button>${r.parts.map(p=>`<button type="button" class="${only===p.lab?'on':''}" data-kbonly="${esc(p.lab)}">${esc(p.lab||'?')} · ${p.count}</button>`).join('')}</div>`:''}
+   ${kbDays(list, r.price, sym)}
+   <div class="kbml"><div class="pm">${KN?`${esc(CHAIN_LABEL[r.chain])} · <code>${esc(short(r.asset))}</code>${r.price!=null?` · ${fmtUsd(r.price)} via ${esc(r.src)}`:''}${!multi&&r.from.length?` · earned by holding ${r.from.map(esc).join(', ')}`:''}`:`Paid in ${esc(tk(sym))} on ${esc(CHAIN_LABEL[r.chain])}${r.price!=null?`, priced at ${fmtUsd(r.price)} from ${esc(r.src)}`:''}. Every payout below links to its transaction.`}</div>
+     ${r.parts.some(p=>p.q)?(()=>{ const cs=[...new Set(r.parts.filter(p=>p.q).flatMap(p=>p.from))]; return `<div class="qh">${cs.length>1?`Some payouts came while you held ${cs.map(esc).join(', ').replace(/, ([^,]*)$/,' and $1')}, which all pay in ${esc(tk(sym))}`:'Some payouts couldn\'t be tied to one coin'}. The chain doesn't say which coin sent them, and we don't guess, so they're listed apart.</div>`; })():''}
+     ${holdBlock(r, only)}
+     <ul>${list.slice(0,KB_CUR.show).map(p=>`<li><span>${fmtDT(p.t)}${multi&&only==null&&p.lab?`<span class="s">${esc(p.lab)}</span>`:''}</span><span class="a">+${fmtAmt(p.d)}</span><a href="${p.link}" target="_blank" rel="noopener">${short(p.sig)} ↗</a></li>`).join('')}</ul>
+     ${total>KB_CUR.show && list.length>KB_CUR.show?`<button class="more" type="button" data-kbmore>+ ${total-KB_CUR.show} more payouts</button>`:''}</div>`;
+}
+// rewards per day inside the payouts window (same strip as the KNOTS page)
+let KB_DAYS=null;
+function kbDays(list, pr, sym){
+  const day={}; for (const p of list){ if(!p.t) continue; const k=Math.floor(p.t/86400); day[k]=(day[k]||0)+(+p.d||0); }
+  const ks=Object.keys(day).map(Number); if (ks.length<4){ KB_DAYS=null; return ''; }
+  const lo=Math.min(...ks), hi=Math.max(...ks), mx=Math.max(...Object.values(day),1e-12);
+  const DAYS=Array.from({length:Math.min(400,hi-lo+1)},(_,i)=>({k:lo+i, v:day[lo+i]||0}));
+  let best=DAYS[0]; for (const x of DAYS) if (x.v>best.v) best=x;
+  KB_DAYS={DAYS, pr, sym};
+  return `<div class="kbday"><div class="bars">${DAYS.map((x,i)=>`<b data-bd="${i}"><i style="height:${x.v?Math.max(3,x.v/mx*100):0}%;animation-delay:${Math.min(i*25,900)}ms"></i></b>`).join('')}</div>
+    <div class="ax"><span>${fmtDate(lo*86400)}</span><span>${fmtDate(hi*86400)}</span></div><div class="tip" id="kbTip">${kbTip(best,'best day')}</div></div>`;
+}
+const kbTip=(x,tag)=>x&&KB_DAYS?`<span>${tag?tag+' · ':''}${fmtDate(x.k*86400)}</span><span><b>${fmtAmt(x.v)} ${esc(tk(KB_DAYS.sym))}</b>${KB_DAYS.pr!=null?' · '+fmtUsd(x.v*KB_DAYS.pr):''}</span>`:'';
+['mouseover','click'].forEach(ev=>document.addEventListener(ev, e=>{ const b=e.target.closest('.kbday .bars b'); if (!b || !KB_DAYS) return;
+  document.querySelectorAll('.kbday .bars b.on').forEach(x=>x.classList.remove('on')); b.classList.add('on');
+  const t=$('kbTip'); if (t) t.innerHTML=kbTip(KB_DAYS.DAYS[+b.dataset.bd]); }));
+const kbPane=()=>!KN && DESK.matches && document.body.classList.contains('done') ? document.querySelector('#proofs .card') : null;
+const kbOpen=(i,only)=>{ KB_CUR={i, only:only??null, show:30}; const pane=kbPane();
+  KBOV.classList.toggle('pane', !!pane);
+  if (pane){ const b=pane.getBoundingClientRect(); Object.assign(KBOV.style,{top:b.top+'px',left:b.left+'px',width:b.width+'px',height:b.height+'px'}); }
+  else KBOV.removeAttribute('style');
+  kbModal(); KBOV.classList.add('open'); if (!pane) document.documentElement.style.overflow='hidden'; };
+const kbClose=()=>{ KBOV.classList.remove('open'); document.documentElement.style.overflow=''; };
+addEventListener('resize',()=>{ if (KBOV.classList.contains('pane')) kbClose(); });
+document.addEventListener('click', e=>{
+  if (e.target.closest('a')) return;
+  const kid=e.target.closest('.kid[data-p]'); if (kid){ const r=KB_P[+kid.dataset.p]; kbOpen(+kid.dataset.p, r?.parts[+kid.dataset.k]?.lab); return; }
+  const rw=e.target.closest('.rw[data-p]'); if (rw){ kbOpen(+rw.dataset.p); return; }
+  if (!KBOV.classList.contains('open')) return;
+  if (e.target===KBOV || e.target.closest('[data-kbclose]')){ kbClose(); return; }
+  const o=e.target.closest('[data-kbonly]'); if (o){ KB_CUR.only=o.dataset.kbonly===''?null:o.dataset.kbonly; KB_CUR.show=30; kbModal(); return; }
+  if (e.target.closest('[data-kbmore]')){ KB_CUR.show+=50; kbModal(); }
+});
+document.addEventListener('keydown', e=>{ if (e.key==='Escape' && KBOV.classList.contains('open')) kbClose(); });
+{ let y0=null, dy=0; const md=()=>KBOV.firstChild;
+  KBOV.addEventListener('touchstart',e=>{ const l=md().querySelector('.kbml'); y0=(e.target.closest('.kbmh,.kbch')||!l||l.scrollTop<=0)?e.touches[0].clientY:null; dy=0; },{passive:true});
+  KBOV.addEventListener('touchmove',e=>{ if (y0==null) return; dy=e.touches[0].clientY-y0; if (dy>0){ md().classList.add('drag'); md().style.transform=`translateY(${dy}px)`; } },{passive:true});
+  KBOV.addEventListener('touchend',()=>{ if (y0==null) return; md().classList.remove('drag'); md().style.transform=''; if (dy>90) kbClose(); y0=null; dy=0; }); }
+document.addEventListener('click', e=>{ if (!e.target.closest('#showAll')) return; $('rowsMore')?.classList.remove('hidden'); $('showAll').remove(); });
+function renderChecks(list){
+  const OKI='<svg viewBox="0 0 16 16"><path d="M3 8.5l3 3 7-7" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  const mark=st=>`<span class="ckm ${st}">${st==='ok'?OKI:'<i></i>'}</span>`;
+  const items=list.filter(x=>!x.startsWith('%%')).map(h=>{ const d=document.createElement('div'); d.innerHTML=h; const el=d.firstElementChild||d;
+    const cls=el.className||''; let t=(el.textContent||'').trim(), st=cls.includes('warn')?'warn':cls.includes('ok')?'ok':'idle';
+    if (/^…/.test(t) || /being read now/.test(t)) st='run';
+    t=t.replace(/^(⚠️?|✓|…|💰)\s*/u,'');
+    const m=t.match(/^(.{2,44}?)(?::\s| · )(.+)$/s);
+    return {st, a:m?m[1]:t, b:m?m[2]:'', tip:el.title||''}; });
+  const ord={warn:0,run:1,idle:2,ok:3}; items.sort((x,y)=>ord[x.st]-ord[y.st]);
+  const warn=items.filter(x=>x.st==='warn').length, run=items.filter(x=>x.st==='run').length;
+  const head = warn ? `${mark('warn')}${warn} note${warn>1?'s':''} on this scan` : run ? `${mark('run')}Still checking ${run} thing${run>1?'s':''}` : `${mark('ok')}Verified on every chain`;
+  $('checks').innerHTML = `<details class="ckx"><summary>${head}<span class="sm">${items.length} checks <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></span></summary><div class="cl">${items.map(x=>`<div class="ckr"${x.tip?` title="${esc(x.tip)}"`:''}>${mark(x.st)}<div><b>${esc(x.a)}</b>${x.b?`<span title="${esc(x.b)}">${esc(x.b)}</span>`:''}</div></div>`).join('')}</div></details>`;
+}
+function countUp(el, to, from=0){
+  const t0=performance.now(), dur=900;
+  const f=t=>{ const k=Math.min(1,(t-t0)/dur), e=1-Math.pow(1-k,3); el.textContent=fmtUsd(from+(to-from)*e); if(k<1) requestAnimationFrame(f); };
+  requestAnimationFrame(f);
+}
+const LINKS = {
+  github: 'https://github.com/syanovee/kickback',
+  docs:   'https://github.com/syanovee/kickback#readme',
+  x:      'https://x.com/syanovee',
+  mvpTweet: '',
+  site:   'https://getkickback.fun',
+};
+for (const [k,v] of Object.entries(LINKS)) document.querySelectorAll(`[data-link="${k}"]`).forEach(a=>{ if(v) a.href=v; else a.style.display='none'; });
+
+document.addEventListener('click', e=>{ const b=e.target.closest('.addw'); if(!b) return;
+  const cur=$('wallet').value.split(/[\s,;]+/).filter(Boolean); for (const w of b.dataset.w.split(' ')) if(!cur.includes(w)) cur.push(w);
+  $('wallet').value=cur.join(' '); run(); });
+const CHAIN_NAME={sol:'Solana', bsc:'BNB', base:'Base', eth:'Ethereum', robinhood:'Robinhood'};
+let chainLeft={}, chainFound={}, foundTotal=0;
+const PROG={sol:null, pct:0};
+function progReset(){ $('liveWrap')?.classList.remove('knok'); KN_SHOWN=0; KN_CARD=null; KN_ANIM++; mainChipReset(); Object.assign(DIAG,{req:0,sigs:0,hit:0,ms:0}); PROG.sol=null; PROG.pct=0; const b=$('kbBar'); if (b){ b.style.transition='none'; b.style.width='0%'; void b.offsetWidth; b.style.transition=''; } $('kbLog').innerHTML=''; }
+function progRender(extra){
+  const keys=Object.keys(chainLeft||{}); if (!keys.length) return;
+  const hasSol='sol' in chainLeft, evm=keys.filter(k=>k!=='sol'), wSol=hasSol?(evm.length?0.62:0.92):0, wEvm=evm.length?(0.92-wSol)/evm.length:0;
+  let p=0;
+  if (hasSol){ const s=PROG.sol; p+= chainLeft.sol<=0 ? wSol : s&&s.total ? wSol*(0.08+0.92*Math.min(1,s.done/s.total)) : wSol*0.04; }
+  for (const k of evm) p+= chainLeft[k]<=0 ? wEvm : wEvm*0.15;
+  if (extra!=null) p=Math.max(p, extra);
+  p=Math.max(PROG.pct, Math.min(1,p)); PROG.pct=p; const b=$('kbBar'); if (b) b.style.width=(p*100).toFixed(1)+'%';
+}
+function solProgress(done,total){ PROG.sol={done,total}; progRender(); }
+function logLine(html, ok, name){
+  mainChip(name||null, html);
+  const box=$('kbLog'); if (!box) return;
+  box.insertAdjacentHTML('beforeend', `<div class="lg${ok?' ok':''}"><i>${ok?'✓':'›'}</i><span>${html}</span></div>`);
+  while (box.children.length>4) box.firstElementChild.remove();
+}
+const CK_EXP={sol:9000, bsc:9000, base:7000, robinhood:8000, eth:5000, px:2500};
+let CK={};
+const CK_ICON='<svg class="m" viewBox="0 0 52 52"><g class="a"><path d="M40 14A18 18 0 1 0 44 30"/><path d="M30 12l12 2-2 12"/></g><circle cx="26" cy="26" r="6"/></svg><svg class="c" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>';
+function ckAdd(k, name, arg){
+  const box=$('kbChips'); if (!box) return;
+  if (CK[k]){ if (CK[k].done){ CK[k].done=false; CK[k].el.classList.remove('ok','err'); } return; }
+  box.insertAdjacentHTML('beforeend', `<div class="ck" id="ck-${k}" style="--exp:${CK_EXP[k]||8000}ms"><i class="fill"></i><span class="ic">${CK_ICON}</span><b>${esc(name)}</b><em>${esc(arg||'')}</em><span class="tm">0.0s</span></div>`);
+  const el=document.getElementById('ck-'+k); CK[k]={el, t0:Date.now(), done:false};
+  requestAnimationFrame(()=>requestAnimationFrame(()=>el.classList.add('go')));
+}
+function ckArg(k, text){ const c=CK[k]; if (c) c.el.querySelector('em').innerHTML=text; }
+function ckDone(k, ok=true, note){
+  const c=CK[k]; if (!c || c.done) return; c.done=true;
+  c.el.querySelector('.tm').textContent=((Date.now()-c.t0)/1000).toFixed(1)+'s';
+  if (note!=null) ckArg(k, note);
+  c.el.classList.add(ok?'ok':'err');
+}
+const CC={t0:0, raf:0, glyph:'tool'};
+const ccFmt=ms=>ms<10000?`${Math.round(ms)} ms`:`${(ms/1000).toFixed(1)} s`;
+function ccGlyph(g){ const root=$('kbCall'); if(!root || g===CC.glyph) { if(root && !root.querySelector('[data-state="in"]')) root.querySelector(`[data-g="${g}"]`).dataset.state='in'; return; }
+  root.querySelectorAll('.call-chip__glyph').forEach(el=>{ el.dataset.state = el.dataset.g===g ? 'in' : el.dataset.g===CC.glyph ? 'out' : ''; }); CC.glyph=g; }
+function ccFill(f, instant){ const fill=$('kbCallFill'); if(!fill) return; if (instant) fill.style.transition='none'; fill.style.transform=`scaleX(${f})`; if (instant){ void fill.getBoundingClientRect(); fill.style.transition=''; } }
+function ccStatus(st){ const root=$('kbCall'); if(!root) return; root.dataset.status=st; cancelAnimationFrame(CC.raf);
+  if (st==='running'){ ccGlyph('tool'); ccFill(0,true); requestAnimationFrame(()=>ccFill(0.9,false)); CC.t0=performance.now(); const tick=()=>{ $('kbCallTm').textContent=ccFmt(performance.now()-CC.t0); CC.raf=requestAnimationFrame(tick); }; tick(); }
+  else if (st==='done'){ $('kbCallTm').textContent=ccFmt(performance.now()-CC.t0); ccFill(1,false); ccGlyph('check'); }
+  else if (st==='error'){ const fill=$('kbCallFill'); const live=fill?new DOMMatrix(getComputedStyle(fill).transform).a:0; ccFill(Math.min(1,Math.max(0,live)),true); ccGlyph('retry');
+    root.animate([0,-1,1,-.66,.66,-.33,0].map(k=>({transform:`translateX(${k*6}px)`})),{duration:450,easing:'cubic-bezier(0.77,0,0.175,1)'}); }
+  else { ccGlyph('tool'); ccFill(0,true); $('kbCallTm').textContent='0 ms'; } }
+function mainChip(name, arg){ const n=$('kbCallName'), e=$('kbCallArg'); if(!n) return; if (name) n.textContent=name;
+  if (arg!=null){ e.classList.add('sw'); clearTimeout(mainChip.t); mainChip.t=setTimeout(()=>{ e.innerHTML=arg; e.classList.remove('sw'); },170); } }
+function mainChipReset(){ if(!$('kbCall')) return; $('kbCallName').textContent='scan'; $('kbCallArg').innerHTML='starting…'; ccStatus('running'); }
+function mainChipDone(ok, arg){ if (arg!=null) mainChip(ok?'done':'error', arg); ccStatus(ok?'done':'error'); }
+function ckTick(){ const now=Date.now(); for (const k in CK){ const c=CK[k]; if (!c.done) c.el.querySelector('.tm').textContent=((now-c.t0)/1000).toFixed(1)+'s'; } }
+function chainStart(jobs){
+  chainLeft={}; chainFound={}; foundTotal=0; $('chainRow').innerHTML=''; $('foundLine').textContent=''; CK={}; if ($('kbChips')) $('kbChips').innerHTML='';
+  progReset();
+  for (const j of jobs) chainAdd(j);
+}
+function chainAdd(j){
+  const k=j.kind==='sol'?'sol':j.c;
+  if (!(k in chainLeft)){ chainLeft[k]=0; chainFound[k]=0; const i=Object.keys(chainLeft).length-1;
+    $('chainRow').insertAdjacentHTML('beforeend', `<span class="cr" id="cr-${k}" style="--i:${i}"><i></i>${CHAIN_NAME[k]}<b></b></span>`); }
+  chainLeft[k]++; const el=document.getElementById('cr-'+k); if (el) el.classList.remove('ok');
+  ckAdd(k, CHAIN_NAME[k].toLowerCase(), short(j.w)); (CK[k].ws||(CK[k].ws=new Set())).add(j.w); if (CK[k].ws.size>1) ckArg(k, CK[k].ws.size+' wallets');
+}
+function chainDone(j,r){
+  const k=j.kind==='sol'?'sol':j.c, n=r?.payouts?.length||0;
+  chainFound[k]+=n; foundTotal+=n; chainLeft[k]--;
+  if (chainLeft[k]<=0){ const el=document.getElementById('cr-'+k); if(el){ el.classList.add('ok'); el.querySelector('b').textContent=chainFound[k]?chainFound[k]:''; } }
+  if (chainLeft[k]<=0) ckDone(k, !!r, r ? (chainFound[k]?`<b>${chainFound[k].toLocaleString('en-US')}</b> payout${chainFound[k]>1?'s':''}`:'no rewards') : 'could not read');
+  if (chainLeft[k]<=0) logLine(`${chainFound[k]?`<b>${chainFound[k].toLocaleString('en-US')}</b> payout${chainFound[k]>1?'s':''}`:'no rewards'} ✓`, true, CHAIN_NAME[k].toLowerCase());
+  progRender();
+  const core=document.getElementById('kbCore'); if (core){ core.classList.remove('pop'); void core.getBBox(); core.classList.add('pop'); setTimeout(()=>core.classList.remove('pop'),520); }
+  if (foundTotal) $('foundLine').textContent=`${foundTotal.toLocaleString('en-US')} payouts found so far`;
+}
+let elapsedT=null;
+const QUIPS={
+  whale:["not my fault you're such a whale 🐋","big bags, big history. hang tight 🐋","whale detected. counting every single kickback 🐋"],
+  busy:["your wallet's been busy. digging through it ⛏️","lots of history here. almost there ⛏️"],
+  late:["ok, that's a LOT of kickbacks. worth the wait, promise 🫡","still counting… every payout gets its own tx ✓","nearly done. good things take time ⏳"]};
+let quipT=[];
+const HEAD={ whale:["Big bags. Counting every single one","Whale-sized history. Still counting","You got paid a lot. Hang tight"],
+  busy:["Lots of history here. Still digging","Your wallet's been busy. Almost there"],
+  late:["Almost there. Worth the wait","Checking every payout has its tx","Last few chains. Nearly done"] };
+function headline(t, now){ const h=$('kbHead'); if(!h) return; if (now){ h.textContent=t; h.classList.remove('sw'); return; }
+  h.classList.add('sw'); setTimeout(()=>{ h.textContent=t; h.classList.remove('sw'); },350); }
+function quip(text){ const q=$('kbQuip'); if(!q) return; q.classList.remove('show'); setTimeout(()=>{ q.textContent=text; requestAnimationFrame(()=>q.classList.add('show')); }, q.textContent?260:0); }
+const pick=a=>a[Math.floor(Math.random()*a.length)];
+let longWait=false, dingCtx=null;
+function dingPrime(){ try{ dingCtx = dingCtx || new (window.AudioContext||window.webkitAudioContext)(); if (dingCtx.state==='suspended') dingCtx.resume();
+  const b=dingCtx.createBuffer(1,1,22050), src=dingCtx.createBufferSource(); src.buffer=b; src.connect(dingCtx.destination); src.start(0); }catch(e){} }
+function ding(){ try{ const c=dingCtx; if (!c) return; if (c.state==='suspended') c.resume(); const t=c.currentTime+.05;
+  for (const [f,d] of [[1318.5,0],[1975.5,.15]]){
+    const g=c.createGain(); g.gain.setValueAtTime(0,t+d); g.gain.linearRampToValueAtTime(.22,t+d+.006); g.gain.exponentialRampToValueAtTime(.0001,t+d+1.2); g.connect(c.destination);
+    for (const [m,a,dk] of [[1,1,1.2],[2.76,.25,.25],[5.4,.08,.1]]){ const o=c.createOscillator(), og=c.createGain(); o.type='sine'; o.frequency.value=f*m;
+      og.gain.setValueAtTime(a,t+d); og.gain.exponentialRampToValueAtTime(.0001,t+d+dk); o.connect(og); og.connect(g); o.start(t+d); o.stop(t+d+1.3); } } }catch(e){} }
+function doneTitle(){ if (!document.hidden) return; const old=document.title; document.title='✓ Your kickbacks are in';
+  const back=()=>{ if (!document.hidden){ document.title=old; document.removeEventListener('visibilitychange',back); } }; document.addEventListener('visibilitychange',back); }
+function kbState(st){
+  quipT.forEach(clearTimeout); quipT=[];
+  if (st==='scanning'){ const q=$('kbQuip'); if(q){ q.classList.remove('show'); q.textContent=''; }
+    headline('Counting your kickbacks', true);
+    quipT.push(setTimeout(()=>headline((LIVE?.shown||0)>=1000 ? pick(HEAD.whale) : pick(HEAD.busy)),12000), setTimeout(()=>headline(pick(HEAD.late)),24000),
+      setTimeout(()=>{ longWait=true; headline('Big wallet. A few more minutes'); const w=$('kbWait'); if (w){ w.innerHTML='This wallet has a long history, and big wallets are slow right now (we\'re working on it). Go do your thing, <b>we\'ll play a sound</b> when it\'s ready 🔔'; w.classList.add('show'); } }, 120000)); }
+  if (st!=='scanning') $('lastChk')?.classList.add('hidden');
+  if (st!=='scanning'){ const w=$('kbWait'); if (w){ w.classList.remove('show'); w.innerHTML=''; } }
+  if (st==='done'){ if (!window.__noDing) ding(); doneTitle(); }
+  if (st!=='scanning') longWait=false;
+  const b=document.body; b.classList.remove('idle','scanning','done'); b.classList.add(st);
+  if (st==='idle') $('go')?.classList.remove('flip');
+  clearInterval(elapsedT);
+  if (st==='idle' && typeof loadStats==='function') setTimeout(loadStats, 200);
+  if (st==='scanning'){ const t0=Date.now(), el=$('elapsed'); const tick=()=>{ const s=(Date.now()-t0)/1000; el.textContent=s<60?s.toFixed(1)+'s':Math.floor(s/60)+'m '+(s%60).toFixed(1)+'s'; ckTick(); }; tick(); elapsedT=setInterval(tick,100); }
+  if (st!=='done') setDetails(false);
+}
+const DESK = matchMedia('(min-width:1000px)');
+const detHome = { parent:null, next:null };
+function placeDetails(){
+  const det=$('details'), slot=$('proofsSlot'); if (!det || !slot) return;
+  if (!detHome.parent){ detHome.parent=det.parentElement; detHome.next=det.nextSibling; }
+  const target = DESK.matches ? slot : $('sheetSlot');
+  if (det.parentElement!==target) target.appendChild(det);
+  if (DESK.matches) document.body.classList.remove('msopen');
+}
+DESK.addEventListener?.('change', placeDetails); placeDetails();
+if (!KN){ const e=document.querySelector('#result .eyebrow'); if (e) e.textContent='Your bags paid you'; const a=$('againBtn'); if (a) a.textContent='Check another';
+  { const pb=$('postBig'); if (pb && a){ const row=document.createElement('div'); row.className='btnrow'; pb.before(row); row.append(pb, a); } }
+  const d=document.querySelector('.dhead'); if (d) d.innerHTML='<span>By coin</span>';
+  document.querySelectorAll('p.hint').forEach(h=>{ if (/^Tap a reward/.test(h.textContent)) h.remove(); if (/^Today's prices/.test(h.textContent)) h.remove(); });
+  const rl=$('reportLink'); if (rl) rl.textContent='Report a problem ↗';
+  const cp=[...document.querySelectorAll('#shareModal .muted')].find(x=>/flex your card/.test(x.textContent)); if (cp) cp.remove(); }
+const FMP=t=>'https://financialmodelingprep.com/image-stock/'+t+'.png';
+const TVS={AAPL:'apple',NVDA:'nvidia',TSLA:'tesla',MSFT:'microsoft',AMZN:'amazon',GOOGL:'alphabet',GOOG:'alphabet',META:'meta-platforms',PLTR:'palantir',COIN:'coinbase',HOOD:'robinhood',MSTR:'microstrategy',AMD:'advanced-micro-devices',NFLX:'netflix',CRCL:'circle',AVGO:'broadcom',ORCL:'oracle',JPM:'jpmorgan-chase',V:'visa',MA:'mastercard',LLY:'eli-lilly',BRKB:'berkshire-hathaway',SPCX:'spacex',UNH:'unitedhealth',XOM:'exxon',INTC:'intel',IBM:'international-bus-mach',BABA:'alibaba',GME:'gamestop',UBER:'uber',SHOP:'shopify',PYPL:'paypal',DIS:'walt-disney',KO:'coca-cola',MCD:'mcdonalds',WMT:'walmart',QQQ:'invesco',CRWV:'coreweave',ASML:'asml',TSM:'taiwan-semiconductor',PEP:'pepsico',CSCO:'cisco',ABNB:'airbnb',RDDT:'reddit',SNOW:'snowflake',ARM:'arm',SMCI:'super-micro-computer',ACN:'accenture'};
+const stockIcon=t=>{ const k=String(t||'').toUpperCase().replace(/[^A-Z]/g,''); return TVS[k]?'https://s3-symbol-logo.tradingview.com/'+TVS[k]+'--big.svg':FMP(t); };
+const CMC=stockIcon;
+const T={RAY:'https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/4k3Dyjzvzp8eMZWUXbBCjEvwSkkk59S5iCNLY3QrkX6R/logo.png',
+  ORE:'https://ore.supply/assets/icon.png', JUP:'https://static.jup.ag/jup/icon.png', BONK:'https://arweave.net/hQiPZOsRZXGXBJd_82PhVdlM_hACsT_q6wqwf5cSY7I',
+  SOL:MAJOR_ICON.SOL, BTC:MAJOR_ICON.BTC, ETH:MAJOR_ICON.ETH, BNB:MAJOR_ICON.BNB, USDC:MAJOR_ICON.USDC,
+  PLTR:CMC('PLTR'), DJT:CMC('DJT'), CRCL:CMC('CRCL'), NVDA:CMC('NVDA'), TSLA:CMC('TSLA'), QQQ:CMC('QQQ'), COIN:CMC('COIN'), HOOD:CMC('HOOD'), GOOG:CMC('GOOG'), AAPL:CMC('AAPL')};
+const DEMOS=[
+  {n:'@whale', t:'$19,551.69', c:['RAY','ORE','SOL','NVDA','BTC'], p:'StonkFun, Flap, Pons'},
+  {n:'@degen', t:'$2,289.79', c:['DJT','BONK','PLTR','SOL'], p:'Pons, StonkFun, pump.fun'},
+  {n:'@holder', t:'$633.48', c:['BNB','JUP','CRCL'], p:'Flap, Pons, Ember'},
+  {n:'@trenches', t:'$7,815.57', c:['ORE','GOOG','RAY','JUP','ETH'], p:'StonkFun, pump.fun'},
+  {n:'@bagholder', t:'$1,204.55', c:['BONK','TSLA','QQQ','SOL'], p:'pump.fun, StonkFun, Pons'},
+  {n:'@yourname', t:'$4,412.20', c:['HOOD','SOL','COIN','AAPL','BNB'], p:'Flap, StonkFun'}].map(d=>({...d, c:d.c.map(s=>[s,T[s]])}));
+setTimeout(()=>DEMOS.forEach(d=>d.c.forEach(([,u])=>{ const im=new Image(); im.src=thumb(u); })),0);
+let demoI=0, demoT=null;
+function demoFill(d){ const coins=$('dCoins');
+  coins.innerHTML=d.c.map(([s,u],i)=>`<i title="${esc(s)}" style="animation-delay:${i*80}ms"><img src="${esc(thumb(u))}" alt="" data-oe="rm"><b>${esc(s.slice(0,4))}</b></i>`).join('');
+  $('dName').textContent=d.n; $('dAv').textContent=d.n[1].toUpperCase(); $('dSub').textContent=earnedOn(d.p.split(/,\s*/)); }
+const decodeImg=u=>new Promise(r=>{ const im=new Image(); im.onload=()=>(im.decode?im.decode().catch(()=>{}):Promise.resolve()).then(r); im.onerror=r; im.src=u; });
+let demoBusy=false;
+let WALL_ON=false;
+async function demoStep(){
+  if (WALL_ON) return;
+  if (demoBusy || !DESK.matches || !document.body.classList.contains('idle') || document.hidden) return;
+  demoBusy=true;
+  const d=DEMOS[demoI++%DEMOS.length], card=document.querySelector('.dcard');
+  await Promise.race([Promise.all(d.c.map(([,u])=>decodeImg(thumb(u)))), sleep(900)]);
+  card.classList.add('swap');
+  await sleep(320);
+  $('dCoins').classList.add('first');
+  demoFill(d);
+  odo($('dTot'), d.t); $('dTot').querySelectorAll('.odr').forEach(r=>r.style.transitionDelay='0ms');
+  requestAnimationFrame(()=>card.classList.remove('swap'));
+  demoBusy=false;
+}
+// homepage deck: cards people posted on X (pinned by us next to the real post) plus the biggest bags found by scans. Never a wallet.
+(async()=>{ if (KN) return; try{
+  const [jw,jt]=await Promise.all(['/api/wall','/api/top'].map(u=>fetch(u).then(r=>r.ok?r.json():null).catch(()=>null)));
+  const posts=(jw?.items||[]).filter(x=>x.id&&x.tweet&&x.author).map(x=>({...x, post:true}));
+  const scans=(jt?.items||[]).filter(x=>x.total>0&&(x.coins||[]).length).map(x=>({...x, post:false, author:x.handle||''}));
+  const it=[...posts,...scans].sort((a,b)=>(b.total||0)-(a.total||0)).slice(0,3);
+  if (!it.length) return;
+  const now=Date.now()/1000;
+  const e=v=>String(v).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+  const usd=v=>'$'+Math.round(v||0).toLocaleString('en-US');
+  const agoL=t=>{ if(!t) return ''; const s=now-t; if (s<3600){ const m=Math.max(1,Math.round(s/60)); return m+(m>1?' minutes ago':' minute ago'); } if (s<86400){ const h=Math.round(s/3600); return h+(h>1?' hours ago':' hour ago'); } const d=Math.round(s/86400); return d+(d>1?' days ago':' day ago'); };
+  const name=x=>x.author?'@'+x.author:'anon';
+  // anon gets the classic blank profile picture: white with a grey person
+  const ANON='data:image/svg+xml,'+encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect width="100" height="100" fill="#fff"/><circle cx="50" cy="39" r="17" fill="#a7b0b8"/><path d="M17 100c0-21 15-34 33-34s33 13 33 34z" fill="#a7b0b8"/></svg>');
+  const sub=x=>x.post?(x.posted?'posted on X '+agoL(x.posted):'posted on X'):(x.ts?'found '+agoL(x.ts):'found by a scan');
+  const pf=x=>`<span class="pf">${x.author?e(x.author[0].toUpperCase())+`<img src="/api/pfp?h=${e(x.author)}" alt="" data-oe="pfp">`:`<img src="${ANON}" alt="">`}</span>`;
+  const row2=(x,i)=>{ const inner=`<i>${i+1}</i>${pf(x)}<span class="nm"><b>${e(name(x))}</b><span>${e(sub(x))}</span></span><em>${usd(x.total)}</em>`;
+    return x.post?`<a class="wrow${i?'':' on'}" data-wi="${i}" href="${e(x.tweet)}" target="_blank" rel="noopener">${inner}</a>`:`<div class="wrow${i?'':' on'}" data-wi="${i}">${inner}</div>`; };
+  // a scan has no saved card, so draw one the same way the share card is drawn
+  const guessIcon=s=>{ const raw=String(s||'').replace(/^\$/,''), k=raw.toUpperCase();
+    if (MAJOR_ICON[k]) return MAJOR_ICON[k]; if (/^X?BTC$|^CBBTC$/.test(k)) return MAJOR_ICON.BTC;
+    const base=/[a-z]$/.test(raw)&&/x$/.test(raw)?k.slice(0,-1):k.replace(/B$/,''); if (TVS[base]) return stockIcon(base); return null; };
+  const drawScan=async (x,ms=2500)=>{
+    const coins=x.coins.map(c=>({sym:String(c.s).replace(/^\$/,''), usd:+c.u||0, icon:c.i||guessIcon(c.s), from:c.f||''}));
+    // a slow icon host must never hold the card back: wait at most 2.5s per picture, then draw with what we have
+    const cap=p=>Promise.race([p.catch(()=>null), sleep(ms).then(()=>null)]);
+    // icons on these homepage cards come from other people's checks: only through our own proxy, so no outside host sees visitors
+    await Promise.all(coins.map(async c=>{ if (c.icon && !(c.icon in iconCache)){ const im=await cap(imgFromUrl(c.icon,false,true)); if (im) iconCache[c.icon]=im; } }));
+    const face=x.author?await cap(imgFromUrl('/api/pfp?h='+x.author,true)):await new Promise(r=>{ const im=new Image(); im.onload=()=>r(im); im.onerror=()=>r(null); im.src=ANON; });
+    try{ await Promise.race([Promise.all(['900 40px Unbounded','800 20px Unbounded','500 20px "JetBrains Mono"'].map(f=>document.fonts.load(f))), sleep(2000)]); }catch{}
+    const sv={pfp,pfpHandle,HIDE_W,cardStyle,share:window.__share,kb:KB_P};
+    try{ pfp=face; pfpHandle=x.author||''; HIDE_W=false; cardStyle='stack'; KB_P=[]; window.__kbHomeCard=true;
+      window.__share={total:x.total, coins, plats:(x.plats||[]).map(n=>({name:n})), wallet:'', who:name(x), payouts:x.payouts||0};
+      return drawCard().toDataURL('image/jpeg',.9);
+    } finally { window.__kbHomeCard=false; pfp=sv.pfp; pfpHandle=sv.pfpHandle; HIDE_W=sv.HIDE_W; cardStyle=sv.cardStyle; window.__share=sv.share; KB_P=sv.kb; } };
+  // scan cards: a quick draw first (icons that came in within 0.7s), then a full one once every icon is in; the deck swaps it in place
+  let onFull=()=>{};
+  const IMG={}; const imgOf=k=>{ const j=k%it.length, x=it[j]; if (IMG[j]) return IMG[j];
+    if (x.post) return IMG[j]=Promise.resolve('/c/'+x.id+'.jpg');
+    IMG[j]=drawScan(x,700).catch(()=>null);
+    IMG[j].then(()=>drawScan(x,8000)).then(u=>{ if (u){ IMG[j]=Promise.resolve(u); onFull(j,u); } }).catch(()=>{});
+    return IMG[j]; };
+  const n=it.length;
+  $('kbWall').innerHTML=`<div class="kbw2"><a class="feat2" id="wFeat" target="_blank" rel="noopener">${n>2?'<i class="bk bk2"></i>':''}${n>1?'<i class="bk bk1"></i>':''}<img class="fr" alt=""><img class="gh" alt=""></a><h3>Biggest bags found</h3>${it.map(row2).join('')}</div>`;
+  { // a small deck: the next card rises from behind while the old one fades off the front
+    const feat=$('wFeat'), fr=feat.querySelector('.fr'), gh=feat.querySelector('.gh'), b1=feat.querySelector('.bk1'), b2=feat.querySelector('.bk2');
+    const rows=[...document.querySelectorAll('.kbw2 .wrow')], DUR=3500, D=700, E='cubic-bezier(.22,.9,.24,1)';
+    const P1='translateY(-22px) scale(.92)', P2='translateY(-42px) scale(.84)', P3='translateY(-58px) scale(.76)';
+    const bg=(el,u)=>{};   // the cards behind are plain slabs: a picture there shows through while the front card changes
+    const link=i=>{ const x=it[i]; if (x.post){ feat.href=x.tweet; feat.removeAttribute('aria-disabled'); } else { feat.removeAttribute('href'); feat.setAttribute('aria-disabled','true'); } fr.alt=name(x)+' card'; };
+    let cur=0, hov=false, busy=false, t=null;
+    const mark=i=>rows.forEach(r=>{ const on=+r.dataset.wi===i; r.classList.toggle('on',on); r.classList.remove('run'); if (on && n>1){ void r.offsetWidth; r.classList.add('run'); } });
+    const show=async i=>{ if (i===cur || busy || !it[i]) return; busy=true; cur=i; mark(i);
+      const [u0,u1,u2]=await Promise.all([imgOf(i),imgOf(i+1),imgOf(i+2)]); await Promise.race([Promise.all([u0,u1,u2].filter(Boolean).map(decodeImg)), sleep(1200)]);
+      gh.src=fr.src; try{ await gh.decode(); }catch{} gh.style.opacity=1;
+      fr.src=u0||''; link(i); bg(b1,u1); bg(b2,u2);
+      gh.animate([{opacity:1,transform:'none'},{opacity:0,transform:'translateY(10px) scale(1.02)'}],{duration:150,easing:'cubic-bezier(.4,0,1,1)',fill:'forwards'})
+        .finished.then(()=>{ gh.style.opacity=0; gh.getAnimations().forEach(a=>a.cancel()); }).catch(()=>{});
+      // the old card leaves first, then the next one comes up: the two never show on top of each other
+      fr.animate([{transform:P1,filter:'brightness(.6)',opacity:0},{transform:P1,filter:'brightness(.6)',opacity:0,offset:.3},{transform:'none',filter:'brightness(1)',opacity:1}],{duration:D+150,easing:E});
+      b1?.animate([{transform:P2,filter:'brightness(.35)'},{transform:P1,filter:'brightness(.6)'}],{duration:D,easing:E});
+      b2?.animate([{transform:P3,opacity:0},{transform:P2,opacity:1}],{duration:D,easing:E});
+      setTimeout(()=>{ busy=false; },D); };
+    const tick=()=>{ clearTimeout(t); t=setTimeout(()=>{ if (!hov && !document.hidden && document.body.classList.contains('idle')) show((cur+1)%n); tick(); },DUR); };
+    $('kbWall').addEventListener('mouseover',ev=>{ const r=ev.target.closest('.wrow'); hov=true; rows.forEach(w=>w.classList.add('hold')); if (r) show(+r.dataset.wi); });
+    $('kbWall').addEventListener('mouseleave',()=>{ hov=false; rows.forEach(w=>w.classList.remove('hold')); mark(cur); tick(); });
+    onFull=(j,u)=>{ if (busy) return; if (j===cur) fr.src=u; else if (j===(cur+1)%n) bg(b1,u); else if (j===(cur+2)%n) bg(b2,u); };
+    link(0); mark(0);
+    Promise.all([imgOf(0),imgOf(1),imgOf(2)]).then(([u0,u1,u2])=>{ if (cur===0 && !fr.getAttribute('src')){ fr.src=u0||''; bg(b1,u1); bg(b2,u2); } });
+    for (let k=3;k<n;k++) imgOf(k);
+    if (n>1) tick();
+  }
+  { const chip=(x,i)=>{ const inner=`${x.author?`<img src="/api/pfp?h=${e(x.author)}" alt="" loading="lazy" data-oe="hide">`:`<img src="${ANON}" alt="">`}<i>#${i+1}</i><b>${e(name(x))}</b><em>${usd(x.total)}</em>`; return x.post?`<a href="${e(x.tweet)}" target="_blank" rel="noopener">${inner}</a>`:`<span class="wchip">${inner}</span>`; }, h=it.map(chip).join('');
+    $('wallM').innerHTML=`<div class="wlh"><span>Biggest bags found</span></div><div class="wv"><div class="wt" style="--wd:${8+it.length*5}s">${h}${h}</div></div>`; }
+  $('demo').classList.add('haswall'); $('demo').removeAttribute('aria-hidden'); WALL_ON=true;
+}catch(e){} })();
+function demoRun(){ clearInterval(demoT); demoT=setInterval(demoStep, 3000); }
+setTimeout(()=>{ demoFill(DEMOS[0]); $('dCoins').classList.add('first'); $('dTot').textContent=DEMOS[0].t; demoI=1;
+  const logos=DEMOS[0].c.map(([,u])=>new Promise(r=>{ const im=new Image(); im.onload=im.onerror=r; im.src=thumb(u); }));
+  const fonts=document.fonts?Promise.all(['900 40px Unbounded','500 14px "JetBrains Mono"','500 16px "Inter Tight"'].map(f=>document.fonts.load(f))).catch(()=>{}):null;
+  Promise.race([Promise.all([fonts,...logos]), sleep(1600)]).then(()=>requestAnimationFrame(()=>document.documentElement.classList.remove('fl')));
+},0);
+DESK.addEventListener?.('change', demoRun); setTimeout(demoRun, 1200);
+const STATS_API = '/api/stats';
+function odo(el, text){
+  const chars=[...text];
+  if (el._len!==chars.length || el._sep!==text.replace(/\d/g,'')){
+    el._len=chars.length; el._sep=text.replace(/\d/g,'');
+    el.innerHTML=chars.map(c=>/\d/.test(c)?`<span class="od"><span class="odr">${[0,1,2,3,4,5,6,7,8,9].map(d=>`<i>${d}</i>`).join('')}</span></span>`:`<span>${esc(c)}</span>`).join('');
+    void el.offsetWidth;
+  }
+  const reels=[...el.querySelectorAll('.odr')], digits=chars.filter(c=>/\d/.test(c));
+  reels.forEach((r,i)=>{ r.style.transitionDelay=((reels.length-1-i)*70)+'ms'; r.style.transform=`translateY(-${(+digits[i])*10}%)`; });
+  // each reel takes the width of its own digit, so a narrow 1 doesn't leave a gap
+  const fit=()=>{ const m=document.createElement('span'); m.style.cssText='position:absolute;visibility:hidden;white-space:pre'; el.appendChild(m);
+    el.querySelectorAll('.od').forEach((o,i)=>{ m.textContent=digits[i]; o.style.width=m.getBoundingClientRect().width+'px'; }); m.remove(); };
+  fit(); document.fonts?.ready.then(fit);
+}
+async function loadStats(){
+  if (!STATS_API) return;
+  const j=await fetchJson(STATS_API+'?t='+Math.floor(Date.now()/20000)); if (!j?.n) return;
+  $('stats').classList.remove('hidden');
+  requestAnimationFrame(()=>{ odo($('stTotal'), '$'+Math.round(j.total).toLocaleString('en-US')); odo($('stN'), j.n.toLocaleString('en-US')); $('stW').textContent = j.n===1?'wallet checked':'wallets checked'; });
+}
+loadStats(); setInterval(()=>{ if (document.body.classList.contains('idle') && !document.hidden) loadStats(); }, 30000);
+$('againBtn').onclick=()=>{ $('home').click(); setTimeout(()=>{ $('wallet').select(); $('wallet').focus(); },350); };
+function setDetails(open){ $('details').classList.toggle('open',open); $('moreBtn').classList.toggle('open',open);
+  const sheet=!DESK.matches && open; document.body.classList.toggle('msopen',sheet); document.documentElement.style.overflow=sheet?'hidden':''; }
+$('moreBtn').onclick=()=>setDetails(!$('details').classList.contains('open'));
+document.addEventListener('click',e=>{ if (e.target.closest('#sheetBg,#sheetX')) setDetails(false); });
+{ let y0=null; const p=()=>$('sheetPanel');
+  document.addEventListener('touchstart',e=>{ const s=e.target.closest('#sheetPanel'); y0 = s && (e.target.closest('.msheet-top') || s.querySelector('#details').scrollTop<=0) ? e.touches[0].clientY : null; },{passive:true});
+  document.addEventListener('touchmove',e=>{ if (y0==null) return; const d=e.touches[0].clientY-y0; if (d>0){ p().style.transition='none'; p().style.transform=`translateY(${d}px)`; } },{passive:true});
+  document.addEventListener('touchend',e=>{ if (y0==null) return; const d=(e.changedTouches[0].clientY-y0); p().style.transition=''; p().style.transform=''; if (d>90) setDetails(false); y0=null; });
+}
+$('home').onclick=()=>{ if(!document.body.classList.contains('scanning')){ $('result').classList.add('hidden'); $('coins').innerHTML=''; kbState('idle'); } };
+
+const TOWER_COINS=[['◎','#8a4dff'],['₿','#f2a900'],['$','#2aa198'],['T','#d64545'],['G','#c9a227'],['Ξ','#4c6fff'],['P','#5cb85c'],['N','#1fb57a'],['M','#e0567a'],['S','#5b6b8c']];
+const Tower=(()=>{
+  const STEP=12, SHOW=13; let el, n=0, timer=null, raf=0, cam=0, camNow=0, t0=0, running=false;
+  function frame(t){
+    if(!running) return;
+    camNow+=(cam-camNow)*0.08;
+    const sway=Math.sin((t-t0)/650)*Math.min(2.5, n*0.3);
+    el.style.transform=`translateY(${camNow.toFixed(2)}px) rotate(${sway.toFixed(3)}deg)`;
+    raf=requestAnimationFrame(frame);
+  }
+  function drop(){
+    const [g,c]=TOWER_COINS[n%TOWER_COINS.length], d=document.createElement('i');
+    d.className='tc'; d.textContent=g; d.style.setProperty('--c',c);
+    d.style.bottom=(n*STEP)+'px'; d.style.marginLeft=Math.round(Math.sin(n*2.3)*5)+'px';
+    el.appendChild(d); n++;
+    const swing=Math.round(Math.sin(performance.now()/420)*70);
+    d.animate([
+      {transform:`translate(${swing}px,-300px) rotate(${swing/4}deg)`},
+      {transform:'translate(0,0) rotate(0deg)', offset:.7},
+      {transform:'translate(0,-9px)', offset:.84},
+      {transform:'translate(0,0)'}
+    ],{duration:820, easing:'cubic-bezier(.45,0,.9,.35)'});
+    if (n>SHOW) cam=(n-SHOW)*STEP;
+    for (const x of [...el.children]) if (parseInt(x.style.bottom)<(n-SHOW-4)*STEP) x.remove();
+  }
+  return {
+    start(){ el=$('tower'); this.stop(true); el.style.opacity=''; n=0; cam=camNow=0; t0=performance.now(); running=true; drop(); timer=setInterval(drop,850); raf=requestAnimationFrame(frame); },
+    stop(clear){ running=false; clearInterval(timer); cancelAnimationFrame(raf); if(clear&&el){ el.innerHTML=''; el.style.transform=''; } },
+    top(k){ return [...(el?.children||[])].slice(-k).reverse(); }
+  };
+})();
+
+// coin icons go through our own /api/img (edge-cached), so a slow icon host or resizer can't leave letters in place of pictures
+const thumb = u => !u || !/^https:\/\//.test(u) ? u : '/api/img?u='+encodeURIComponent(u);
+const THUMBS = {};
+const preThumb = u => { if (!u) return Promise.resolve(); if (THUMBS[u]) return THUMBS[u]; const im=new Image(); im.decoding='async';
+  const p=new Promise(r=>{ im.onload=()=>{ (im.decode?im.decode().catch(()=>{}):Promise.resolve()).then(r); }; im.onerror=()=>r(); }); im.src=thumb(u); return THUMBS[u]=p; };
+const COIN_BG=['#d64545','#f2a900','#8a4dff','#2aa198','#4c6fff','#c9a227','#5cb85c','#34495e'];
+const fanUsd = v => v<10 ? v.toFixed(2) : v<1000 ? String(Math.round(v)) : v<1e4 ? (Math.floor(v/100)/10).toFixed(1).replace(/\.0$/,'')+'k' : v<1e6 ? Math.floor(v/1000)+'k' : (Math.floor(v/1e5)/10).toFixed(1).replace(/\.0$/,'')+'M';
+function renderCoins(d){
+  const all=(d.coins||[]).filter(c=>c.usd>=0.01), n=Math.min(7,all.length), mid=(n-1)/2;
+  const slot=[...Array(n).keys()].sort((a,b)=>Math.abs(a-mid)-Math.abs(b-mid)||a-b); const at=[]; slot.forEach((s,k)=>at[s]=k);
+  const disc=(c,i)=>`<span class="disc" style="--c:${COIN_BG[i%8]}">${esc(c.sym.replace(/[^A-Za-z0-9]/g,'').slice(0,4).toUpperCase())}${c.icon?`<img class="dl" src="${esc(thumb(c.icon))}" data-raw="${esc(c.icon)}" alt="" data-ol="ok" data-oe="raw">`:''}</span>`;
+  let h=''; for (let s=0;s<n;s++){ const k=at[s], c=all[k], dist=Math.abs(s-mid);
+    h+=`<button class="coin" type="button" data-coin="${k}" data-rank="${k}" data-slot="${s}" style="--dl:${(s*0.23).toFixed(2)}s;--y:${Math.round(dist*dist*2)}px;--s:${Math.round(66-dist*6)}px;z-index:${10-Math.round(dist)}"><span class="bob">${disc(c,k)}<span class="cback">$${fanUsd(c.usd)}</span></span><b>$${fanUsd(c.usd)}</b></button>`; }
+  if (all.length>n) h+=`<button class="coin more" type="button" data-coin="more" data-rank="${n}" style="--dl:${(n*0.23).toFixed(2)}s;--y:8px;--s:44px"><span class="bob"><span class="disc">+${all.length-n}</span></span><b>more</b></button>`;
+  if (!n && !((d.total||0)>=0.005)) for (let s=0;s<5;s++){ const dist=Math.abs(s-2);
+    h+=`<span class="coin qcoin" style="--dl:${(s*0.23).toFixed(2)}s;--y:${dist*dist*2}px;--s:${66-dist*6}px;z-index:${10-dist}"><span class="bob"><span class="disc">?</span></span><b>$??</b></span>`; }
+  $('coins').innerHTML=h; kickIcons($('coins'));
+  $('coinTip').innerHTML='';
+  window.__coins=all;
+}
+// coin fan look: coins pop in, then float; on hover a coin rises and grows (looks 1 and 3 stay in the code, ?fan=1|3 to see them)
+let FANFX=null;
+function fanFx(){ if (KN) return null; const q=new URLSearchParams(location.search).get('fan'); const v=/^[135]$/.test(q||'')?q:'5';
+  const co=$('coins'); co.classList.remove('fv1','fv3','fv5'); co.classList.add('fv'+v); FANFX=v;
+  if (q && /kickback-test/.test(location.hostname)){ let t=$('fanTag'); if (!t){ t=document.createElement('div'); t.id='fanTag'; t.style.cssText='position:fixed;left:12px;bottom:10px;z-index:99;font:600 12px var(--sans);color:var(--dim)'; document.body.appendChild(t); } t.textContent='fan look '+v+(q?' (pinned)':''); }
+  return v; }
+function towerToFan(){
+  if (fanFx()){ const fan=[...$('coins').children], n=fan.length, mid=(n-1)/2, E='cubic-bezier(.22,1,.36,1)';
+    Tower.stop(false); const tw=$('tower'); tw.animate([{opacity:1},{opacity:0}],{duration:300,fill:'forwards'}).onfinish=()=>{ tw.innerHTML=''; tw.getAnimations().forEach(x=>x.cancel()); };
+    const ord=[...fan.keys()].sort((a,b)=>Math.abs(b-mid)-Math.abs(a-mid)||a-b); // outside in, the biggest lands last
+    ord.forEach((i,k)=>{ const f=fan[i], lab=f.querySelector('b'), d=f.querySelector('.disc');
+      lab.animate([{opacity:0,transform:'translateY(6px)'},{opacity:1,transform:'none'}],{duration:600,delay:900+k*140,easing:E,fill:'backwards'});
+      if (FANFX==='1') f.animate([{transform:`translateY(-360px) rotate(${(Math.random()*40-20).toFixed(0)}deg)`,opacity:0},{opacity:1,offset:.15},{transform:'translateY(6px) rotate(0)',offset:.72},{transform:'none',opacity:1}],{duration:1400,delay:k*150,easing:'cubic-bezier(.3,1.25,.5,1)',fill:'backwards'});
+      else if (FANFX==='3') d.animate([{transform:'perspective(420px) rotateY(720deg) scale(.4)',opacity:0},{opacity:1,offset:.3},{transform:'perspective(420px) rotateY(0) scale(1)',opacity:1}],{duration:1600,delay:k*120,easing:E,fill:'backwards'});
+      else f.animate([{transform:'scale(0)',opacity:0},{transform:'none',opacity:1}],{duration:1000,delay:k*130,easing:'cubic-bezier(.3,1.5,.5,1)',fill:'backwards'}); });
+    return; }
+  const fan=[...$('coins').children].sort((a,b)=>(+a.dataset.rank)-(+b.dataset.rank));
+  const src=Tower.top(fan.length); Tower.stop(false);
+  const E='cubic-bezier(.22,1,.36,1)';
+  fan.forEach((f,k)=>{
+    const lab=f.querySelector('b'), s=src[k];
+    lab.animate([{opacity:0,transform:'translateY(6px)'},{opacity:1,transform:'none'}],{duration:500,delay:650+k*70,easing:E,fill:'backwards'});
+    if (!s){ f.animate([{opacity:0,transform:'translateY(18px) scale(.7)'},{opacity:1,transform:'none'}],{duration:800,delay:120+k*80,easing:E,fill:'backwards'}); return; }
+    const a=s.getBoundingClientRect(), b=f.querySelector('.disc').getBoundingClientRect();
+    const dx=(a.left+a.width/2)-(b.left+b.width/2), dy=(a.top+a.height/2)-(b.top+b.height/2), sx=a.width/b.width, sy=a.height/b.height;
+    s.style.visibility='hidden';
+    f.animate([{transform:`translate(${dx}px,${dy}px) scale(${sx},${sy})`},{transform:'none'}],{duration:950,delay:k*70,easing:E,fill:'backwards'});
+  });
+  const tw=$('tower'); tw.animate([{opacity:1},{opacity:0}],{duration:400,easing:'ease',fill:'forwards'})
+    .onfinish=()=>{ tw.innerHTML=''; tw.style.transform=''; tw.getAnimations().forEach(x=>x.cancel()); };
+}
+document.addEventListener('click', e=>{
+  const b=e.target.closest('[data-coin]'); if(!b) return;
+  document.querySelectorAll('.coin.on').forEach(x=>x.classList.remove('on'));
+  if (b.dataset.coin==='more'){ if (!KN && DESK.matches){ $('showAll')?.click(); return; } setDetails(true); return; }
+  const c=window.__coins[+b.dataset.coin]; b.classList.add('on');
+  if (!KN){ const t=(c.sym||'').toUpperCase(); let bi=(KB_P||[]).findIndex(r=>r.chain+'|'+r.platform+'|'+r.asset===c.key); if (bi<0) (KB_P||[]).forEach((r,i)=>{ if ((r.sym||'').toUpperCase()===t && (bi<0||r.usd>KB_P[bi].usd)) bi=i; }); if (bi>=0) kbOpen(bi); return; }
+  $('coinTip').innerHTML=`<b>${esc(c.sym)} ${fmtUsd(c.usd)}</b> · ${c.from?'for holding '+esc(c.from)+' · ':''}${esc(c.platform)} · ${c.n} payout${c.n===1?'':'s'}`;
+});
+{ const co=()=>$('coins'), rest=()=>[...co().querySelectorAll('.coin')].forEach(c=>{ c.style.transform=''; c.style.marginLeft=''; c.style.marginRight=''; c.classList.remove('hot'); });
+  document.addEventListener('mousemove',e=>{ if (FANFX!=='1' || !e.target.closest?.('#coins')) return; const cs=[...co().querySelectorAll('.coin')];
+    cs.forEach(c=>{ const r=c.querySelector('.disc').getBoundingClientRect(), dx=Math.abs(e.clientX-(r.left+r.width/2)), f=Math.max(0,1-dx/(r.width*1.5));
+      c.style.transform=`translateY(${(-f*12).toFixed(1)}px) scale(${(1+f*.3).toFixed(3)})`; if (c.previousElementSibling) c.style.marginLeft=(-14+f*6).toFixed(1)+'px'; c.style.marginRight=(f*6).toFixed(1)+'px'; c.style.zIndex=Math.round(20+f*20); c.classList.toggle('hot',f>.8); }); });
+  document.addEventListener('mouseout',e=>{ if (FANFX==='1' && e.target.closest?.('#coins') && !e.relatedTarget?.closest?.('#coins')) rest(); }); }
+let tiltRaf=0, tiltEv=null;
+document.addEventListener('pointermove', e=>{
+  if (e.pointerType==='touch') return; tiltEv=e; if (tiltRaf) return;
+  tiltRaf=requestAnimationFrame(()=>{ tiltRaf=0; const ev=tiltEv; const b=ev.target.closest?.('.coin'); if(!b || FANFX) return; const d=b.querySelector('.disc'), r=d.getBoundingClientRect();
+    const x=Math.max(-.5,Math.min(.5,(ev.clientX-r.left)/r.width-.5)), y=Math.max(-.5,Math.min(.5,(ev.clientY-r.top)/r.height-.5));
+    b.classList.add('tilt'); d.style.setProperty('--ry',(x*26).toFixed(1)+'deg'); d.style.setProperty('--rx',(-y*26).toFixed(1)+'deg'); });
+});
+document.addEventListener('pointerout', e=>{ const b=e.target.closest?.('.coin'); if(b && !b.contains(e.relatedTarget)){ b.classList.remove('tilt'); const d=b.querySelector('.disc'); d.style.setProperty('--rx','0deg'); d.style.setProperty('--ry','0deg'); } });
+
+let pfp=null, pfpHandle='', HIDE_W=false;
+const imgReady=im=>new Promise(res=>{ if(im.complete&&im.naturalWidth) return res(true); im.onload=()=>res(true); im.onerror=()=>res(false); setTimeout(()=>res(!!im.naturalWidth),6000); });
+async function imgFromUrl(u, noProxy, proxyOnly){
+  const get=async url=>{ const r=await fetch(url); if(!r.ok) throw 0; const im=new Image(); im.src=URL.createObjectURL(await r.blob()); if(!(await imgReady(im))) throw 0; return im; };
+  if (!noProxy && /^https:\/\//.test(u||'')){ try{ return await get(thumb(u)); }catch(e){} }
+  if (proxyOnly) return null;
+  try{ return await get(u); }catch(e){}
+  if (noProxy) return null;
+  try{ return await get('https://wsrv.nl/?url='+encodeURIComponent(u)+'&w=512&h=512&fit=cover&output=png'); }catch(e){ return null; }
+}
+async function fomoProfile(wallets, key){
+  for (const w of wallets){
+    try{
+      const r=await fetch('/api/fomo/'+w);
+      if(!r.ok) continue; const j=await r.json(); const u=j?.data?.user||j?.data||j?.user||j;
+      if (u?.handle) return {handle:String(u.handle).replace(/^@/,''), pic:u.profilePicture||u.profile_picture||u.avatar||null, name:u.name||u.profileName||null};
+    }catch(e){}
+  }
+  return null;
+}
+async function applyProfile(p){
+  if(!p) return; pfpHandle=p.handle;
+  pfp = (p.pic && await imgFromUrl(p.pic)) || await imgFromUrl('https://unavatar.io/x/'+p.handle+'?fallback=false');
+  $('who').classList.remove('hidden'); $('whoName').textContent='@'+p.handle;
+  if (pfp) $('whoImg').src=pfp.src; else $('whoImg').classList.add('hidden');
+  if (!$('xHandle').value) $('xHandle').value=p.handle;
+}
+async function loadPfp(handle){
+  handle=(handle||'').trim().replace(/^@/,'').replace(/[^A-Za-z0-9_]/g,'');
+  pfpHandle=handle; if(!handle){ pfp=null; return; }
+  try{ let r=await fetch('/api/pfp?h='+encodeURIComponent(handle)).catch(()=>null); if(!r||!r.ok) r=await fetch('https://unavatar.io/x/'+handle+'?fallback=false'); if(!r.ok) throw 0;
+    const im=new Image(); im.src=URL.createObjectURL(await r.blob()); pfp=(await imgReady(im))?im:null; }catch(e){ pfp=null; }
+}
+const CARD_THEMES = {
+  day:   {bg:'#f6f1ff', text:'#1a0b2e', muted:'#6f5f8f', card:'#ffffff', primary:'#7b4dff', dot:'#ffb020', avatar:'#e7ddff'},
+  ember: {bg:'#141210', text:'#fff6ea', muted:'#a89c8c', card:'#201c18', primary:'#ff8a3d', dot:'#fff1d6', avatar:'#2e2822'}
+};
+const COIN_COLORS = ['#d64545','#f2a900','#8a4dff','#2aa198','#4c6fff','#c9a227','#5cb85c','#34495e','#1e88e5','#ff5722'];
+let cardStyle='top', cardTheme='day'; const iconCache={};
+const pageDark=()=>{ const t=document.documentElement.dataset.theme; return t? t==='dark' : matchMedia('(prefers-color-scheme: dark)').matches; };
+cardStyle='stack'; cardTheme='ember';
+/* two cards only: the coin stack for the total, the hold receipt per coin */
+if (STUDIO){ cardStyle='stack'; addEventListener('DOMContentLoaded',()=>{ const b=document.createElement('div'); b.textContent='studio mode'; b.style.cssText='position:fixed;top:10px;left:50%;transform:translateX(-50%);z-index:99;font:11px ui-monospace,monospace;color:#1a120a;background:#ff8a3d;border-radius:999px;padding:5px 12px;opacity:.9'; document.body.appendChild(b); }); }
+document.addEventListener('click', e=>{ if(!e.target.closest('#themeBtn')) return;
+  const t=pageDark()?'light':'dark'; document.documentElement.dataset.theme=t; try{localStorage.setItem('kb_page_theme',t)}catch(_){} });
+async function loadCardIcons(){
+  const d=window.__share; if(!d) return;
+  await Promise.all((d.coins||[]).slice(0,8).map(async c=>{ if(c.icon && !(c.icon in iconCache)) iconCache[c.icon]=await imgFromUrl(c.icon); }));
+  try{ await Promise.race([Promise.all(['900 40px Unbounded','700 40px Unbounded','500 20px "JetBrains Mono"'].map(f=>document.fonts.load(f))), new Promise(r=>setTimeout(r,3000))]); }catch(e){}
+}
+const CARD_GLOW='halftone';
+const hexA=(h,a)=>{ const n=parseInt(h.slice(1),16); return `rgba(${n>>16&255},${n>>8&255},${n&255},${a})`; };
+const TIERS=[
+  {key:'C', name:'C', min:0},
+  {key:'B', name:'B', min:500},
+  {key:'A', name:'A', min:3000},
+  {key:'S', name:'S', min:10000},
+];
+const tierOf=usd=>{ let i=0; TIERS.forEach((t,k)=>{ if ((usd||0)>=t.min) i=k; }); return {...TIERS[i], i, next:TIERS[i+1]||null}; };
+const TIER_TH=['<$500','$500–3k','$3k–10k','$10k+'];
+const TIERS_ON=false;
+function renderTier(total){
+  if (!TIERS_ON){ $('tierNext').innerHTML=''; $('result').classList.remove('tierS'); $('postBig').classList.remove('hidden'); return; }
+  const t=tierOf(total), el=$('tiers');
+  el.innerHTML=TIERS.map((x,k)=>`<div class="${k===t.i?'on':k<t.i?'done':''}" title="${x.name}-tier · ${TIER_TH[k]}"><b>${x.name}</b><i style="width:${14+k*7}px"></i></div>`).reverse().join('');
+  $('tierNext').innerHTML = `<b>${t.name}-tier</b>` + (t.next ? ` <span class="tn">· $${Math.ceil(t.next.min-total).toLocaleString('en-US')} to ${t.next.name}</span>` : ` <span class="tn">· top tier</span>`);
+  $('result').classList.toggle('tierS', !t.next);
+  $('postBig').classList.remove('hidden');
+}
+document.addEventListener('click', e=>{ if (e.target.closest('#postBig')) shareCard(); });
+// average colour of a coin icon, to tint the coin card
+const TINT=new WeakMap();
+function coinTint(im){ if (!im) return null; if (TINT.has(im)) return TINT.get(im); let out=null;
+  try{ const c=document.createElement('canvas'); c.width=c.height=16; const g=c.getContext('2d'); g.drawImage(im,0,0,16,16); const d=g.getImageData(0,0,16,16).data; let R=0,G=0,B=0,n=0;
+    for (let i=0;i<d.length;i+=4){ const r=d[i],gg=d[i+1],b=d[i+2],a=d[i+3]; const mx=Math.max(r,gg,b), mn=Math.min(r,gg,b); if (a<128 || mx<40 || mx-mn<28) continue; R+=r; G+=gg; B+=b; n++; }
+    if (n>8){ const h=v=>Math.round(v/n).toString(16).padStart(2,'0'); out='#'+h(R)+h(G)+h(B); } }catch(e){}
+  TINT.set(im,out); return out; }
+function drawCard(){
+  if (cardStyle==='hold' && HOLD_CUR) return drawHold(HOLD_CUR);
+  const d=window.__share, TR=tierOf(d.total), T={...(CARD_THEMES[cardTheme]||CARD_THEMES.day), ...(window.__tierTheme&&cardTheme==='ember'&&TR.T||{})};
+  const W=1200,H=675,S=2,c=document.createElement('canvas'); c.width=W*S; c.height=H*S; const x=c.getContext('2d');
+  x.scale(S,S); x.imageSmoothingEnabled=true; x.imageSmoothingQuality='high';
+  const U=(w,s)=>`${w} ${s}px Unbounded, "Inter Tight", sans-serif`, M=s=>`500 ${s}px "JetBrains Mono", monospace`;
+  const round=(X,Y,w,h,r)=>{ x.beginPath(); x.moveTo(X+r,Y); x.arcTo(X+w,Y,X+w,Y+h,r); x.arcTo(X+w,Y+h,X,Y+h,r); x.arcTo(X,Y+h,X,Y,r); x.arcTo(X,Y,X+w,Y,r); x.closePath(); };
+  const fit=(t,max)=>{ while(x.measureText(t).width>max && t.length>2) t=t.slice(0,-2)+'…'; return t; };
+  const coinDot=(cx,cy,R,cn,i,ring)=>{
+    x.save(); x.beginPath(); x.arc(cx,cy,R,0,7); x.closePath();
+    const im=cn.icon && iconCache[cn.icon];
+    if (im){ x.clip(); const s=Math.max(2*R/im.width,2*R/im.height); x.drawImage(im,cx-im.width*s/2,cy-im.height*s/2,im.width*s,im.height*s); }
+    else { x.fillStyle=COIN_COLORS[i%COIN_COLORS.length]; x.fill(); x.fillStyle='#fff'; x.textAlign='center'; const lb=cn.sym.replace(/[^A-Za-z0-9]/g,'').slice(0,4).toUpperCase(); let fz=Math.max(8,Math.round(R*0.3)); x.font=U(900,fz); while (x.measureText(lb).width>R*1.55 && fz>6){ fz--; x.font=U(900,fz); }
+      x.fillText(lb,cx,cy+fz*0.36); x.textAlign='left'; }
+    x.strokeStyle='rgba(255,246,234,.16)'; x.lineWidth=1.5; x.beginPath(); x.arc(cx,cy,R-.75,0,7); x.stroke();
+    x.restore(); if(ring){ x.strokeStyle=ring; x.lineWidth=6; x.beginPath(); x.arc(cx,cy,R+3,0,7); x.stroke(); }
+  };
+  const avatar=(cx,cy,R)=>{
+    x.save(); x.beginPath(); x.arc(cx,cy,R,0,7); x.closePath();
+    if (pfp){ x.clip(); const s=Math.max(2*R/pfp.width,2*R/pfp.height); x.drawImage(pfp,cx-pfp.width*s/2,cy-pfp.height*s/2,pfp.width*s,pfp.height*s); }
+    else { x.fillStyle=T.avatar; x.fill(); x.fillStyle=T.primary; x.font=U(900,Math.round(R*0.8)); x.textAlign='center'; x.fillText((pfpHandle[0]||'?').toUpperCase(),cx,cy+R*0.3); x.textAlign='left'; }
+    x.restore(); x.strokeStyle=T.primary; x.lineWidth=4; x.beginPath(); x.arc(cx,cy,R+2,0,7); x.stroke();
+  };
+  const logo=(X,Y,s)=>{
+    x.save(); x.translate(X,Y); x.scale(s/52,s/52); x.strokeStyle=T.primary; x.lineWidth=7; x.lineCap='round'; x.lineJoin='round';
+    x.stroke(new Path2D('M40 14A18 18 0 1 0 44 30')); x.stroke(new Path2D('M30 12l12 2-2 12'));
+    x.fillStyle=T.dot; x.beginPath(); x.arc(26,26,6,0,7); x.fill(); x.restore();
+  };
+  const tierLadder=(xr,y0)=>{ const gold=!TR.next, acc=gold?'#ffc94d':T.primary;
+    TIERS.map((t,k)=>k).reverse().forEach((k,row)=>{ const y=y0+row*20, bw=16+k*9, cur=k===TR.i, done=k<TR.i;
+      x.fillStyle=cur?acc:done?hexA(T.text,.30):hexA(T.text,.10); round(xr-bw,y+7,bw,4,2); x.fill();
+      x.font=U(900,cur?17:12); x.textAlign='right'; x.fillStyle=cur?acc:done?hexA(T.text,.45):hexA(T.text,.18); x.fillText(TIERS[k].name,xr-bw-10,y+(cur?15:13)); });
+    x.textAlign='left'; };
+  const who = d.who || (pfpHandle ? '@'+pfpHandle : short(d.wallet||'')), blurW = HIDE_W && !pfpHandle;
+  // blur without ctx.filter (older iPhone Safari ignores it): draw the text tiny, then scale it back up
+  const wtext=(t,X,Y)=>{ if(!blurW) return x.fillText(t,X,Y);
+    const fs=parseFloat((x.font.match(/(\d+(?:\.\d+)?)px/)||[0,20])[1]), tw=x.measureText(t).width, pad=fs*.6, w=tw+pad*2, h=fs*1.8, k=.09;
+    const oc=document.createElement('canvas'); oc.width=Math.max(2,Math.ceil(w*k)); oc.height=Math.max(2,Math.ceil(h*k)); const o=oc.getContext('2d');
+    o.scale(k,k); o.font=x.font; o.fillStyle=x.fillStyle; o.fillText(t,pad,h*.68);
+    const al=x.textAlign, sx=al==='right'?X-tw:al==='center'?X-tw/2:X;
+    x.save(); x.imageSmoothingEnabled=true; x.imageSmoothingQuality='high'; x.globalAlpha*=.9; x.drawImage(oc,sx-pad,Y-h*.68,w,h); x.restore(); };
+  const coins=(d.coins||[]).filter(c=>c.usd>=0.01);
+  x.fillStyle=T.bg; x.fillRect(0,0,W,H);
+  const glow=(cx,cy,r,a)=>{ const g=x.createRadialGradient(cx,cy,0,cx,cy,r); g.addColorStop(0,hexA(T.primary,a)); g.addColorStop(1,hexA(T.primary,0)); x.fillStyle=g; x.fillRect(0,0,W,H); };
+  const GV = window.__cardGlow || CARD_GLOW;
+  if (GV==='number'){
+    x.save(); x.translate(W/2, cardStyle==='stack'?460:400); x.scale(1,.34); const g=x.createRadialGradient(0,0,0,0,0,520); g.addColorStop(0,hexA(T.primary,.22)); g.addColorStop(1,hexA(T.primary,0)); x.fillStyle=g; x.fillRect(-W,-H*3,W*2,H*6); x.restore(); }
+  else if (GV==='sides'){
+    for (const [cx] of [[-60],[W+60]]){ const g=x.createRadialGradient(cx,H*.62,0,cx,H*.62,430); g.addColorStop(0,hexA(T.primary,.20)); g.addColorStop(1,hexA(T.primary,0)); x.fillStyle=g; x.fillRect(0,0,W,H); } }
+  else if (GV==='grid'){
+    for (let gx=20; gx<W; gx+=28) for (let gy=20; gy<H; gy+=28){ const dx=(gx-W/2)/(W/2), dy=(gy-H/2)/(H/2), a=Math.max(0,.20-.16*(dx*dx+dy*dy)); if (a<=0) continue; x.fillStyle=hexA(T.text,a); x.fillRect(gx,gy,2,2); } }
+  else if (GV==='bokeh'){
+    const cs=(window.__share?.coins||[]).slice(0,5), spots=[[120,120,260],[W-140,110,230],[80,H-60,220],[W-90,H-80,280],[W/2+300,H/2,170]];
+    x.save(); x.filter='blur(60px)'; spots.forEach(([cx,cy,r],i)=>{ const cn=cs[i]; const im=cn?.icon&&iconCache[cn.icon]; x.globalAlpha=.30;
+      if (im) x.drawImage(im,cx-r,cy-r,r*2,r*2); else { x.fillStyle=COIN_COLORS[i%COIN_COLORS.length]; x.beginPath(); x.arc(cx,cy,r,0,7); x.fill(); } }); x.restore(); x.globalAlpha=1; }
+  else if (GV==='grain'){
+    const g=x.createLinearGradient(0,0,W,H); g.addColorStop(0,hexA(T.primary,.13)); g.addColorStop(.55,hexA(T.primary,0)); x.fillStyle=g; x.fillRect(0,0,W,H);
+    const n=x.createImageData(W*2,H*2); for (let i=0;i<n.data.length;i+=4){ const v=Math.random()*255; n.data[i]=n.data[i+1]=n.data[i+2]=v; n.data[i+3]=14; } const oc=document.createElement('canvas'); oc.width=W*2; oc.height=H*2; oc.getContext('2d').putImageData(n,0,0); x.drawImage(oc,0,0,W,H); }
+  else if (GV==='rings'){
+    x.save(); for (let r=110; r<1100; r+=46){ x.strokeStyle=hexA(T.primary, Math.max(0,.16-r/7500)); x.lineWidth=1.5; x.beginPath(); x.arc(W/2,250,r,0,7); x.stroke(); } x.restore(); }
+  else if (GV==='mark'){
+    x.save(); x.globalAlpha=.07; x.translate(W-330,H/2-40); const sc=720/52; x.scale(sc,sc); x.strokeStyle=T.primary; x.lineWidth=7; x.lineCap='round'; x.lineJoin='round';
+    x.stroke(new Path2D('M40 14A18 18 0 1 0 44 30')); x.stroke(new Path2D('M30 12l12 2-2 12')); x.fillStyle=T.primary; x.beginPath(); x.arc(26,26,6,0,7); x.fill(); x.restore(); x.globalAlpha=1; }
+  else if (GV==='txwall'){
+    const B='123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz'; let seed=7; const rnd=()=>(seed=(seed*16807)%2147483647)/2147483647;
+    x.save(); x.font='500 13px "JetBrains Mono", monospace'; for (let y=24; y<H; y+=22){ let line=''; while (line.length<150) line+=Array.from({length:44},()=>B[Math.floor(rnd()*B.length)]).join('')+'   ';
+      const dy=Math.abs(y-H/2)/(H/2); x.fillStyle=hexA(T.text,.035+.05*dy); x.fillText(line,-((y*37)%300),y); } x.restore(); }
+  else if (GV==='halftone'){
+    const zones = cardStyle==='stack'
+      ? (()=>{ x.font=M(20); const sw=Math.min(W-160, x.measureText(earnedOn(d.plats.slice(0,3).map(p=>p.name))).width); return [[W/2-sw/2-6,524,W/2+sw/2+6,552]]; })()
+      : [[52,436,620,468],[930,540,1150,620]];
+    const calm=(gx,gy)=>{ let f=1; for (const [a,b,c2,d2] of zones){ const dx=Math.max(a-gx,0,gx-c2), dy=Math.max(b-gy,0,gy-d2); f=Math.min(f,Math.max(.45,Math.min(1,Math.hypot(dx,dy)/28))); } return f; };
+    for (let gx=0; gx<W+20; gx+=18) for (let gy=0; gy<H+20; gy+=18){ const t=Math.max(0,((gx/W)+(gy/H))/2-.35)/.65; const r=t*7*calm(gx,gy); if (r<.4) continue; x.fillStyle=hexA(T.primary,.10+.12*t); x.beginPath(); x.arc(gx,gy,r,0,7); x.fill(); } }
+  else if (GV==='aurora'){
+    x.save(); x.filter='blur(80px)'; [[200,40,'#ff8a3d',.30],[620,-20,'#8a4dff',.26],[1000,60,'#2aa198',.22],[W/2,H+40,'#ff8a3d',.18]].forEach(([cx,cy,c,a])=>{ x.globalAlpha=a; x.fillStyle=c; x.beginPath(); x.ellipse(cx,cy,340,160,0,0,7); x.fill(); }); x.restore(); x.globalAlpha=1; }
+  else if (GV==='topo'){
+    x.save(); x.lineWidth=1.3; for (let k=0;k<26;k++){ x.strokeStyle=hexA(T.primary,.05+.05*(k%5===0)); x.beginPath(); for (let px=0; px<=W; px+=8){ const y=k*30-60+Math.sin(px/170+k*.55)*28+Math.sin(px/67+k)*9; px?x.lineTo(px,y):x.moveTo(px,y); } x.stroke(); } x.restore(); }
+  else if (GV==='candles'){
+    let seed=3; const rnd=()=>(seed=(seed*16807)%2147483647)/2147483647; let v=H-40; x.save();
+    for (let cx=16; cx<W; cx+=26){ const up=rnd()>.33, body=10+rnd()*34, nv=v+(up?-1:1)*body*.55; const top=Math.min(v,nv), h=Math.max(4,Math.abs(nv-v));
+      const a=.06+.10*(cx/W); x.fillStyle=up?hexA('#5ee6a8',a):hexA('#ff6b6b',a*.8); x.fillRect(cx,top,14,h); x.fillRect(cx+6,top-8-rnd()*10,2,h+16+rnd()*10); v=Math.max(H*.38,Math.min(H-20,nv-(cx/W)*1.4)); }
+    x.restore(); }
+  else if (GV==='sparkle'){
+    let seed=11; const rnd=()=>(seed=(seed*16807)%2147483647)/2147483647; x.save();
+    for (let i=0;i<70;i++){ const px=rnd()*W, py=rnd()*H, r=2+rnd()*9, a=.10+rnd()*.28; if (Math.abs(px-W/2)<300 && py>180 && py<560) continue;
+      x.fillStyle=hexA(i%4?T.primary:T.text,a); x.beginPath(); x.moveTo(px,py-r); x.quadraticCurveTo(px,py,px+r,py); x.quadraticCurveTo(px,py,px,py+r); x.quadraticCurveTo(px,py,px-r,py); x.quadraticCurveTo(px,py,px,py-r); x.fill(); } x.restore(); }
+  else if (GV==='horizon'){
+    const g=x.createLinearGradient(0,H-150,0,H); g.addColorStop(0,hexA(T.primary,0)); g.addColorStop(1,hexA(T.primary,.16)); x.fillStyle=g; x.fillRect(0,H-150,W,150);
+    const l=x.createLinearGradient(0,0,W,0); l.addColorStop(0,hexA(T.primary,0)); l.addColorStop(.5,hexA(T.primary,.9)); l.addColorStop(1,hexA(T.primary,0)); x.fillStyle=l; x.fillRect(0,H-3,W,3); }
+  const CC=(i)=>{ const cn=(window.__share?.coins||[])[i]; return COIN_COLORS[i%COIN_COLORS.length]; };
+  if (GV==='rings2'){
+    const g=x.createRadialGradient(W/2,250,0,W/2,250,420); g.addColorStop(0,hexA(T.primary,.14)); g.addColorStop(1,hexA(T.primary,0)); x.fillStyle=g; x.fillRect(0,0,W,H);
+    for (let k=0,r=90; r<1100; k++, r+=38){ const f=Math.max(0,1-r/900); x.strokeStyle=hexA(T.primary,(k%4===0?.30:.12)*f); x.lineWidth=k%4===0?2.4:1.2; x.beginPath(); x.arc(W/2,250,r,0,7); x.stroke(); } }
+  else if (GV==='ringsCorner'){
+    for (let k=0,r=60; r<1500; k++, r+=34){ x.strokeStyle=hexA(T.primary,Math.max(0,.26-r/5200)); x.lineWidth=k%3===0?3:1.3; x.beginPath(); x.arc(W+40,H+40,r,0,7); x.stroke(); }
+    const g=x.createRadialGradient(W,H,0,W,H,380); g.addColorStop(0,hexA(T.primary,.20)); g.addColorStop(1,hexA(T.primary,0)); x.fillStyle=g; x.fillRect(0,0,W,H); }
+  else if (GV==='ringsReed'){
+    x.save(); x.lineCap='round'; for (let k=0,r=120; r<1000; k++, r+=44){ const n=Math.round(r*0.55), a=Math.max(0,.30-r/3000), len=6+k*0.6;
+      x.strokeStyle=hexA(T.primary,a); x.lineWidth=1.6; x.beginPath(); for (let i=0;i<n;i++){ const t=i/n*Math.PI*2+k*.07; x.moveTo(W/2+Math.cos(t)*r,250+Math.sin(t)*r); x.lineTo(W/2+Math.cos(t)*(r+len),250+Math.sin(t)*(r+len)); } x.stroke(); } x.restore(); }
+  else if (GV==='ringDots'){
+    for (let k=0,r=110; r<1100; k++, r+=30){ const n=Math.round(r*2*Math.PI/16), dr=Math.max(0,4.2-r/220); if (dr<.5) break; x.fillStyle=hexA(T.primary,.10+.16*(dr/4.2));
+      x.beginPath(); for (let i=0;i<n;i++){ const t=i/n*Math.PI*2+k*.13, px=W/2+Math.cos(t)*r, py=250+Math.sin(t)*r; x.moveTo(px+dr,py); x.arc(px,py,dr,0,7); } x.fill(); } }
+  else if (GV==='htRadial'){
+    for (let gx=0; gx<W+20; gx+=16) for (let gy=0; gy<H+20; gy+=16){ const d=Math.hypot(gx-W/2,(gy-250)*1.25), t=Math.max(0,1-d/560); const r=t*6.5; if (r<.5) continue; x.fillStyle=hexA(T.primary,.07+.16*t); x.beginPath(); x.arc(gx,gy,r,0,7); x.fill(); } }
+  else if (GV==='htBottom'){
+    for (let gx=0; gx<W+20; gx+=16) for (let gy=0; gy<H+20; gy+=16){ const t=Math.max(0,(gy/H-.5)/.5)**1.4; const r=t*7; if (r<.5) continue; x.fillStyle=hexA(T.primary,.05+.12*t); x.beginPath(); x.arc(gx+((gy/16)%2)*8,gy,r,0,7); x.fill(); } }
+  else if (GV==='htSun'){
+    const rays=28; for (let k=0;k<rays;k++){ const t0=k/rays*Math.PI*2; if (k%2) continue;
+      for (let d=150; d<1200; d+=17){ const w=Math.floor(d*Math.PI/rays/17); for (let j=-w;j<=w;j++){ const t=t0+j*17/d; const px=W/2+Math.cos(t)*d, py=250+Math.sin(t)*d*.9; if (px<-10||px>W+10||py<-10||py>H+10) continue;
+        const r=Math.max(0,4.4-d/300); if (r<.5) continue; x.fillStyle=hexA(T.primary,.10+.12*(r/4.4)); x.beginPath(); x.arc(px,py,r,0,7); x.fill(); } } } }
+  else if (GV==='htCoins'){
+    const a=CC(0), b=CC(1);
+    for (let gx=0; gx<W+20; gx+=18) for (let gy=0; gy<H+20; gy+=18){ const t1=Math.max(0,1-Math.hypot(gx,gy)/620), t2=Math.max(0,1-Math.hypot(W-gx,H-gy)/620);
+      for (const [t,col] of [[t1,a],[t2,b]]){ const r=t*7.5; if (r<.5) continue; x.fillStyle=hexA(col,.12+.22*t); x.beginPath(); x.arc(gx,gy,r,0,7); x.fill(); } } }
+  if (GV==='whale'){
+    const g=x.createRadialGradient(W/2,300,0,W/2,300,560); g.addColorStop(0,'rgba(255,190,70,.20)'); g.addColorStop(1,'rgba(255,190,70,0)'); x.fillStyle=g; x.fillRect(0,0,W,H);
+    for (let k=0,r=100; r<1100; k++, r+=40){ x.strokeStyle=`rgba(255,201,77,${Math.max(0,(k%3===0?.26:.10)*(1-r/1000))})`; x.lineWidth=k%3===0?2:1; x.beginPath(); x.arc(W/2,250,r,0,7); x.stroke(); }
+    let seed=5; const rnd=()=>(seed=(seed*16807)%2147483647)/2147483647;
+    for (let i=0;i<46;i++){ const px=rnd()*W, py=rnd()*H, r=3+rnd()*10; if (Math.abs(px-W/2)<330 && py>150) continue; x.fillStyle=`rgba(255,${210+rnd()*40|0},120,${.25+rnd()*.45})`;
+      x.beginPath(); x.moveTo(px,py-r); x.quadraticCurveTo(px,py,px+r,py); x.quadraticCurveTo(px,py,px,py+r); x.quadraticCurveTo(px,py,px-r,py); x.quadraticCurveTo(px,py,px,py-r); x.fill(); }
+    const f=x.createLinearGradient(0,0,W,H); ['#fff3c4','#ffc94d','#b8741a','#ffe08a','#ff9d3d','#fff3c4'].forEach((c,i,a)=>f.addColorStop(i/(a.length-1),c));
+    x.strokeStyle=f; x.lineWidth=10; round(5,5,W-10,H-10,22); x.stroke(); x.strokeStyle='rgba(255,230,160,.35)'; x.lineWidth=1.5; round(18,18,W-36,H-36,14); x.stroke(); }
+  if (cardStyle==='coin'){ const r=coinRows()[COIN_I]||coinRows()[0]; if (r){ const k=coinStats(r), V=window.__cv||'flow';
+    const symS='$'+(r.sym||'?').replace(/^\$/,''), heldS='$'+k.held.replace(/^\$/,''), rIm=r.icon&&iconCache[r.icon], hIm=k.heldIcon&&iconCache[k.heldIcon];
+    const tint=coinTint(rIm)||T.primary, htint=coinTint(hIm)||'#8a4dff';
+    const tv=r.usd>=100?'$'+Math.round(r.usd).toLocaleString('en-US'):fmtUsd(r.usd);
+    const sp=t=>t.split('').join(String.fromCharCode(8202));
+    const I=(w,s)=>`${w} ${s}px "Inter Tight", sans-serif`;
+    const ring=(cx,cy,R,col,w)=>{ x.strokeStyle=col; x.lineWidth=w; x.beginPath(); x.arc(cx,cy,R,0,7); x.stroke(); };
+    const bigNum=(X,Y,maxW,fs0)=>{ let fs=fs0; x.font=U(900,fs); while (x.measureText(tv).width>maxW && fs>56){ fs-=4; x.font=U(900,fs); }
+      const g=x.createLinearGradient(0,Y-fs*.8,0,Y); g.addColorStop(0,'#ffb27a'); g.addColorStop(1,T.primary); x.fillStyle=g; x.fillText(tv,X,Y); return fs; };
+    const whoAt=(xr,by)=>{ x.font=U(700,22); const wsz=x.measureText(who).width, hasAv=!!(pfp||pfpHandle); if (hasAv) avatar(xr-wsz-38,by-8,24); x.fillStyle=hexA(T.text,.85); wtext(who,xr-wsz,by); };
+    // background: warm base + soft glow tinted by the reward coin
+    const bg=x.createLinearGradient(0,0,W*.6,H); bg.addColorStop(0,'#1d1814'); bg.addColorStop(1,'#0f0d0b'); x.fillStyle=bg; x.fillRect(0,0,W,H);
+    const gl=(cx,cy,rr,col,a)=>{ const g=x.createRadialGradient(cx,cy,0,cx,cy,rr); g.addColorStop(0,hexA(col,a)); g.addColorStop(1,hexA(col,0)); x.fillStyle=g; x.fillRect(0,0,W,H); };
+    const n=x.createImageData(240,135); for (let i=0;i<n.data.length;i+=4){ const v=Math.random()*255; n.data[i]=n.data[i+1]=n.data[i+2]=v; n.data[i+3]=6; } const oc=document.createElement('canvas'); oc.width=240; oc.height=135; oc.getContext('2d').putImageData(n,0,0);
+    if (V==='ticket'){
+      gl(W*.18,H*.55,560,tint,.16); gl(W*.86,H*.42,420,htint,.12);
+      x.drawImage(oc,0,0,W,H);
+      const P=56;
+      logo(P,40,32); x.fillStyle=T.text; x.font=U(900,26); x.fillText('kickback',P+44,67);
+      x.fillStyle=hexA(T.text,.4); x.font=M(15); x.textAlign='right'; x.fillText(sp(('holder rewards · '+r.platform).toUpperCase()),W-P,64); x.textAlign='left';
+      // ticket body with a perforated stub on the right
+      const TX=P, TY=112, TW=W-2*P, TH=448, SX=TX+TW-330, nr=18;
+      const shape=()=>{ x.beginPath(); x.moveTo(TX+26,TY); x.lineTo(SX-nr,TY); x.arc(SX,TY,nr,Math.PI,0,true); x.lineTo(TX+TW-26,TY); x.arcTo(TX+TW,TY,TX+TW,TY+26,26); x.lineTo(TX+TW,TY+TH-26); x.arcTo(TX+TW,TY+TH,TX+TW-26,TY+TH,26);
+        x.lineTo(SX+nr,TY+TH); x.arc(SX,TY+TH,nr,0,Math.PI,true); x.lineTo(TX+26,TY+TH); x.arcTo(TX,TY+TH,TX,TY+TH-26,26); x.lineTo(TX,TY+26); x.arcTo(TX,TY,TX+26,TY,26); x.closePath(); };
+      const tg=x.createLinearGradient(TX,TY,TX+TW,TY+TH); tg.addColorStop(0,'rgba(255,240,225,.075)'); tg.addColorStop(1,'rgba(255,240,225,.03)');
+      shape(); x.fillStyle=tg; x.fill(); x.strokeStyle='rgba(255,200,160,.16)'; x.lineWidth=1.5; shape(); x.stroke();
+      x.save(); x.setLineDash([2,10]); x.lineCap='round'; x.strokeStyle='rgba(255,220,190,.28)'; x.lineWidth=3; x.beginPath(); x.moveTo(SX,TY+nr+12); x.lineTo(SX,TY+TH-nr-12); x.stroke(); x.restore();
+      // left: the coin the rewards came in + the number
+      const LX=TX+44; let y=TY+74;
+      coinDot(LX+30,y-12,30,{sym:r.sym||'?',icon:r.icon},0,null); ring(LX+30,y-12,33,hexA(tint,.55),2);
+      x.fillStyle=T.text; let hs=34; x.font=U(900,hs); while (x.measureText(symS).width>360 && hs>22){ hs-=2; x.font=U(900,hs); } x.fillText(symS,LX+78,y);
+      const sw=x.measureText(symS).width; x.font=M(14); const tag='REWARDS'; const tw=x.measureText(sp(tag)).width+24; x.fillStyle=hexA(tint,.16); round(LX+92+sw,y-26,tw,30,15); x.fill(); x.fillStyle=hexA(T.text,.75); x.fillText(sp(tag),LX+104+sw,y-6);
+      const fs=bigNum(LX-4,TY+262,SX-LX-44,124);
+      y=TY+318; x.font=`700 24px "JetBrains Mono", monospace`; x.fillStyle=T.text; const at=fmtAmt(r.amount)+' '+(r.sym||''); x.fillText(at,LX,y); const aw=x.measureText(at).width;
+      x.font=M(24); x.fillStyle=hexA(T.text,.5); x.fillText(`  ·  ${r.count.toLocaleString('en-US')} payout${r.count>1?'s':''}`,LX+aw,y);
+      if (k.wk>=0.01){ const wt=`▲ +${fmtUsd(k.wk)}`, wl='last 7 days'; x.font=U(800,20); const w1=x.measureText(wt).width; x.font=M(17); const w2=x.measureText(wl).width; const pw=w1+w2+56, py=TY+TH-90;
+        x.fillStyle='rgba(74,222,128,.09)'; round(LX,py,pw,46,23); x.fill(); x.strokeStyle='rgba(74,222,128,.42)'; x.lineWidth=1.5; round(LX,py,pw,46,23); x.stroke();
+        x.fillStyle='#4ade80'; x.font=U(800,20); x.fillText(wt,LX+20,py+31); x.fillStyle='rgba(74,222,128,.7)'; x.font=M(17); x.fillText(wl,LX+36+w1,py+30); }
+      // stub: the coin you held
+      const cx=SX+165; x.textAlign='center';
+      x.fillStyle=hexA(T.text,.42); x.font=M(14); x.fillText(sp('PAID BY HOLDING'),cx,TY+70);
+      gl(cx,TY+190,150,htint,.22);
+      coinDot(cx,TY+190,70,{sym:k.held.replace(/^\$/,''),icon:k.heldIcon},2,null); ring(cx,TY+190,76,hexA(T.primary,.85),3);
+      x.fillStyle=T.text; let ks=34; x.font=U(900,ks); while (x.measureText(heldS).width>270 && ks>20){ ks-=2; x.font=U(900,ks); } x.fillText(heldS,cx,TY+322);
+      if (k.since){ x.fillStyle=hexA(T.text,.5); x.font=M(16); x.fillText(sp('EARNING SINCE '+fmtDate(k.since).toUpperCase()),cx,TY+360); }
+      x.textAlign='left';
+      whoAt(W-P,H-46);
+      return c;
+    }
+    // V==='flow': text left, big reward coin right, held coin as a badge. Same warm look as the other cards
+    // same base as the other cards: flat theme bg + our halftone
+    x.fillStyle=T.bg; x.fillRect(0,0,W,H);
+    { x.font=U(700,22); const ww=x.measureText(who).width+60; const zones=[[56,H-140,620,H-50],[W-56-ww,H-84,W-40,H-30]];
+      const calm=(gx,gy)=>{ let f=1; for (const [a,b,c2,d2] of zones){ const dx=Math.max(a-gx,0,gx-c2), dy=Math.max(b-gy,0,gy-d2); f=Math.min(f,Math.max(.45,Math.min(1,Math.hypot(dx,dy)/28))); } return f; };
+      for (let gx=0; gx<W+20; gx+=18) for (let gy=0; gy<H+20; gy+=18){ const t=Math.max(0,((gx/W)+(gy/H))/2-.35)/.65; const rr=t*7*calm(gx,gy); if (rr<.4) continue; x.fillStyle=hexA(T.primary,.10+.12*t); x.beginPath(); x.arc(gx,gy,rr,0,7); x.fill(); } }
+    const P=56;
+    logo(P,40,34); x.fillStyle=T.text; x.font=U(900,28); x.fillText('kickback',P+46,68);
+    // eyebrow: my $HELD bag paid me
+    let y=206; x.font=M(19); const e1='MY ', e2=/\+\d/.test(heldS)?' BAGS PAID ME':' BAG PAID ME'; x.fillStyle=hexA(T.text,.55); x.fillText(sp(e1),P,y); let ex=P+x.measureText(sp(e1)).width;
+    coinDot(ex+15,y-7,15,{sym:k.held.replace(/^\$/,''),icon:k.heldIcon},2,null); ex+=38; x.fillStyle=T.text; x.font=U(800,20); x.fillText(heldS,ex,y); ex+=x.measureText(heldS).width;
+    x.fillStyle=hexA(T.text,.55); x.font=M(19); x.fillText(sp(e2),ex,y);
+    let fs=128; x.font=U(900,fs); while (x.measureText(tv).width>620 && fs>56){ fs-=4; x.font=U(900,fs); } x.fillStyle=T.primary; x.fillText(tv,P-4,y+22+fs*.82);
+    y=y+22+fs*.82+56; x.font=`700 26px "JetBrains Mono", monospace`; x.fillStyle=T.text; const at=fmtAmt(r.amount)+' '; x.fillText(at,P,y); let ax=P+x.measureText(at).width;
+    x.fillStyle=T.text; x.font=U(800,24); x.fillText(symS,ax,y);
+    // stats strip
+    const st=[[r.count.toLocaleString('en-US'),'payouts'],[k.since?fmtDate(k.since):'·','first payout']]; if (k.wk>=0.01) st.push(['+'+fmtUsd(k.wk),'last 7 days']);
+    let sx=P; const sy=H-96; st.forEach(([v,l],i)=>{ x.font=U(800,24); const vw=x.measureText(v).width; x.font=M(14); const lw=x.measureText(sp(l.toUpperCase())).width; const cw=Math.max(vw,lw);
+      x.fillStyle=i===2?'#4ade80':T.text; x.font=U(800,24); x.fillText(v,sx,sy); x.fillStyle=hexA(T.text,.42); x.font=M(14); x.fillText(sp(l.toUpperCase()),sx,sy+28);
+      sx+=cw+28; if (i<st.length-1){ x.fillStyle='rgba(255,180,120,.18)'; x.fillRect(sx,sy-24,1.5,56); sx+=28; } });
+    // right: reward coin, held coin badge
+    const bx=920, by=318, BR=140, hx=bx-122, hy=by+112, HR=48;
+    coinDot(bx,by,BR,{sym:r.sym||'?',icon:r.icon},0,null); ring(bx,by,BR+6,'rgba(255,180,120,.22)',3);
+    x.fillStyle='#16120f'; x.beginPath(); x.arc(hx,hy,HR+10,0,7); x.fill();
+    coinDot(hx,hy,HR,{sym:k.held.replace(/^\$/,''),icon:k.heldIcon},2,null); ring(hx,hy,HR+4,T.primary,4);
+    whoAt(W-P,H-46);
+    return c; } }
+  if (STUDIO && window.kbTease) return window.kbTease({x, c, W, H, S, T, U, M, coins, round, coinDot, avatar, logo, hexA, COIN_COLORS, pfpHandle});
+  // Top rewards card, same frame as the coin card
+  if (cardStyle==='top'){ const P=56, sp=t=>t.split('').join(String.fromCharCode(8202));
+    const n=coins.length, wkT=Date.now()/1000-7*86400; let wk=0; if (!d.period) for (const r of (KB_P||[])) if (r.price!=null) for (const p of (r.proofs||[])) if (p.t>=wkT) wk+=(+p.d||0)*r.price;   // a card for one day or month shows no 'this week'
+    const stats=[[(d.payouts||0).toLocaleString('en-US'),'payouts'],[String(n),n===1?'coin':'coins']]; if (wk>=0.01) stats.push(['+'+fmtUsd(wk),'last 7 days']);
+    // same base as the coin card: flat bg, halftone thinned (not cut) under text
+    x.fillStyle=T.bg; x.fillRect(0,0,W,H);
+    { x.font=U(700,22); const ww=x.measureText(who).width+60; const zones=[[56,H-140,640,H-50],[W-56-ww,H-84,W-40,H-30]];
+      const calm=(gx,gy)=>{ let f=1; for (const [a,b,c2,d2] of zones){ const dx=Math.max(a-gx,0,gx-c2), dy=Math.max(b-gy,0,gy-d2); f=Math.min(f,Math.max(.45,Math.min(1,Math.hypot(dx,dy)/28))); } return f; };
+      for (let gx=0; gx<W+20; gx+=18) for (let gy=0; gy<H+20; gy+=18){ const t=Math.max(0,((gx/W)+(gy/H))/2-.35)/.65; const rr=t*7*calm(gx,gy); if (rr<.4) continue; x.fillStyle=hexA(T.primary,.10+.12*t); x.beginPath(); x.arc(gx,gy,rr,0,7); x.fill(); } }
+    logo(P,40,34); x.fillStyle=T.text; x.font=U(900,28); x.fillText('kickback',P+46,68);
+    // left column: eyebrow with mini stack, total, where it came from, stats
+    let y=206; x.fillStyle=hexA(T.text,.55); x.font=M(19); x.fillText(sp('MY '),P,y); let ex=P+x.measureText(sp('MY ')).width;
+    const mini=coins.slice(0,3); mini.forEach((cn,i)=>{ const cx=ex+15+i*20; x.fillStyle=T.bg; x.beginPath(); x.arc(cx,y-7,17,0,7); x.fill(); coinDot(cx,y-7,15,cn,i,null); }); ex+=15+(mini.length-1)*20+24;
+    x.fillStyle=T.text; x.font=U(800,20); const bt=`${n} BAG${n===1?'':'S'}`; x.fillText(bt,ex,y); ex+=x.measureText(bt).width; x.fillStyle=hexA(T.text,.55); x.font=M(19); x.fillText(sp(n===1?' PAID ME':' PAID ME'),ex,y);
+    const tv=fmtUsd(d.total); let fs=128; x.font=U(900,fs); while (x.measureText(tv).width>600 && fs>56){ fs-=4; x.font=U(900,fs); } x.fillStyle=T.primary; x.fillText(tv,P-4,y+22+fs*.82);
+    y=y+22+fs*.82+52; const pl=d.plats.slice(0,3).map(p=>p.name); x.fillStyle=hexA(T.text,.6); x.font=M(22); x.fillText(fit('on '+pl.join(' · ')+(d.plats.length>3?` +${d.plats.length-3}`:''),600),P,y);
+    let sx=P; const sy=H-96; stats.forEach(([v,l],i)=>{ x.font=U(800,24); const vw=x.measureText(v).width; x.font=M(14); const lw=x.measureText(sp(l.toUpperCase())).width; const cw=Math.max(vw,lw);
+      x.fillStyle=i===2?'#4ade80':T.text; x.font=U(800,24); x.fillText(v,sx,sy); x.fillStyle=hexA(T.text,.42); x.font=M(14); x.fillText(sp(l.toUpperCase()),sx,sy+28);
+      sx+=cw+28; if (i<stats.length-1){ x.fillStyle='rgba(255,180,120,.18)'; x.fillRect(sx,sy-24,1.5,56); sx+=28; } });
+      // right: top coins as rows
+      const top=coins.slice(0,4), rh=84, gap=12, X=700, w=W-P-X, y0=150+(380-(top.length*rh+(top.length-1)*gap))/2;
+      top.forEach((cn,i)=>{ const Y=y0+i*(rh+gap); x.fillStyle='#1d1915'; round(X,Y,w,rh,20); x.fill(); x.strokeStyle='rgba(255,180,120,.10)'; x.lineWidth=1.5; round(X,Y,w,rh,20); x.stroke();
+        x.fillStyle=hexA(T.text,.35); x.font=M(15); x.fillText(String(i+1),X+20,Y+rh/2+5);
+        coinDot(X+68,Y+rh/2,26,cn,i,null);
+        x.fillStyle=T.text; x.font=U(800,21); x.fillText(fit('$'+cn.sym.replace(/^\$/,''),170),X+108,Y+(cn.from?38:50));
+        if (cn.from){ x.fillStyle=hexA(T.text,.5); x.font=M(14); x.fillText(fit('for holding '+cn.from,190),X+108,Y+62); }
+        x.fillStyle=i?T.text:T.primary; x.font=U(900,24); x.textAlign='right'; x.fillText('$'+Math.round(cn.usd).toLocaleString('en-US'),X+w-22,Y+rh/2+9); x.textAlign='left'; });
+      if (n>4){ x.fillStyle=hexA(T.text,.45); x.font=M(14); x.textAlign='right'; x.fillText(`+ ${n-4} more coins`,W-P-6,y0+top.length*(rh+gap)+14); x.textAlign='left'; }
+    x.font=U(700,22); const wsz=x.measureText(who).width; if (pfp||pfpHandle) avatar(W-P-wsz-38,H-54,24); x.fillStyle=hexA(T.text,.85); wtext(who,W-P-wsz,H-46);
+    return c; }
+  // Coin stack: coins on an arc over the total, this week's gain beside it, who in a pill
+  // (homepage deck cards skip this and use the older layout below, the one the posted cards were made with)
+  if (cardStyle==='stack' && !window.__kbHomeCard){
+    const n=coins.length, wkT=Date.now()/1000-7*86400; let wk=0; if (!d.period) for (const r of (KB_P||[])) if (r.price!=null) for (const p of (r.proofs||[])) if (p.t>=wkT) wk+=(+p.d||0)*r.price;   // a card for one day or month shows no 'this week'
+    const sp=t=>t.split('').join(String.fromCharCode(8202));
+    // base: flat bg + halftone, thinned (not cut) where text sits
+    x.fillStyle=T.bg; x.fillRect(0,0,W,H);
+    const dots=zones=>{ const calm=(gx,gy)=>{ let f=1; for (const [a,b,c2,d2] of zones){ const dx=Math.max(a-gx,0,gx-c2), dy=Math.max(b-gy,0,gy-d2); f=Math.min(f,Math.max(.45,Math.min(1,Math.hypot(dx,dy)/28))); } return f; };
+      for (let gx=0; gx<W+20; gx+=18) for (let gy=0; gy<H+20; gy+=18){ const t=Math.max(0,((gx/W)+(gy/H))/2-.35)/.65; const rr=t*7*calm(gx,gy); if (rr<.4) continue; x.fillStyle=hexA(T.primary,.10+.12*t); x.beginPath(); x.arc(gx,gy,rr,0,7); x.fill(); } };
+    // the fan of coins, biggest in the middle (same idea as before)
+    const fan=(cy,R0,maxN,lbl)=>{ const m=Math.min(maxN,n), mid=(m-1)/2, slots=[], byDist=[...Array(m).keys()].sort((a,b)=>Math.abs(a-mid)-Math.abs(b-mid)||a-b); byDist.forEach((slot,k)=>slots[slot]=k);
+      const Rk=k=>k===0?R0+10:R0-Math.min(3,k)*3, step=R0*2-30, fw=step*(m-1)+R0*2;
+      const P=[...Array(m).keys()].map(s=>{ const k=slots[s], d=Math.abs(s-mid); return {s,k,x:(W-fw)/2+R0+s*step, y:cy+d*d*4, R:Rk(k)}; });
+      [...P].sort((a,b)=>Math.abs(b.s-mid)-Math.abs(a.s-mid)).forEach(p=>{ x.fillStyle=T.bg; x.beginPath(); x.arc(p.x,p.y,p.R+5,0,7); x.fill(); coinDot(p.x,p.y,p.R,coins[p.k],p.k,null); if (p.k===0){ x.strokeStyle=T.primary; x.lineWidth=3; x.beginPath(); x.arc(p.x,p.y,p.R+3,0,7); x.stroke(); } });
+      if (lbl) P.forEach(p=>{ x.fillStyle=p.k?hexA(T.text,.72):T.text; x.font=U(800,p.k?16:19); x.textAlign='center'; x.fillText((coins[p.k].usd<10?'$'+coins[p.k].usd.toFixed(2):'$'+Math.round(coins[p.k].usd).toLocaleString('en-US')),p.x,p.y+p.R+(p.k?27:32)); x.textAlign='left'; });
+      return P; };
+    const bigTotal=(cy,fs0,maxW)=>{ const tv=fmtUsd(d.total); let fs=fs0; x.font=U(900,fs); while (x.measureText(tv).width>maxW && fs>60){ fs-=4; x.font=U(900,fs); } x.fillStyle=T.primary; x.textAlign='center'; x.fillText(tv,W/2,cy); x.textAlign='left'; return fs; };
+    const subLine=y=>{ x.fillStyle=T.muted; x.font=M(20); x.textAlign='center'; const base=earnedOn(d.plats.slice(0,3).map(p=>p.name));
+      if (d.period){ const p1=d.period+'  ·  '; x.font=`700 20px "JetBrains Mono", monospace`; const w1=x.measureText(p1).width; x.font=M(20); const t2=fit(base,W-260-w1), w2=x.measureText(t2).width, sx=(W-w1-w2)/2;
+        x.textAlign='left'; x.fillStyle=T.primary; x.font=`700 20px "JetBrains Mono", monospace`; x.fillText(p1,sx,y); x.fillStyle=T.muted; x.font=M(20); x.fillText(t2,sx+w1,y); }
+      else x.fillText(fit(base,W-200),W/2,y); x.textAlign='left'; };
+    const wkPill=(cx,y)=>{ if (wk<0.01) return; const t=`▲ +${fmtUsd(wk)} this week`; x.font=M(18); const w=x.measureText(t).width+36; x.fillStyle='rgba(74,222,128,.08)'; round(cx-w/2,y,w,38,19); x.fill(); x.strokeStyle='rgba(74,222,128,.45)'; x.lineWidth=1.5; round(cx-w/2,y,w,38,19); x.stroke(); x.fillStyle='#4ade80'; x.textAlign='center'; x.fillText(t,cx,y+25); x.textAlign='left'; };
+    const whoRight=()=>{ x.font=U(700,22); const wsz=x.measureText(who).width; if (pfp||pfpHandle) avatar(W-56-wsz-28,H-54,17); x.fillStyle=hexA(T.text,.85); wtext(who,W-56-wsz,H-46); };
+    dots([[W/2-330,470,W/2+330,520],[W/2-240,580,W/2+240,650]]);
+    logo(56,40,34); x.fillStyle=T.text; x.font=U(900,28); x.fillText('kickback',102,68);
+    { const m=Math.min(7,n), span=(m-1)*100, R=[0,0,0,0,0,0,0].map((_,k)=>k?56:72), mid=(m-1)/2;
+      const order=[...Array(m).keys()].sort((a,b)=>Math.abs(a-mid)-Math.abs(b-mid)||a-b), slot=[]; order.forEach((s,k)=>slot[s]=k);
+      const P=[...Array(m).keys()].map(s=>{ const t=m>1?(s/(m-1))*2-1:0, k=slot[s]; return {k, x:W/2+t*span/2, y:204+t*t*44, R:R[k]}; });
+      [...P].sort((a,b)=>b.k-a.k).forEach(p=>{ x.fillStyle=T.bg; x.beginPath(); x.arc(p.x,p.y,p.R+5,0,7); x.fill(); coinDot(p.x,p.y,p.R,coins[p.k],p.k,null); if (!p.k){ x.strokeStyle=T.primary; x.lineWidth=3; x.beginPath(); x.arc(p.x,p.y,p.R+3,0,7); x.stroke(); }
+        x.fillStyle=p.k?hexA(T.text,.72):T.text; x.font=U(800,p.k?15:18); x.textAlign='center'; x.fillText((coins[p.k].usd<10?'$'+coins[p.k].usd.toFixed(2):'$'+Math.round(coins[p.k].usd).toLocaleString('en-US')),p.x,p.y+p.R+(p.k?27:31)); x.textAlign='left'; }); }
+    // this week's gain: plain, in the card's own type (WV picks where it sits)
+    const WV='4', wvS=wk>=0.01?(wk>=100?'$'+Math.round(wk).toLocaleString('en-US'):fmtUsd(wk)):'';
+    { const tv=fmtUsd(d.total); let fs=112; x.font=U(900,fs); while (x.measureText(tv).width>W-240 && fs>60){ fs-=4; x.font=U(900,fs); } x.fillStyle=T.primary; x.textAlign='center'; x.fillText(tv,W/2,462); x.textAlign='left'; }
+    // sub line, optionally carrying the week
+    { const base=earnedOn(d.plats.slice(0,3).map(p=>p.name)); x.font=M(20);
+      if (WV==='1' && wvS){ const p1=base+'  ·  ', p2=wvS, p3=' this week'; x.font=M(20); const w1=x.measureText(p1).width, w3=x.measureText(p3).width; x.font=`700 20px "JetBrains Mono", monospace`; const w2=x.measureText(p2).width;
+        let sx=(W-(w1+w2+w3))/2; x.fillStyle=T.muted; x.font=M(20); x.fillText(p1,sx,506); x.fillStyle=T.text; x.font=`700 20px "JetBrains Mono", monospace`; x.fillText(p2,sx+w1,506); x.fillStyle=T.muted; x.font=M(20); x.fillText(p3,sx+w1+w2,506); }
+      else subLine(506); }
+    // who pill, optionally with the week at its end
+    { x.font=U(700,22); const hw=x.measureText(who).width; x.font=M(16); const tl='held and got paid', tw=x.measureText(tl).width;
+      const ext=(WV==='2'&&wvS)?(x.font=M(16), x.measureText('  ·  ').width+(x.font=`700 16px "JetBrains Mono", monospace`, x.measureText('+'+wvS).width)+(x.font=M(16), x.measureText(' this week').width)):0;
+      const av=!!(pfp||pfpHandle), ao=av?70:28, pw=ao+hw+12+tw+ext+26, px=(W-pw)/2, py=566;
+      x.fillStyle='#1d1915'; round(px,py,pw,62,31); x.fill(); x.strokeStyle='rgba(255,180,120,.16)'; x.lineWidth=1.5; round(px,py,pw,62,31); x.stroke();
+      if (av) avatar(px+33,py+31,23); x.fillStyle=T.text; x.font=U(700,22); wtext(who,px+ao,py+39); x.fillStyle=T.muted; x.font=M(16); x.fillText(tl,px+ao+hw+12,py+38);
+      if (ext){ let ex=px+ao+hw+12+tw; x.fillStyle=hexA(T.text,.3); x.font=M(16); x.fillText('  ·  ',ex,py+38); ex+=x.measureText('  ·  ').width; x.fillStyle=T.primary; x.font=`700 16px "JetBrains Mono", monospace`; x.fillText('+'+wvS,ex,py+38); ex+=x.measureText('+'+wvS).width; x.fillStyle=T.muted; x.font=M(16); x.fillText(' this week',ex,py+38); } }
+    // top right, mirroring the logo
+    if (WV==='3' && wvS){ x.textAlign='right'; x.fillStyle=T.text; x.font=U(800,24); x.fillText('+'+wvS,W-56,66); x.fillStyle=hexA(T.text,.42); x.font=M(13); x.fillText(sp('THIS WEEK'),W-56,88); x.textAlign='left'; }
+    // top right: this week's gain + the last 7 days as slim bars, lined up with the logo
+    if (WV==='4' && wvS){ const days=Array(7).fill(0), now=Date.now()/1000; for (const r of (KB_P||[])) if (r.price!=null) for (const p of (r.proofs||[])){ const k=Math.floor((now-p.t)/86400); if (k>=0&&k<7) days[6-k]+=(+p.d||0)*r.price; }
+      const mx=Math.max(...days,1e-9), bw2=8, gp=6, top=40, bot=82, bh=bot-top, bx0=W-56-(7*bw2+6*gp);
+      x.fillStyle=hexA(T.text,.10); x.fillRect(bx0-2,bot+4,7*bw2+6*gp+4,1.5);
+      days.forEach((v,i)=>{ const X=bx0+i*(bw2+gp); if (v<=0){ x.fillStyle=hexA(T.text,.14); round(X,bot-3,bw2,3,1.5); x.fill(); return; }
+        const h=Math.max(5,bh*Math.sqrt(v/mx)); x.fillStyle=i===6?T.primary:hexA(T.primary,.5); round(X,bot-h,bw2,h,3); x.fill(); });
+      x.textAlign='right'; x.fillStyle=T.text; x.font=U(800,24); x.fillText('+'+wvS,bx0-18,66); x.fillStyle=hexA(T.text,.5); x.font=`500 15px "Inter Tight", sans-serif`; x.fillText('this week',bx0-18,88); x.textAlign='left'; }
+    return c; }
+  if (cardStyle==='stack'){
+    x.font=U(700,26); const hw=x.measureText(who).width; x.font=M(18); const tw=x.measureText('held and got paid').width;
+    const av=!!(pfp||pfpHandle), ao=av?74:0; let sx=(W-(ao+hw+14+tw))/2; if (av) avatar(sx+30,84,28); x.fillStyle=T.text; x.font=U(700,26); wtext(who,sx+ao,94);
+    x.fillStyle=T.muted; x.font=M(18); x.fillText('held and got paid',sx+ao+hw+14,93);
+    const n=Math.min(7,coins.length), R=62, step=R*2-30, fw=step*(n-1)+R*2, dy=[14,4,-6,-12,-6,4,14];
+    const mid=(n-1)/2, slots=[], byDist=[...Array(n).keys()].sort((a,b)=>Math.abs(a-mid)-Math.abs(b-mid)||a-b);
+    byDist.forEach((slot,k)=>slots[slot]=k);
+    const drawOrder=[...Array(n).keys()].sort((a,b)=>Math.abs(b-mid)-Math.abs(a-mid));
+    for (const s of drawOrder){ const k=slots[s]; const cx=(W-fw)/2+R+s*step, cy=250+(dy[Math.round(s*6/Math.max(1,n-1))]||0);
+      coinDot(cx,cy,R,coins[k],k,T.bg); x.fillStyle=T.text; x.font=U(700,17); x.textAlign='center'; x.fillText('$'+Math.round(coins[k].usd).toLocaleString('en-US'),cx,cy+R+30); x.textAlign='left'; }
+    if (window.__tierTheme && TR.key==='whale' && cardTheme==='ember'){ const gg=x.createLinearGradient(0,400,0,505); gg.addColorStop(0,'#fff3c4'); gg.addColorStop(.5,'#ffc94d'); gg.addColorStop(1,'#d98a1e'); x.fillStyle=gg; x.shadowColor='rgba(255,180,60,.45)'; x.shadowBlur=30; } else x.fillStyle=T.primary;
+    x.font=U(900,122); x.textAlign='center'; x.fillText(fmtUsd(d.total),W/2,500); x.shadowBlur=0;
+    if (!TIERS_ON){ x.fillStyle=T.muted; x.font=M(20); x.fillText(fit(earnedOn(d.plats.slice(0,3).map(p=>p.name)),W-160),W/2,545); } else { x.font=M(20); const tg=TR.name+'-tier', sp='  ·  ', rest=fit(earnedOn(d.plats.slice(0,3).map(p=>p.name)),W-320);
+      x.font=U(900,19); const tw=x.measureText(tg).width; x.font=M(20); const sw=x.measureText(sp).width, rw=x.measureText(rest).width; let lx=(W-(tw+sw+rw))/2; x.textAlign='left';
+      x.fillStyle=!TR.next?'#ffc94d':T.primary; x.font=U(900,19); x.fillText(tg,lx,546); x.fillStyle=T.muted; x.font=M(20); x.fillText(sp+rest,lx+tw,545); x.textAlign='center'; }
+    x.font=U(900,22); const bw=x.measureText('kickback').width;
+    const bx=(W-(34+10+bw))/2; x.textAlign='left'; logo(bx,610,34); x.fillStyle=T.text; x.font=U(900,22); x.fillText('kickback',bx+44,636);
+    return c;
+  }
+  avatar(104,108,44); x.fillStyle=T.text; x.font=U(700,28); wtext(fit(who,380),168,104); x.fillStyle=T.muted; x.font=M(17); x.fillText('verified on-chain',168,134);
+  x.fillStyle=T.muted; x.font=M(21); x.fillText('my coins kicked back',60,300);
+  x.fillStyle=T.primary; let fs=118; x.font=U(900,fs); const tot=fmtUsd(d.total);
+  while (x.measureText(tot).width>520 && fs>60){ fs-=6; x.font=U(900,fs); } x.fillText(tot,52,300+fs*0.95);
+  if (!TIERS_ON){ x.fillStyle=T.muted; x.font=M(17); x.fillText(`${d.payouts} payouts · ${coins.length} coins · ${d.chains||1} chain${(d.chains||1)>1?'s':''}`,60,300+fs*0.95+44); } else { const yy=300+fs*0.95+44, tg=TR.name+'-tier'; x.font=U(900,17); const tw=x.measureText(tg).width; x.fillStyle=!TR.next?'#ffc94d':T.primary; x.fillText(tg,60,yy+1);
+      x.fillStyle=T.muted; x.font=M(17); x.fillText(`  ·  ${d.payouts} payouts · ${coins.length} coins · ${d.chains||1} chain${(d.chains||1)>1?'s':''}`,60+tw,yy); }
+  logo(60,588,34); x.fillStyle=T.text; x.font=U(900,22); x.fillText('kickback',104,614);
+  const top=coins.slice(0,4), rh=106, gap=14, y0=(H-(top.length*rh+(top.length-1)*gap))/2;
+  top.forEach((cn,i)=>{ const X=640, Y=y0+i*(rh+gap), w=500;
+    x.fillStyle=T.card; round(X,Y,w,rh,24); x.fill();
+    coinDot(X+58,Y+rh/2,34,cn,i,null);
+    x.fillStyle=T.text; x.font=U(700,24); x.fillText(fit(cn.sym,190),X+112,Y+48);
+    x.fillStyle=T.muted; x.font=M(15); x.fillText(fit(cn.from?('for holding '+cn.from):cn.platform,230),X+112,Y+76);
+    x.fillStyle=T.text; x.font=U(900,28); x.textAlign='right'; x.fillText('$'+Math.round(cn.usd).toLocaleString('en-US'),X+w-24,Y+64); x.textAlign='left'; });
+  if (coins.length>4){ x.fillStyle=T.muted; x.font=M(16); x.textAlign='right'; x.fillText(`+ ${coins.length-4} more coins`,1140,y0+top.length*(rh+gap)+16); x.textAlign='left'; }
+  return c;
+}
+document.addEventListener('click', e=>{ const b=e.target.closest('#hideW'); if(!b) return; HIDE_W=!HIDE_W; b.textContent=HIDE_W?'Show wallet':'Hide wallet'; b.classList.toggle('on',HIDE_W); renderCardPreview(); });
+// one card per coin: the reward rows worth sharing, biggest first
+let COIN_I=0;
+const coinRows=()=>(KB_P||[]).filter(r=>r.usd>=0.5);
+function coinStats(r){
+  const top=r.parts&&r.parts.length>1?r.parts.find(p=>!p.q)||r.parts[0]:null;
+  let held=top?top.lab:(r.from&&r.from.length?r.from[0]+(r.from.length>1?` +${r.from.length-1}`:''):r.sym);
+  held=String(held||r.sym||'?').replace(/ · .*$/,'').replace(/ or .*$/,'');
+  let since=0, wk=0; const wkT=Date.now()/1000-7*86400;
+  for (const p of (r.proofs||[])){ if (p.t && (!since||p.t<since)) since=p.t; if (r.price!=null && p.t>=wkT) wk+=(+p.d||0)*r.price; }
+  const pm=(top&&top.payer)||r.payer||null;
+  return {held, heldIcon:(pm&&HELD_ICON[pm])||null, since, wk, pm};
+}
+let HOLD_LIST=null;
+function holdRows(){ if (HOLD_LIST) return HOLD_LIST; const out=[];
+  for (const r of KB_P||[]){ const opts=r.parts&&r.parts.length?r.parts.filter(p=>!p.q).map(p=>p.lab):[null];
+    for (const o of opts){ const h=holdFor(r,o); if (h && h.usd>=0.01) out.push(h); } }
+  return HOLD_LIST=out.sort((a,b)=>b.usd-a.usd).slice(0,12); }
+async function holdReady(h){
+  if (!(h.mint in HELD_ICON)){ HELD_ICON[h.mint]=null; try{ const m=await solanaMeta([h.mint]); if (m?.[h.mint]?.icon) HELD_ICON[h.mint]=m[h.mint].icon; }catch(e){} }
+  h.coinIcon=HELD_ICON[h.mint]; if (h.coinIcon && !(h.coinIcon in iconCache)) iconCache[h.coinIcon]=await imgFromUrl(h.coinIcon); await document.fonts.ready; return h; }
+function renderCoinPick(){
+  const el=$('coinPick'); if (!el) return;
+  const hc=$('holdChip'); if (hc) hc.style.display=holdRows().length?'':'none';
+  { const pr=document.querySelector('.pfp-row'); if (pr) pr.style.display=''; }
+  if (cardStyle==='hold'){ const hs=holdRows(); el.classList.toggle('hidden', hs.length<2);
+    // the same coin can pay in several tokens (GROK pays SPCXx and BOT), so each chip says what it paid in
+    el.innerHTML=hs.map((h,i)=>`<button type="button" class="${h===HOLD_CUR?'on':''}" data-hpick="${i}">${h.coinIcon?`<img src="${esc(thumb(h.coinIcon))}" alt="">`:''}${esc(tk(h.coinSym))}<b>${fmtUsd(h.usd)} in ${esc(tk(h.sym))}</b></button>`).join('');
+    const miss=hs.filter(h=>!h.iconTried); if (miss.length){ miss.forEach(h=>h.iconTried=true); Promise.all(miss.map(h=>holdReady(h).catch(()=>null))).then(()=>renderCoinPick()); }
+    return; }
+  const rows=coinRows(); el.classList.toggle('hidden', cardStyle!=='coin' || !rows.length);
+  el.innerHTML=rows.slice(0,8).map((r,i)=>`<button type="button" class="${i===COIN_I?'on':''}" data-cpick="${i}">${r.icon?`<img src="${esc(thumb(r.icon))}" alt="">`:''}$${esc((r.sym||'?').replace(/^\$/,''))}<b>${r.usd>=100?'$'+Math.round(r.usd).toLocaleString('en-US'):fmtUsd(r.usd)}</b></button>`).join('');
+}
+const HELD_ICON={};
+async function coinIcon(){ const r=coinRows()[COIN_I]; if (!r) return; let redo=false;
+  if (r.icon && !(r.icon in iconCache)){ iconCache[r.icon]=await imgFromUrl(r.icon); redo=true; }
+  const pm=coinStats(r).pm; if (pm && r.chain==='solana' && !(pm in HELD_ICON)){ HELD_ICON[pm]=null; try{ const m=await solanaMeta([pm]); const u=m?.[pm]?.icon; if (u){ HELD_ICON[pm]=u; iconCache[u]=await imgFromUrl(u); redo=true; } }catch(e){} }
+  if (redo) renderCardPreview(); }
+document.addEventListener('click', e=>{ const b=e.target.closest('[data-cpick]'); if (b){ COIN_I=+b.dataset.cpick; renderCardPreview(); coinIcon(); }
+  const hp=e.target.closest('[data-hpick]'); if (hp){ const h=holdRows()[+hp.dataset.hpick]; if (h){ HOLD_CUR=h; renderCardPreview(); holdReady(h).then(()=>{ if (HOLD_CUR===h) renderCardPreview(); }); } return; }
+  if (e.target.closest('[data-kbhold]') && HOLD_CUR){ cardStyle='hold'; kbClose(); shareCard(); return; }
+  const s=e.target.closest('[data-kbshare]'); if (s){ const r=KB_P[+s.dataset.kbshare]; const h=holdFor(r, KB_CUR?.only??null); kbClose(); if (h){ HOLD_CUR=h; cardStyle='hold'; holdReady(h).then(()=>renderCardPreview()); } else cardStyle='stack'; shareCard(); } });
+function renderCardPreview(){ if (cardStyle==='coin' || cardStyle==='top') cardStyle='stack'; if (cardStyle==='hold' && !HOLD_CUR){ HOLD_CUR=holdRows()[0]||null; if (HOLD_CUR) holdReady(HOLD_CUR).then(()=>renderCardPreview()); else cardStyle='stack'; } renderCoinPick(); const c=drawCard(); $('cardPrev').src=c.toDataURL('image/jpeg',0.9);
+  document.querySelectorAll('[data-cstyle]').forEach(b=>b.classList.toggle('on',b.dataset.cstyle===cardStyle));
+  document.querySelectorAll('[data-ctheme]').forEach(b=>b.classList.toggle('on',b.dataset.ctheme===cardTheme)); return c; }
+function shareCard(){
+  if(!window.__share) return;
+  try{ const h=localStorage.getItem('pr_handle'); if(h && !$('xHandle').value) $('xHandle').value=h; }catch(e){}
+  $('shareModal').classList.remove('hidden'); renderCardPreview(); needHandle();
+  Promise.all([pfp?null:loadPfp($('xHandle').value), loadCardIcons()]).then(()=>{ renderCardPreview(); needHandle(true); });
+}
+function needHandle(focus){
+  const need=!pfp && cardStyle!=='hold'; $('pfpNeed').classList.toggle('hidden',!need); document.querySelector('.pfp-row').classList.toggle('need',need);
+  if (need && focus && !$('xHandle').value) $('xHandle').focus();
+}
+document.addEventListener('click', e=>{
+  const s=e.target.closest('[data-cstyle]'), t=e.target.closest('[data-ctheme]');
+  if (s){ cardStyle=s.dataset.cstyle; renderCardPreview(); }
+  if (t){ cardTheme=t.dataset.ctheme; try{localStorage.setItem('kb_theme',cardTheme)}catch(_){} renderCardPreview(); }
+});
+let handleTimer;
+document.addEventListener('input', e=>{ if(e.target.id!=='xHandle') return; clearTimeout(handleTimer);
+  handleTimer=setTimeout(()=>{ try{localStorage.setItem('pr_handle',e.target.value)}catch(_){} loadPfp(e.target.value).then(()=>{ renderCardPreview(); needHandle(); }); },450); });
+document.addEventListener('change', async e=>{ if(e.target.id!=='pfpFile' || !e.target.files[0]) return;
+  const im=new Image(); im.src=URL.createObjectURL(e.target.files[0]); if(await imgReady(im)){ pfp=im; renderCardPreview(); needHandle(); } });
+document.addEventListener('click', e=>{
+  if (e.target.closest('#shareBtn')){ cardStyle='stack'; shareCard(); }
+  if (e.target.closest('#closeShare') || e.target.id==='shareModal') $('shareModal').classList.add('hidden');
+  if (e.target.closest('#dlCard')) copyCard(e.target.closest('#dlCard'));
+  if (e.target.closest('#postX')) postToX();
+});
+async function copyCard(btn){
+  const label='Copy image', say=t=>{ btn.textContent=t; clearTimeout(copyCard.t); copyCard.t=setTimeout(()=>btn.textContent=label,2600); };
+  const blobP=new Promise(res=>drawCard().toBlob(res,'image/png'));
+  logEvent({kind:'copy', handle:pfpHandle||''});
+  if (CARD_API && !TESTRUN && window.__share) try{ const d=window.__share, cv=drawCard(); Promise.all([cardUp(cv), afterLog().then(runAuth)]).then(([img,a])=>a&&postJson(CARD_API,{w:d.wallet, ...a, total:d.total, handle:pfpHandle||'', img, studio:STUDIO?1:0, kind:'copy'},20000)).catch(()=>{}); }catch(e){}
+  try{ if (navigator.clipboard && window.ClipboardItem){ await navigator.clipboard.write([new ClipboardItem({'image/png': blobP})]); say('Copied ✓'); return; } }catch(e){}
+  const blob=await blobP; const file=new File([blob],'kickback-card.png',{type:'image/png'});
+  try{ if (navigator.canShare && navigator.canShare({files:[file]})){ await navigator.share({files:[file]}); say('Shared ✓'); return; } }catch(e){ if (e?.name==='AbortError') return; }
+  const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='kickback-card.png'; document.body.appendChild(a); a.click(); a.remove(); say('Saved ✓');
+}
+let posting=false;
+async function postToX(){
+  const d=window.__share; if (!d || posting) return; posting=true; logEvent({kind:'post', handle:pfpHandle||''});
+  const btn=$('postX'), label=btn.textContent; btn.textContent='Preparing…'; btn.disabled=true;
+  let copied=false;
+  try{ if (navigator.clipboard && window.ClipboardItem){
+    await navigator.clipboard.write([new ClipboardItem({'image/png': new Promise(res=>drawCard().toBlob(res,'image/png'))})]); copied=true; } }catch(e){}
+  const win=window.open('about:blank','_blank');
+  const cr = cardStyle==='coin' ? coinRows()[COIN_I] : null, ck = cr ? coinStats(cr) : null;
+  const hd = cardStyle==='hold' ? HOLD_CUR : null;
+  const say = link => STUDIO && window.kbStudioText ? window.kbStudioText+'\n\n'+link : hd ? `held ${tk(hd.coinSym)} for ${fmtDur(hd.dur)}${hd.holding?' so far':''}, got ${fmtUsd(hd.usd)} back in ${tk(hd.sym)}\n\n${link} by @syanovee` : cr ? `My $${ck.held.replace(/^\$/,'')} bag paid me ${fmtUsd(cr.usd)} in $${(cr.sym||'').replace(/^\$/,'')} so far\n\n${link} by @syanovee` : d.period ? `My bags paid me ${fmtUsd(d.total)} ${d.period} just for holding paired coins\n\n${link} by @syanovee` : `Just realised I got ${fmtUsd(d.total)} in total from just holding paired coins lol\n\n${link} by @syanovee`;
+  const home=/kickback-test\.|localhost|^file:/.test(location.href)?location.origin:LINKS.site;
+  let link=home;
+  if (CARD_API){ try{ const img=await cardUp(drawCard()); await afterLog(); const a=await runAuth(); const j=a&&await postJson(CARD_API,{w:d.wallet, ...a, total:d.total, handle:pfpHandle||'', img, studio:STUDIO?1:0},20000); if (j?.id) link=home+'/s/'+j.id; }catch(e){} }
+  const url='https://x.com/intent/post?text='+encodeURIComponent(say(link));
+  if (win){ try{ win.opener=null; }catch(e){} win.location.href=url; } else location.href=url;
+  if (copied){ btn.textContent='Card copied ✓ paste it into your post (⌘V / Ctrl+V)'; setTimeout(()=>{ btn.textContent=label; },6000); }
+  else btn.textContent=label;
+  btn.disabled=false; posting=false;
+}
+
+const isSol = a => /^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(a), isEvm = a => /^0x[0-9a-fA-F]{40}$/.test(a);
+// --- saved results: a wallet checked before opens its last full result right away, then a quiet re-check updates it ---
+let QUIET=0, SNAP_T=0, SCAN_PARTIAL=false;   // SCAN_PARTIAL: a source kept refusing during this check, so its total may be short
+const snapKey=ws=>[...new Set(ws.map(w=>isEvm(w)?w.toLowerCase():w))].sort().join(' ');
+const b64=u8=>{ let s=''; for (let i=0;i<u8.length;i+=0x8000) s+=String.fromCharCode.apply(null,u8.subarray(i,i+0x8000)); return btoa(s); };
+async function gz(str){ const cs=new Blob([str]).stream().pipeThrough(new CompressionStream('gzip')); return b64(new Uint8Array(await new Response(cs).arrayBuffer())); }
+async function ungz(b){ const bin=atob(b), u=new Uint8Array(bin.length); for (let i=0;i<bin.length;i++) u[i]=bin.charCodeAt(i); return await new Response(new Blob([u]).stream().pipeThrough(new DecompressionStream('gzip'))).text(); }
+async function snapGet(ws){ if (typeof DecompressionStream==='undefined') return null;
+  const j=await fetchJson('/api/snap?k='+encodeURIComponent(snapKey(ws))); if (!j?.data) return null;
+  try{ const o=snapClean(JSON.parse(await ungz(j.data))); return o?.v===SNAP_V&&Array.isArray(o.rows)&&Number.isFinite(o.total) ? {...o, ts:+j.ts||0} : null; }catch(e){ return null; } }
+// a saved result is plain data (numbers, short strings, lists): no markup, checked the same way here, on the server and on restore
+const SNAP_V=2;
+const SNAP_URL_KEYS = new Set(['link','icon','i','tweet','url']);
+function snapClean(x, d=0, key=''){
+  if (d>8) return null;
+  if (x===null || typeof x==='boolean') return x;
+  if (typeof x==='number') return Number.isFinite(x)?x:0;
+  if (typeof x==='string'){ if (SNAP_URL_KEYS.has(key) && !/^https:\/\/[^\s"'<>`\\]{4,2000}$/.test(x)) return null; return x.replace(/[<>"`]/g,'').slice(0,4000); }
+  if (Array.isArray(x)) return x.slice(0,20000).map(v=>snapClean(v,d+1));
+  if (typeof x==='object'){ const o=Object.create(null); for (const [k,v] of Object.entries(x)) if (/^[A-Za-z0-9_$:|.-]{1,100}$/.test(k) && !/^(__proto__|constructor|prototype)$/.test(k) && v!==undefined && typeof v!=='function') o[k]=snapClean(v,d+1,k); return {...o}; }
+  return null;
+}
+function snapSave(ws, rows, total, n){ if (typeof CompressionStream==='undefined' || !window.__runP || SCAN_PARTIAL) return;
+  const top=rows.filter(r=>(r.usd||0)>=1); if (top.length && top.filter(r=>!r.icon).length > top.length/2) return;
+  const rp=window.__runP;
+  const share=window.__share;
+  const o=snapClean(JSON.parse(JSON.stringify({v:SNAP_V, total, n, rows, share:window.__share, topKey:window.__topKey||''},(k,v)=>typeof v==='bigint'?String(v):v instanceof Set?[...v]:v)));
+  const js=JSON.stringify(o);
+  // after the scan's own log entry has landed: the server only keeps a saved result that matches it
+  setTimeout(async()=>{ let r=null; try{ r=await rp; const data=await gz(js); if (data.length>2e6) return; await postJson('/api/snap',{k:snapKey(ws), run:r.run, tok:r.t, total:Math.round(total*100)/100, data},20000); }catch(e){}
+    if (r && ws.length===1 && total>=1) wcardSave(ws[0], r, total, share); }, 4000);
+}
+// the wallet's own card for its getkickback.fun/w/<wallet> link preview (X, Telegram), drawn like the share card with no pfp
+async function wcardSave(w, r, total, share){ if (!share) return;
+  const cap=p=>Promise.race([p.catch(()=>null), sleep(2500).then(()=>null)]);
+  await Promise.all((share.coins||[]).slice(0,8).map(async c=>{ if (c.icon && !(c.icon in iconCache)){ const im=await cap(imgFromUrl(c.icon)); if (im) iconCache[c.icon]=im; } }));
+  try{ await Promise.race([Promise.all(['900 40px Unbounded','700 40px Unbounded','500 20px "JetBrains Mono"'].map(f=>document.fonts.load(f))), sleep(2000)]); }catch(e){}
+  const sv={pfp,pfpHandle,HIDE_W,cardStyle,cardTheme,share:window.__share};
+  let img; try{ pfp=null; pfpHandle=''; HIDE_W=false; cardStyle='stack'; cardTheme='ember'; window.__share={...share, wallet:w};
+    const c=drawCard(), s=document.createElement('canvas'); s.width=1200; s.height=675; s.getContext('2d').drawImage(c,0,0,1200,675); img=s.toDataURL('image/jpeg',0.86);
+  }catch(e){ return; } finally { pfp=sv.pfp; pfpHandle=sv.pfpHandle; HIDE_W=sv.HIDE_W; cardStyle=sv.cardStyle; cardTheme=sv.cardTheme; window.__share=sv.share; }
+  try{ await postJson('/api/wcard',{w, run:r.run, tok:r.t, total:Math.round(total*100)/100, img},20000); }catch(e){}
+}
+function drawWk(rows, el){ // last 7 days as small bars, today on the right
+  const wkT=Date.now()/1000-7*86400; let wk=0; for (const r of rows) if (r.price!=null) for (const p of (r.proofs||[])) if (+p.t>=wkT) wk+=(+p.d||0)*(+r.price||0);
+        const day=Array(7).fill(0), nowS=Date.now()/1000; for (const r of rows) if (r.price!=null) for (const p of (r.proofs||[])){ const k=Math.floor((nowS-p.t)/86400); if (k>=0&&k<7) day[6-k]+=(+p.d||0)*(+r.price||0); }
+        const mx=Math.max(...day,1e-9);
+        const dl=k=>{ const d=new Date((nowS-(6-k)*86400)*1000); return k===6?'today':k===5?'yesterday':d.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'}); };
+        const cap=`<b>${fmtUsd(wk)}</b> in the last 7 days`;
+        el.innerHTML=wk>=0.01?`<span class="spk">${day.map((v,i)=>`<b data-v="${fmtUsd(v)}" data-d="${dl(i)}" class="${i===6?'t':''}${v>0?'':' z'}" style="--h:${v>0?Math.max(8,Math.sqrt(v/mx)*52):4}px;--dl:${i*70}ms"><i></i></b>`).join('')}</span><span class="spl" data-cap="${esc(cap)}">${cap}</span>`:'';
+        if (!el._spk){ el._spk=1;
+          el.addEventListener('mouseover',e=>{ const b=e.target.closest('.spk b'); if (!b) return; el.classList.add('hov'); el.querySelectorAll('.spk b').forEach(x=>x.classList.toggle('on',x===b)); const l=el.querySelector('.spl'); l.innerHTML=`<b>${b.dataset.v}</b> ${b.dataset.d}`; });
+          el.addEventListener('mouseleave',()=>{ el.classList.remove('hov'); el.querySelectorAll('.spk b.on').forEach(x=>x.classList.remove('on')); const l=el.querySelector('.spl'); if (l) l.innerHTML=l.dataset.cap; }); }
+  el.classList.toggle('hidden', !(wk>=0.01));
+}
+function platListOf(rows){ const by={}; for (const r of rows||[]){ const k=String(r.platform||''); by[k]=by[k]||{usd:0,n:0,chain:r.chain}; if(by[k].chain!==r.chain) by[k].chain='all'; by[k].usd+=+r.usd||0; by[k].n+=+r.count||0; }
+  return Object.entries(by).filter(([k,v])=>v.usd>=0.01).sort((a,b)=>b[1].usd-a[1].usd); }
+function drawPlats(platList, step){
+  $('stack').innerHTML = platList.filter(([k,v])=>v.usd>0).map(([k,v])=>`<i title="${esc(k)}" style="flex:${+v.usd||0};background:${platColor(k)}"></i>`).join('');
+  $('plats').innerHTML = platList.map(([k,v],n)=>`<div class="plat" style="--pd:${(n*step).toFixed(2)}s" title="${+v.n||0} payouts · ${esc(CHAIN_LABEL[v.chain]||'')}"><span class="dot" style="background:${platColor(k)}"></span><span class="nm">${esc(k)}</span><b>${fmtUsd(+v.usd||0)}</b></div>`).join('');
+}
+function snapRestore(o){
+  SNAP_T=o.total; window.__share=o.share; window.__topKey=o.topKey;
+  $('total').textContent=fmtUsd(o.total); drawPlats(platListOf(o.rows), 0.12); drawWk(o.rows, $('wk'));
+  // coin pictures load first (at most ~0.8s), so the fan never shows letter circles for coins that have a picture
+  Promise.race([Promise.all((window.__share?.coins||[]).slice(0,8).map(c=>preThumb(c.icon))), sleep(800)]).then(()=>{ if (QUIET===RUN_ID) try{ renderCoins(window.__share); towerToFan(); }catch(e){} });
+  renderRows(o.rows); try{ kbHeat(o.rows, o.total, false); }catch(e){} renderTier(o.total);
+  const s=Date.now()/1000-o.ts, ago=s<3600?Math.max(1,Math.round(s/60))+' min':s<86400?Math.round(s/3600)+'h':Math.round(s/86400)+'d';
+  $('meta').textContent=`${(o.n||0).toLocaleString('en-US')} payouts · saved ${ago} ago · checking for new ones`;
+  $('result').classList.remove('hidden'); window.__noDing=1; kbState('done'); window.__noDing=0;
+  $('deep').classList.remove('hidden');
+}
+// a wallet we've seen before: say welcome back with what its last check found, before they even press Check
+let WB_T=0, WB_SEQ=0;
+const wbAgo=ts=>{ const s=Date.now()/1000-ts; return s<3600?Math.max(1,Math.round(s/60))+' min ago':s<86400?Math.round(s/3600)+'h ago':Math.round(s/86400)===1?'yesterday':Math.round(s/86400)+' days ago'; };
+function wbCheck(){
+  clearTimeout(WB_T); const box=document.getElementById('wb'); if (!box) return; box.classList.add('hidden');
+  if (KN || STUDIO || EMBED) return;
+  const v=(document.getElementById('wallet')?.value||'').trim(); if (!isSol(v) && !isEvm(v)) return;
+  const seq=++WB_SEQ;
+  WB_T=setTimeout(async()=>{ const j=await fetchJson('/api/last?w='+encodeURIComponent(v)); if (seq!==WB_SEQ || !j?.t || !document.body.classList.contains('idle')) return;
+    const pal=['#e8b400','#ff8a3d','#5ee0a0','#7aa7ff'];
+    const fan=(j.coins||[]).slice(0,3).map((c,i)=>{ const s=String(c.s||'?').replace(/^\$/,''); return c.i?`<i style="background-image:url('${esc(thumb(c.i))}');z-index:${3-i}"></i>`:`<i style="background:${pal[i]};z-index:${3-i}">${esc(s.slice(0,3))}</i>`; }).join('');
+    box.innerHTML=`<span class="fan">${fan}</span><span class="k">Welcome back</span><span class="t">you had <b>${fmtUsd(j.t)}</b> ${wbAgo(j.ts)}</span><button class="again" type="button">Check again</button>`;
+    box.onclick=()=>run();
+    box.classList.remove('hidden'); }, 250);
+}
+const FOMO_7702 = '0xef0100e6cae83bde06e4c305530e199d7217f42808555b';
+async function isFomoEvm(addr, key, strong){
+  const codes = await Promise.all(['base','bsc','robinhood','eth'].map(c=>rpc(`/api/alchemy/${EVM_CHAINS[c].net}`,'eth_getCode',[addr,'latest']).catch(()=>null)));
+  return codes.some(code=>code && (code.toLowerCase().startsWith(FOMO_7702) || (strong && code.toLowerCase().startsWith('0xef0100'))));
+}
+const RELAY_SINCE = Math.floor(Date.parse('2025-01-01T00:00:00Z')/1000);
+async function findLinkedWallets(addr, onEarly, onPage1){
+  const me = isEvm(addr) ? addr.toLowerCase() : addr, want = isEvm(addr) ? isSol : isEvm;
+  const score = {}, seenReq = new Set();
+  const norm = a => isEvm(a||'') ? a.toLowerCase() : a;
+  const eat = j => { for (const q of j?.requests||[]){
+    if (q.id){ if (seenReq.has(q.id)) continue; seenReq.add(q.id); }
+    if (q.status!=='success') continue;
+    for (const t of [...(q.data?.inTxs||[]), ...(q.data?.outTxs||[])]) if (t?.hash) RELAY_TXS.add(t.hash.toLowerCase());
+    const u=q.user, r=q.recipient||q.data?.metadata?.recipient;
+    let other=null, dir=null;
+    if (norm(u)===me && want(r||'')) { other=norm(r); dir='out'; }
+    else if (norm(r)===me && want(u||'')) { other=norm(u); dir='in'; }
+    if (!other) continue;
+    const e=score[other]||(score[other]={n:0,out:0,in:0});
+    e.n++; e[dir]++;
+  } };
+  const early = () => { if (!onEarly) return; const best=Object.entries(score).sort((a,b)=>b[1].n-a[1].n);
+    const sure=best.filter(([a,e],i)=>(e.in&&e.out) || (i===0 && e.n>=20 && e.n>=10*(best[1]?.[1].n||0))).map(([a,e])=>({address:a, moves:e.n, both:!!(e.in&&e.out)}));
+    if (sure.length) onEarly(sure); };
+  let first = null;
+  if (RELAY_PROXY && relayV3!==false){ first = await fetchJson(`${RELAY_PROXY}?user=${addr}&limit=100`); if (first?.requests) relayV3=true; else { if (relayV3===undefined) relayV3=false; first=null; } }
+  if (first){
+    eat(first); early(); if (onPage1) onPage1();
+    if (first.continuation && first.requests.length){
+      const oldest = Math.min(...first.requests.map(q=>Math.floor(Date.parse(q.createdAt)/1000)).filter(Number.isFinite));
+      const K=10, DAYS=86400, step=Math.max(DAYS, Math.ceil((oldest+1-RELAY_SINCE)/K/DAYS)*DAYS), wins=[];
+      for (let s=RELAY_SINCE; s<=oldest; s+=step) wins.push([s, Math.min(oldest, s+step-1)]);
+      await pool(wins, K, async ([a,b])=>{ let c=null, p=0; do{ const r=await fetchJson(`${RELAY_PROXY}?user=${addr}&limit=100&startTimestamp=${a}&endTimestamp=${b}${c?'&continuation='+c:''}`); eat(r); c=r?.continuation; p++; }while(c && p<10); });
+    }
+  } else {
+    let cont=null, pages=0;
+    do{ const j = await fetchJson(`https://api.relay.link/requests/v2?user=${addr}&limit=50${cont?'&continuation='+cont:''}`);
+      eat(j); cont=j?.continuation; pages++; if (pages===1) early();
+    }while(cont && pages<10);
+  }
+  const best = Object.entries(score).sort((a,b)=>b[1].n-a[1].n);
+  return best.filter(([a,e],i)=>(e.in && e.out) || (i===0 && e.n>=3 && e.n>=3*(best[1]?.[1].n||0))).map(([a,e])=>({address:a, moves:e.n, both:!!(e.in&&e.out)}));
+}
+
+let LIVE=null;
+const STABLES=new Set(['USDG','USDC','USDT','USD1','PYUSD']);
+// a token only counts as $1 by its name when it is the real contract: spam airdrops copy the name (fake "USDG" on Robinhood Chain, 1B supply, sent to 40k wallets)
+const KNOWN_STABLES=new Set([...STABLE_MINTS, '2u1tszSeqZ3qBWF3uNGPFc8TzMk2tdiwknnRMWGWjGWH',
+  '0x5fc5360d0400a0fd4f2af552add042d716f1d168',                                                    // Robinhood Chain USDG
+  '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48','0xdac17f958d2ee523a2206206994597c13d831ec7','0x6c3ea9036406852006290770bedfcaba0e23a0e8','0xe343167631d89b6ffc58b88d6b7fb0228795491d',   // Ethereum USDC, USDT, PYUSD, USDG
+  '0x833589fcd6edb6e08f4c7c32d4f71b54bda02913',                                                    // Base USDC
+  '0x55d398326f99059ff775485246999027b3197955','0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d','0x8d0d000ee44948fc98c9b98a4fa4921476f08b0d']);  // BNB USDT, USDC, USD1
+const stableAt=(asset,sym)=>STABLES.has((sym||'').toUpperCase()) && KNOWN_STABLES.has(String(asset||'').startsWith('0x')?String(asset).toLowerCase():asset);
+function liveAdd(chain, asset, raw, dec, sym){ if (!LIVE || raw<=0n) return; if (KN && asset!==KN_STONK) return; const k=chain+'|'+asset; const it=LIVE.items[k]||(LIVE.items[k]={chain, asset, raw:0n, dec, sym}); it.raw+=raw; LIVE.dirty=true; }
+function liveSol(c, W){
+  if (!LIVE || !c || c.err || c.sw || LIVE.seen.has(c.s)) return; LIVE.seen.add(c.s);
+  const g=BigInt(c.wg||'0'), gains=(c.d||[]).filter(e=>BigInt(e.post)>BigInt(e.pre)), sf=(c.sg||[]).find(s=>W_SOL_DIST[s]);
+  const tok=()=>{ for (const e of gains) liveAdd('solana', e.m, BigInt(e.post)-BigInt(e.pre), e.dec); };
+  if (sf){ tok(); if (W_SOL_DIST[sf]!=='StonkFun' && g>0n) liveAdd('solana', SOL_MINT, g, 9); }
+  else if (c.sc && g>0n) liveAdd('solana', SOL_MINT, g, 9);
+  else if (c.pf){ if (g>0n) liveAdd('solana', SOL_MINT, g, 9); tok(); }
+}
+function liveEvm(r){ for (const p of r?.payouts||[]) liveAdd(p.chain, p.asset, p.raw, p.dec, p.sym); }
+const TIP = { Solana:'8LKV5nWRdZZJqRo4hGFBBZc6xXPupoZiRVv3ueKJSTYL' };
+function tipLog(act, src){ if (TESTRUN || !LOG_API) return; try{ fetch(LOG_API,{method:'POST',keepalive:true,headers:{'Content-Type':'application/json'},body:JSON.stringify({kind:'tip',act,src,mobile:matchMedia('(pointer:coarse)').matches?1:0})}).catch(()=>{}); }catch(e){} }
+let TIP_SRC='pill';
+(function(){
+  const close=()=>document.querySelectorAll('.kbmod.open').forEach(m=>m.classList.remove('open'));
+  document.addEventListener('click',e=>{
+    const o=e.target.closest('[data-kbmod]'); if(o){ close(); document.getElementById(o.dataset.kbmod)?.classList.add('open'); return; }
+    if(e.target.closest('[data-kbclose]') || (e.target.classList?.contains('kbmod'))){ close(); return; }
+    if(e.target.closest('[data-kbtip]')){ e.stopPropagation(); window.scrollTo({top:0,behavior:'smooth'}); const b=document.getElementById('tipBtn'); if(b && !document.getElementById('tipPop')?.classList.contains('open')) setTimeout(()=>{ TIP_SRC='footer'; b.click(); },120); return; }
+    if(e.target.closest('[data-kbx]')) window.open('https://x.com/syanovee','_blank','noopener');
+  });
+  document.addEventListener('keydown',e=>{ if(e.key==='Escape') close(); });
+})();
+(function(){ const rows=$('tipRows'), btn=$('tipBtn'), pop=$('tipPop'); if(!rows||!btn) return;
+  rows.innerHTML=Object.entries(TIP).filter(([k,v])=>v).map(([k,v])=>`<button class="tiprow" type="button" data-tip="${esc(v)}"><i>${esc(k==='EVM'?'EVM':'SOL')}</i><code>${esc(v)}</code><em>Copy</em></button>`).join('');
+  const close=()=>{ pop.classList.remove('open'); btn.classList.remove('on'); };
+  btn.onclick=e=>{ e.stopPropagation(); const o=!pop.classList.contains('open'); pop.classList.toggle('open',o); btn.classList.toggle('on',o); if(o) tipLog('open',TIP_SRC); TIP_SRC='pill'; };
+  document.addEventListener('click',e=>{ const r=e.target.closest('.tiprow');
+    if(r){ const v=r.dataset.tip, em=r.querySelector('em');
+      tipLog('copy',''); const done=()=>{ r.classList.add('ok'); em.textContent='Copied ✓'; setTimeout(()=>{ r.classList.remove('ok'); em.textContent='Copy'; },1800); };
+      (navigator.clipboard?.writeText(v)||Promise.reject()).then(done).catch(()=>{ const t=document.createElement('textarea'); t.value=v; document.body.appendChild(t); t.select(); try{document.execCommand('copy'); done();}catch(_){} t.remove(); });
+      return; }
+    if(!e.target.closest('#tipPop')) close(); });
+  document.addEventListener('keydown',e=>{ if(e.key==='Escape') close(); });
+})();
+let RUN_ID = 0;
+async function run(){
+  dingPrime();
+  const inputs=[...new Set($('wallet').value.split(/[\s,;]+/).map(x=>x.trim()).filter(Boolean))];
+  const hk='server', ak='server';
+  if (!inputs.length || inputs.some(x=>!isSol(x)&&!isEvm(x))){ setStatus("Paste one or more Solana or EVM (0x…) addresses",true); return; }
+  if (KN && inputs.some(x=>!isSol(x))){ setStatus('KNOTS lives on Solana: paste a Solana wallet',true); return; }
+  { const d=inputs.find(x=>W_SOL_DIST[x]); if (d){ setStatus(`That's the ${W_SOL_DIST[d]} distributor wallet, it pays the rewards, it doesn't earn them 😄 Paste a holder wallet`,true); return; } }
+  const myRun = ++RUN_ID; SCAN_PARTIAL=false;
+  QUIET=0; let SNAP=null;
+  if (!KN && !EMBED && !STUDIO) SNAP=await Promise.race([snapGet(inputs).catch(()=>null), sleep(1500).then(()=>null)]);
+  if (myRun!==RUN_ID) return;
+  if (SNAP) QUIET=myRun;
+  if (!KN && !EMBED && !STUDIO && !TESTRUN && inputs.length===1) try{ history.replaceState(null,'','/w/'+inputs[0]); }catch(e){}
+  window.__lastLog=null; window.__runP = kbRun(inputs, EMBED?EMB_PARTNER:null); window.__runP.catch(()=>{});
+  if (EMBED) await window.__runP;   // a partner scan starts only within the partner's hourly limit (counted by /api/run)
+  if (QUIET!==myRun){ $('rank').classList.add('hidden'); $('tierNext').textContent=''; $('tiers').classList.add('hidden'); $('postBig').classList.add('hidden'); }
+  $('go').disabled=true; $('go').classList.add('flip'); if (QUIET===myRun) snapRestore(SNAP); else { $('result').classList.add('hidden'); $('linked').textContent=''; $('linkedInfo').textContent=''; $('deep').classList.add('hidden'); kbState('scanning'); }
+  setStatus('Finding your linked wallets…');
+  const sols=new Set(inputs.filter(isSol)), evms=new Set(inputs.filter(isEvm).map(x=>x.toLowerCase())), found=[];
+  const others=[];
+  const pill=(w,tag)=>`<span>${esc(short(w))}${tag?`<em>${tag}</em>`:''}</span>`;
+  $('scanWho').innerHTML = inputs.map(w=>pill(w, isSol(w)?'Solana':'EVM')).join('');
+  const fk='server';
+  $('who').classList.add('hidden');
+  const t0=Date.now();
+  const memo = {};
+  const cachedMeta = async (tag, list, fn) => {
+    const miss = list.filter(a=>!((tag+a) in memo));
+    if (miss.length){ const got = await fn(miss).catch(()=>({})); for (const a of miss) memo[tag+a]=got[a]??null; for (const k in got) if (!((tag+k) in memo)) memo[tag+k]=got[k]; }
+    const out={}; for (const a of list) if (memo[tag+a]) out[a]=memo[tag+a];
+    for (const k in memo) if (k.startsWith(tag) && memo[k] && !(k.slice(tag.length) in out) && k.slice(tag.length).startsWith('native:')) out[k.slice(tag.length)]=memo[k];
+    return out;
+  };
+  LIVE={items:{}, seen:new Set(), shown:0, dirty:false}; $('liveWrap').classList.add('hidden'); $('liveSum').textContent='$0.00';
+  // seen before? show what the last check found within a second, the full scan below still counts everything fresh
+  $('lastChk').classList.add('hidden');
+  if (inputs.length===1 && !KN && !STUDIO) fetchJson('/api/last?w='+encodeURIComponent(inputs[0])).then(j=>{
+    if (!j?.t || myRun!==RUN_ID || !document.body.classList.contains('scanning')) return;
+    const ago=Date.now()/1000-j.ts, a=ago<3600?Math.max(1,Math.round(ago/60))+'m':ago<172800?Math.round(ago/3600)+'h':Math.round(ago/86400)+'d';
+    if ((LIVE?.shown||0)<j.t){ $('liveWrap').classList.remove('hidden'); countUp($('liveSum'), j.t, LIVE?.shown||0); if (LIVE){ LIVE.shown=j.t; LIVE.floor=j.t; } }
+    const c=$('lastChk'); c.innerHTML=`Last check ${a} ago${j.coins?.[0]?` · mostly <b>$${esc(String(j.coins[0].s).replace(/^\$/,''))}</b>`:''} · counting new payouts…`; c.classList.remove('hidden'); });
+  let liveBusy=false;
+  const livePrice = async()=>{ if (!LIVE || !LIVE.dirty || liveBusy) return; liveBusy=true; LIVE.dirty=false;
+    try{ const by={}; for (const it of Object.values(LIVE.items)) (by[it.chain]=by[it.chain]||[]).push(it.asset);
+      const metas={}; await Promise.all(Object.entries(by).map(async([c,l])=>{ metas[c] = c==='solana' ? await cachedMeta('sol:', l, solanaMeta) : await cachedMeta(c+':', l, x=>evmMeta(c,x)); }));
+      if (!LIVE) return; let tot=0;
+      for (const it of Object.values(LIVE.items)){ const m=(metas[it.chain]||{})[it.asset]||{}; let pr=m.price; if (pr==null && stableAt(it.asset, m.sym||it.sym)) pr=1; if (pr!=null) tot+=rawToNum(it.raw,it.dec)*pr; }
+      for (const it of Object.values(LIVE.items)){ const ic=((metas[it.chain]||{})[it.asset]||{}).icon || MAJOR_ICON[(((metas[it.chain]||{})[it.asset]||{}).sym||it.sym||'').toUpperCase()]; if (ic) preThumb(ic); }
+      if (tot>=0.01 && Math.abs(tot-LIVE.shown)>=0.005 && !(LIVE.floor && tot<LIVE.floor)){ $('liveWrap').classList.remove('hidden'); countUp($('liveSum'), tot, LIVE.shown); LIVE.shown=tot; }
+    }finally{ liveBusy=false; } };
+  const liveTimer = setInterval(livePrice, 1500);
+  const jobs=[], runs=[]; let done=0, relayDone;
+  const relayReady = new Promise(r=>relayDone=r);
+  const tick=(j,r)=>{ done++; $('prog').style.width=(done/jobs.length*90)+'%'; chainDone(j,r); };
+  const runJob = async j=>{
+    if (j.kind==='sol'){ const r=await scanSolana(j.w, hk, ak); tick(j,r); return [j,r]; }
+    for (let a=0;;a++){
+      try{ const r=await scanEvm(j.c, j.w, ak, relayReady); liveEvm(r); tick(j,r); return [j,r]; }
+      catch(e){ if (a<2 && !e.notEnabled){ await sleep(1500*(a+1)); continue; } tick(j,null); return [j,{error:e}]; }
+    }
+  };
+  const addWallet = w => { const js = isSol(w) ? [{kind:'sol', w}] : Object.keys(EVM_CHAINS).map(c=>({kind:'evm', w, c})); for (const j of js){ jobs.push(j); chainAdd(j); runs.push(runJob(j)); } };
+  progBase=0; progSpan=0;
+  chainStart([]);
+  try{
+    for (const w of sols) addWallet(w); for (const w of evms) addWallet(w);
+    const seen = new Set();
+    const take = async l => {
+      if (seen.has(l.address)) return; seen.add(l.address);
+      const strong = l.both || (l.moves||0)>=10;
+      if (isEvm(l.address) && !strong && !(await isFomoEvm(l.address, ak))) { others.push(l); return; }
+      const set=isSol(l.address)?sols:evms; if (!set.has(l.address)){ set.add(l.address); found.push(l); addWallet(l.address); $('scanWho').insertAdjacentHTML('beforeend', pill(l.address, 'linked '+(isSol(l.address)?'Solana':'EVM'))); logLine(`<b>${esc(short(l.address))}</b> found`, true, 'linked'); }
+    };
+    const early = [];
+    let page1Left=inputs.length; const page1=()=>{ if (--page1Left<=0) relayDone(); };
+    const lists = KN ? inputs.map(()=>[]) : await Promise.all(inputs.map(x=>findLinkedWallets(x, ls=>{ for (const l of ls) early.push(take(l)); }, page1).catch(()=>[])));
+    relayDone();
+    await Promise.all([...early, ...lists.flat().map(take)]);
+    for (const l of found){ const f=lists.flat().find(x=>x.address===l.address); if (f) l.moves=f.moves; }
+    $('linkedInfo').innerHTML = (!KN && !found.length) ? '' : (found.length ? 'Also scanned '+found.map(l=>`<code title="${esc(l.address)}">${esc(short(l.address))}</code>`).join(', ')+', your linked wallet from bridge history' : 'No linked wallet found. Scanned only what you pasted. Paste several addresses separated by spaces to check them together.')
+      + (sols.size+evms.size>2?`<br>Scanned ${sols.size} Solana + ${evms.size} EVM wallets.`:'');
+    $('linked').innerHTML = others.length ? `Also yours? You bridged with ${others.map(l=>`<code>${esc(short(l.address))}</code>`).join(', ')} <button class="addw" type="button" data-w="${esc(others.map(l=>l.address).join(' '))}">+ Add and rescan</button>` : '';
+    if (!EMBED) fomoProfile([...inputs, ...found.map(l=>l.address)], fk).then(applyProfile).catch(()=>{});
+    const res = await Promise.all(runs);
+
+    let shownTotal = 0, pairsLate = null, pairsGot = false, pairsMiss = false, secondDone = false;
+    const finalize = async (res, second) => {
+    const notes=[], checks=[];
+    let payouts=[], suspects=[], txTotal=0, partial=false;
+    let stonkMints=new Set();
+    const skipped={}, evmAcc={}, unclaimed=[];
+    for (const [j,r] of res){
+      if (r?.error){ const L=EVM_CHAINS[j.c].label; (skipped[L]=skipped[L]||{notEnabled:!!r.error.notEnabled, msg:r.error.message}); continue; }
+      if (r.partial) partial=true;
+      if (r.deepFailed) checks.push(`<span class="chk warn">⚠ ${j.kind==='sol'?'Solana':EVM_CHAINS[j.c].label}: second pass didn't finish, so creator drops and older history not included</span>`);
+      payouts=payouts.concat(r.payouts); suspects=suspects.concat(r.suspects||[]);
+      if (j.kind==='sol'){
+        txTotal+=r.txCount; for (const m of (r.stonkMints.size?r.everMints:[])) stonkMints.add(m);
+        if (r.trunc?.deep) checks.push(`<span class="chk ok">✓ Very active wallet: about ${r.trunc.est.toLocaleString('en-US')} Solana transactions since July. Kickback read the newest ${r.trunc.read.toLocaleString('en-US')} in full, and before ${fmtDate(r.trunc.since)} the accounts of your ${r.trunc.deep.accounts} reward coins (${r.trunc.deep.read.toLocaleString('en-US')} more transactions). SOL paid straight to the wallet before that date may be missing</span>`);
+        else if (r.trunc) checks.push(`<span class="chk warn">⚠ Very active wallet: about ${r.trunc.est.toLocaleString('en-US')} Solana transactions since July. Kickback read the newest ${r.trunc.read.toLocaleString('en-US')} (back to ${fmtDate(r.trunc.since)}), so rewards before that aren't in this total yet. Older rewards are being read now</span>`);
+        if (r.missing) checks.push(`<span class="chk warn">⚠ ${r.missing.toLocaleString('en-US')} Solana transaction(s) couldn't be read right now, so the total may be slightly low. Run again in a minute</span>`);
+        if (r.recon?.skipped) checks.push(`<span class="chk">Solana balance check skipped: the history is too long to replay</span>`);
+        else if (!r.recon) checks.push(`<span class="chk">… Solana balance check running</span>`);
+        else if (r.recon) checks.push(r.recon.bad===0?`<span class="chk ok">✓ Solana ${sols.size>1?short(j.w)+' ':''}balance check · ${r.recon.ok}/${r.recon.ok} accounts</span>`:`<span class="chk warn">⚠ ${r.recon.bad} Solana account(s) didn't reconcile. Run again</span>`);
+        if (r.recon?.moved) checks.push(`<span class="chk warn">${r.recon.moved} account(s) changed during the scan</span>`);
+      } else {
+        unclaimed.push(...(r.unclaimed||[]));
+        txTotal+=r.transfers; const L=EVM_CHAINS[j.c].label, e=evmAcc[L]||(evmAcc[L]={incoming:0,trades:0,bridge:0,rewards:0,direct:0,spam:0,review:0,tok:0,grew:0,partial:false});
+        for (const k in r.acc) e[k]+=r.acc[k]; if (r.recon){ e.tok+=r.recon.ok+r.recon.bad; e.grew+=r.recon.grew.length; } if (r.partial) e.partial=true;
+      }
+    }
+    for (const [L,e] of Object.entries(evmAcc)){
+      if (!e.incoming) { checks.push(`<span class="chk ok">✓ ${L} · no activity</span>`); continue; }
+      checks.push('%%EVM%%'+L);
+    }
+    for (const [L,sk] of Object.entries(skipped)){
+      notes.push(sk.notEnabled?`⚠ ${L} was skipped: it is not enabled for the API key. The total does NOT include ${L}.`:`⚠ ${L} could not be read (${sk.msg}). The total does NOT include ${L}. Try again in a minute.`);
+      checks.push(`<span class="chk warn">⚠ ${L} skipped</span>`);
+    }
+    if (!second){ progBase=90; progSpan=10; setStatus('Loading prices…'); mainChip('prices', payouts.length?`${new Set(payouts.map(p=>p.asset)).size} coins`:'…'); progRender(0.95); }
+    const suspMints = c => suspects.filter(s=>s.gains && s.chainKey===c).flatMap(s=>Object.keys(s.gains));
+    const byChain = c => [...new Set([...payouts.filter(p=>p.chain===c).map(p=>p.asset), ...suspMints(c), ...(c==='bsc'?unclaimed.map(x=>x.asset):[])])];
+    const chainKeys = Object.keys(EVM_CHAINS);
+    const pumpCoins=[...new Set(payouts.filter(p=>(p.platform==='pump.fun'||p.platform==='Scribe'||(p.platform==='Creator rewards'&&p.chain==='solana'))&&p.coin).map(p=>p.coin))];
+    const stonkNeed = new Set(), heldCnt = {}; for (const p of payouts) if (p.platform==='StonkFun'){ stonkNeed.add(p.asset); for (const m of (p.held||[])) if (stonkMints.has(m)) stonkNeed.add(m); else if (!m.endsWith('pump') && m!==SOL_MINT) heldCnt[m]=(heldCnt[m]||0)+1; }
+    /* coins held while StonkFun paid (e.g. KNOTS paying in STONK) are reward coins too: ask StonkFun about the most-held ones */
+    Object.entries(heldCnt).sort((a,b)=>b[1]-a[1]).slice(0,150).forEach(([m])=>stonkNeed.add(m));
+    const [mSol, pairs, mPump, ...mEvm] = await Promise.all([
+      byChain('solana').length?cachedMeta('sol:', byChain('solana'), solanaMeta):{},
+      stonkNeed.size?((second||KN)?cachedMeta('stonk:', [...stonkNeed], stonkPairs):Promise.race([(pairsLate=cachedMeta('stonk:', [...stonkNeed], stonkPairs)).then(v=>(pairsGot=true,v)), sleep(4000).then(()=>(pairsGot||(pairsMiss=true),{}))])):{},
+      pumpCoins.length?cachedMeta('sol:', pumpCoins, solanaMeta):{},
+      ...chainKeys.map(c=>byChain(c).length?cachedMeta(c+':', byChain(c), l=>evmMeta(c, l)):{}),
+    ]);
+    const metaByChain = {solana:mSol}; chainKeys.forEach((c,i)=>metaByChain[c]=mEvm[i]);
+
+    const meta = Object.assign({}, mSol, ...mEvm);
+    for (const k in meta){ const m=meta[k]; if (m?.icon && /coingecko\.com\/coins\/images\/\d+\/(thumb|small)\//.test(m.icon)) m.icon=m.icon.replace(/\/(thumb|small)\//,'/large/'); }
+    for (const p of payouts){ const m=meta[p.asset]; const s=(m?.sym||p.sym||'').toUpperCase().replace(/[^A-Z.]/g,'');
+      if (m?.icon && m.icon.includes('cdn.robinhood.com/ncw_assets') && s) m.icon=stockIcon(s); }
+    for (const p of payouts){ const m=meta[p.asset]||(meta[p.asset]={}); if (m.icon) continue; const ic=MAJOR_ICON[(m.sym||p.sym||'').toUpperCase()]; if (ic) m.icon=ic; }
+    for (const p of payouts){ const m=meta[p.asset]||(meta[p.asset]={}); const sym=(m.sym||p.sym||'').toUpperCase(); if (m.price==null && stableAt(p.asset, sym)){ m.price=1; m.src='stablecoin'; m.sym=m.sym||p.sym; } }
+    const needSym=[...new Set([...Object.keys(pairs), ...pumpCoins])].filter(m=>!(mSol[m]?.sym)&&!(mPump[m]?.sym));
+    if (needSym.length && hk){
+      const url=EMB_HELIUS||'/api/helius';
+      for (let i=0;i<needSym.length;i+=500){
+        const r=await rpc(url,'getAssetBatch',{ids:needSym.slice(i,i+500)}).catch(()=>null);
+        for (const x of r||[]) if (x?.content?.metadata?.symbol){ const sym=x.content.metadata.symbol.trim(); (mSol[x.id]=mSol[x.id]||{}).sym ??= sym; (mPump[x.id]=mPump[x.id]||{}).sym ??= sym; }
+      }
+    }
+    { // reward tokens priced like stocks: get their full names, so the same stock from two issuers (xStocks, Backpack) can be told apart
+      const needName=[...new Set(payouts.filter(p=>p.chain==='solana').map(p=>p.asset))].filter(m=>meta[m] && !meta[m].name && (meta[m].price||0)>5 && m!==SOL_MINT);
+      if (needName.length && hk){ const r=await rpc(EMB_HELIUS||'/api/helius','getAssetBatch',{ids:needName.slice(0,100)}).catch(()=>null);
+        for (const x of r||[]){ const n=x?.content?.metadata?.name?.trim(); if (n && meta[x.id]) meta[x.id].name=n; } }
+    }
+    setProg(100);
+
+    if (second==='late' && secondDone) return;
+    stonkSplit(payouts, pairs);   // only once StonkFun answered for every coin held, a partial list would mislabel
+    if (TESTRUN && /[?&]dump\b/.test(location.search)){ try{
+      const dump={wallet:inputs[0], second, pairs, payouts:payouts.filter(p=>p.platform==='StonkFun').map(p=>({sig:p.sig, t:p.t, asset:p.asset, raw:String(p.raw), held:p.held, co:p.co, src:p.src||null}))};
+      let b=document.getElementById('kbDump'); if(!b){ b=document.createElement('a'); b.id='kbDump'; b.style.cssText='position:fixed;left:16px;bottom:16px;z-index:99;background:#ff8a3d;color:#1a120a;padding:12px 18px;border-radius:12px;font:700 14px sans-serif;text-decoration:none'; document.body.appendChild(b); }
+      b.textContent='Download debug ('+(second?'final':'first')+', '+dump.payouts.length+' payouts)'; b.download='kickback-debug-'+(second?'final':'first')+'.json';
+      b.href=URL.createObjectURL(new Blob([JSON.stringify(dump)],{type:'application/json'}));
+    }catch(e){ console.log('dump failed',e); } }
+    const groups={};
+    for (const p of payouts){
+      const k=p.chain+'|'+p.platform+'|'+p.asset+'|'+(p.src||'');
+      const g=groups[k]||(groups[k]={payer:p.src||null, chain:p.chain, platform:p.platform, asset:p.asset, raw:0n, dec:p.dec, count:0, last:0, proofs:[], coins:new Set(), sym:p.sym, held:new Set()});
+      if (p.held) for (const m of p.held) g.held.add(m);
+      if (p.coin) (g.cm=g.cm||new Set()).add(p.coin);
+      g.raw+=p.raw; g.count++; g.last=Math.max(g.last,p.t);
+      g.proofs.push({sig:p.sig, t:p.t, link:p.link, d:rawToNum(p.raw,p.dec)});
+      if ((p.platform==='pump.fun'||p.platform==='Scribe'||(p.platform==='Creator rewards'&&p.chain==='solana')) && p.coin) g.coins.add(mPump[p.coin]?.sym || short(p.coin));
+      if (p.chain!=='solana' && p.coin) g.coins.add(p.coinSym || short(p.coin));
+    }
+    const rows = Object.values(groups).map(g=>{
+      const m = meta[g.asset]||{};
+      const amount = rawToNum(g.raw, g.dec);
+      let from=[...g.coins];
+      if (g.platform==='StonkFun' && g.payer){ from=[mSol[g.payer]?.sym||STONK_KNOWN[g.payer]?.sym||short(g.payer)]; }
+      else if (g.platform==='StonkFun'){
+        const src = Object.entries(pairs).filter(([c,v])=>v.quote===g.asset && g.held.has(c)).map(([c])=>c);
+        from = src.map(c=>mSol[c]?.sym||STONK_KNOWN[c]?.sym||short(c));
+        if (pairs[g.asset]?.base && g.held.has(g.asset)) from.push((mSol[g.asset]?.sym||short(g.asset))+(from.length?' (own round, if any)':' (own round)'));
+      }
+      const price = m.price ?? null;
+      from=from.map(f=>/^\$|…|^not matched|^one of/.test(f)?f:'$'+f);   // tickers always with $
+      return {...g, sym:m.sym||g.sym, name:m.name||null, icon:m.icon, price, src:m.src, amount, usd:price!=null?amount*price:0, from};
+    }).sort((a,b)=>b.usd-a.usd);
+
+    const total = rows.reduce((s,r)=>s+r.usd,0);
+    const hold = QUIET===myRun && second!==true && total < SNAP_T-0.01;   // quiet re-check, first pass still short of the saved total: keep showing the saved one
+    const byPlat = {}; for (const r of rows){ const k=r.platform; byPlat[k]=byPlat[k]||{usd:0,n:0,chain:r.chain}; if(byPlat[k].chain!==r.chain) byPlat[k].chain='all'; byPlat[k].usd+=r.usd; byPlat[k].n+=r.count; }
+    if (!second){ const kr=KN?rows.filter(r=>r.platform==='StonkFun'&&r.payer===KN_MINT):null, liveT=KN?kr.reduce((a,r)=>a+r.usd,0):total, liveN=KN?kr.reduce((a,r)=>a+r.count,0):payouts.length;
+      progRender(1); mainChipDone(true, `<b>${liveN.toLocaleString('en-US')}</b> payout${liveN===1?'':'s'}`); $('liveWrap').classList.remove('hidden'); const from=shownTotal; if (KN && liveT<from-0.5) headline('Matching payouts to $KNOTS', true); countUp($('liveSum'), liveT, from); await sleep(KN?1300:950); shownTotal=hold?shownTotal:total; }
+    if (second && !KN) mainChip(null, `<b>${payouts.length.toLocaleString('en-US')}</b> payout${payouts.length===1?'':'s'}`);   // the count next to the total always matches it
+    if (!hold){ countUp($('total'), total, shownTotal); shownTotal=total; }
+    { // still earning: what came in over the last 7 days
+      const wkT=Date.now()/1000-7*86400; let wk=0; for (const r of rows) if (r.price!=null) for (const p of (r.proofs||[])) if (p.t>=wkT) wk+=(+p.d||0)*r.price;
+      const el=hold?document.createElement('div'):$('wk'); if (!KN){ drawWk(rows, el); }
+      else if (wk>=0.01){ el.innerHTML=`<b>▲ +${fmtUsd(wk)}</b><span>last 7 days · ≈ ${fmtUsd(wk/7)}/day</span>`; el.classList.remove('hidden'); } else el.classList.add('hidden'); }
+    $('meta').textContent = `${payouts.length} payouts · ${txTotal.toLocaleString('en-US')} transactions checked · ${Math.round((Date.now()-t0)/1000)}s`+(partial?' · deep check running…':'')+(TESTRUN&&DIAG.req?` · [test] cache ${Math.round(DIAG.hit/Math.max(1,DIAG.sigs)*100)}% of ${DIAG.sigs.toLocaleString('en-US')} · ${DIAG.req} req · avg ${Math.round(DIAG.ms/DIAG.req)}ms · ${DIAG.colo||'?'}`:'');
+    const platList = Object.entries(byPlat).filter(([k,v])=>v.usd>=0.01).sort((a,b)=>b[1].usd-a[1].usd);
+    { const zero = total < 0.005; $('result').classList.toggle('z0', zero); document.body.classList.toggle('zero', zero);
+      $('zTrack').textContent = `no payouts yet · ${txTotal.toLocaleString('en-US')} txs read`; }
+    if (!hold) drawPlats(platList, 0.12);
+    // one coin per list line (same key as mergeRows), so the fan and the list count and sum the same things
+    const coinMap={}; for (const r of rows){ if(!r.usd) continue; const k=r.chain+'|'+r.platform+'|'+r.asset; const c=coinMap[k]=coinMap[k]||{key:k, sym:r.sym||'?', usd:0, n:0, icon:r.icon, platform:r.platform, from:(r.from||[])[0]||'', best:0}; c.usd+=r.usd; c.n+=r.count||0; if(!c.icon&&r.icon) c.icon=r.icon; if(r.usd>c.best){ c.best=r.usd; c.platform=r.platform; if((r.from||[])[0]) c.from=String(r.from[0]).replace(/ \(own round.*$/,''); } }
+    if (!hold) window.__share = {total, payouts:payouts.length, wallet:inputs[0], plats:platList.map(([k,v])=>({name:k, usd:v.usd})), coins:Object.values(coinMap).sort((a,b)=>b.usd-a.usd), chains:new Set(rows.filter(r=>r.usd).map(r=>r.chain)).size};
+    const topKey = window.__share.coins.filter(c=>c.usd>=0.01).slice(0,7).map(c=>c.key+(c.icon?'*':'')).join('|');   // an icon that arrives on the second pass redraws the fan
+    if (!second) await Promise.race([Promise.all(window.__share.coins.slice(0,8).map(c=>preThumb(c.icon))), sleep(1200)]);
+    if (hold){} else if ((!second && QUIET!==myRun) || topKey!==window.__topKey){ window.__topKey=topKey; renderCoins(window.__share); }
+    else { window.__coins=window.__share.coins.filter(c=>c.usd>=0.01); document.querySelectorAll('#coins .coin[data-coin]').forEach(b=>{ const c=window.__coins[+b.dataset.coin]; const lab=b.querySelector('b'); if (c && lab && b.dataset.coin!=='more') lab.textContent='$'+(fanUsd(c.usd)); }); }
+    const noPrice = rows.filter(r=>r.price==null).length;
+    if (noPrice) checks.push(`<span class="chk warn">${noPrice} asset(s) without a price</span>`);
+    renderChecks(checks);
+    if (!hold) renderRows(rows);
+    knRender(rows, total, inputs[0]);
+    if (!KN && !hold) try{ kbHeat(rows, total, !!second || QUIET===myRun); }catch(e){ console.log("heat",e); }
+    if (KN && TESTRUN){ const sp=$('knRes')?.querySelector('.ft span'); if (sp){ sp.textContent=$('meta').textContent.replace(/ payouts ·/,' payouts (all coins) ·'); sp.style.cssText='font:11px var(--mono);color:var(--dim)'; } }
+    for (const s of suspects){ s.usd=0; s.parts=[];
+      const mm0 = metaByChain[s.chainKey]||{};
+      for (const [m,g] of Object.entries(s.gains||{})){ const mm=mm0[m]||{sym:g.sym}; const amt=rawToNum(g.raw,g.dec); const v=mm.price!=null?amt*mm.price:0; s.usd+=v; s.parts.push(`${fmtAmt(amt)} ${esc(mm.sym||short(m))}`); } }
+    suspects = suspects.filter(s=>!(s.hx?.length && s.hx.every(h=>RELAY_TXS.has(h))));
+    const review = suspects.filter(s=>!s.note && s.usd>=0.01 && (['claim','contract','grew'].includes(s.kind) || (s.kind!=='native' && s.n>=2 && (s.prorata || s.chainKey==='solana')))).sort((a,b)=>b.usd-a.usd);
+    const natives = suspects.filter(s=>s.kind==='native' && s.usd>=0.01);
+    const oneOff = suspects.filter(s=>!s.note && s.usd>=0.01 && !review.includes(s) && !natives.includes(s) && s.n<2);
+    const junk = suspects.filter(s=>!review.includes(s) && !oneOff.includes(s) && !natives.includes(s) && s.kind!=='native');
+    const reviewUsd = review.reduce((a,s)=>a+s.usd,0);
+    const how = s => s.kind==='claim' ? `claimed by you from <code>${esc(short(s.sender))}</code> · ${s.n} claim(s)`
+      : s.kind==='contract' ? `sent to you alone by contract <code>${esc(short(s.sender))}</code> · ${s.n} time(s)`
+      : s.kind==='grew' ? `your balance grew with no transfer (reflection-style rewards?)`
+      : `from <code>${esc(short(s.sender))}</code> · ${s.n} payout(s)${s.prorata?' · pro-rata':''}`;
+    $('suspects').innerHTML = review.map(s=>`<li><b>${fmtUsd(s.usd)}</b> · ${s.parts.join(', ')} · ${esc(s.chain)} · ${how(s)} · <a href="${s.ex}" target="_blank" rel="noopener">${s.kind==='grew'?'token':'latest'} ↗</a></li>`).join('')
+      + (oneOff.length?`<li class="muted">${oneOff.length} one-off batch transfer(s) worth ${fmtUsd(oneOff.reduce((a,s)=>a+s.usd,0))}. Usually exchange withdrawals or single airdrops, not rewards: ${oneOff.map(s=>`<a href="${s.ex}" target="_blank" rel="noopener">${esc(short(s.sender))} ↗</a>`).join(', ')}</li>`:'')
+      + (natives.length?`<li class="muted">${fmtUsd(natives.reduce((a,s)=>a+s.usd,0))} in native coin sent to you by ${natives.length} contract(s) one wallet at a time. Usually withdrawals, gas top-ups or refunds, not rewards: ${natives.map(s=>`<a href="${s.ex}" target="_blank" rel="noopener">${esc(short(s.sender))} (${esc(s.chain)}) ↗</a>`).join(', ')}</li>`:'')
+      + (junk.length?`<li class="muted">${junk.length} other batch transfer sender(s) look like spam or promo drops (fixed amounts, no market value, or the sender's own token).</li>`:'');
+    $('suspectBox').classList.toggle('hidden', !review.length);
+    $('suspectBox').querySelector('summary').textContent = review.length ? `Needs review · ${fmtUsd(reviewUsd)} not in the total` : 'Filtered out · spam, promos, one-offs';
+    if (unclaimed.length){ let u=0; for (const x of unclaimed){ const p=(metaByChain.bsc||{})[x.asset]?.price ?? (x.asset==='native:bsc'?(metaByChain.bsc||{})['native:bsc']?.price:null); u+=p!=null?rawToNum(x.raw,x.dec)*p:0; }
+      checks.push(`<span class="chk warn">💰 Unclaimed Four.meme rewards waiting: ${unclaimed.map(x=>`${fmtAmt(rawToNum(x.raw,x.dec))} ${esc(x.asset==='native:bsc'?'BNB':(x.sym||'tokens'))} from ${esc(x.sym||short(x.coin))}`).join(', ')}${u?' (≈'+fmtUsd(u)+')':''}, not in the total</span>`); }
+    for (let i=0;i<checks.length;i++) if (checks[i].startsWith('%%EVM%%')){ const L=checks[i].slice(7), e=evmAcc[L], open=review.filter(s=>s.chain===L).length;
+      if (e.partial){ checks[i]=`<span class="chk">… ${L} · ${e.incoming} incoming, deep check running</span>`; continue; }
+      checks[i]=`<span class="chk ${open?'warn':'ok'}" title="${e.trades} your trades · ${e.bridge} bridge · ${e.rewards} rewards · ${e.direct} from other wallets · ${e.spam} spam airdrops · ${e.tok} token balances checked">${open?'⚠':'✓'} ${L} · ${e.incoming} incoming, ${open?open+' need review':'all explained'}</span>`; }
+    if (review.length) checks.push(`<span class="chk warn">⚠ ${fmtUsd(reviewUsd)} from ${review.length} unrecognized reward sender(s), not in the total (see below)</span>`);
+    renderChecks(checks); renderTier(hold?SNAP_T:total);
+    if (!second && QUIET!==myRun){ $('result').classList.remove('hidden'); kbState('done'); towerToFan(); }
+    setStatus((payouts.length?'Done ✓':'No holder rewards found.')+(notes.length?'\n'+notes.join('\n'):''));
+    if (RANK_API && !TESTRUN && !EMBED && myRun===RUN_ID) new Promise(z=>setTimeout(z,0)).then(()=>window.__lastLog).then(runAuth).then(a=>a&&postJson(RANK_API,{w:inputs[0], ...a, total})).then(r=>{ if (!r?.n || myRun!==RUN_ID) return;
+      // only lines worth posting: a top-100 spot, or beating most wallets that actually got paid (zeros don't count)
+      const el=$('rank'), beat=r.paid>=30&&total>0?Math.floor((r.below||0)/r.paid*100):0;
+      el.innerHTML = total<=0 ? '' : r.rank<=100 ? `<b>Top ${r.rank<=10?10:r.rank<=50?50:100}</b> wallet on Kickback` : beat>=50 ? `Earned more than <b>${beat}%</b> of wallets that got paid` : '';
+      el.classList.toggle('hidden', !el.innerHTML); window.__share && (window.__share.rank=r); });
+    if (myRun===RUN_ID && second!=='late'){ const flags=[EMBED&&'embed', EMBED&&EMB_P&&('p='+EMB_P), EMBED&&EMB_HK&&('hk='+(EMB_HK.error?'fallback':'own')), STUDIO&&'studio', KN&&'knots', KN&&('kn='+Math.round(KN_CARD?.usd||0)), KN&&('knn='+(KN_CARD?.n||0)), res.some(([j,r])=>r?.trunc)&&(res.some(([j,r])=>r?.trunc?.deep)?'capped+deep':'capped'), res.some(([j,r])=>r?.missing)&&'unread', res.some(([j,r])=>r?.error)&&'chain-skipped'].filter(Boolean).join(' ');
+      const plats={}; for (const [k,v] of Object.entries(byPlat)) plats[k]=Math.round(v.usd*100)/100;
+      const coins=rows.filter(r=>r.usd>=0.01).sort((a,b)=>b.usd-a.usd).slice(0,15).map(r=>({s:r.sym||short(r.asset), p:r.platform, u:Math.round(r.usd*100)/100, ...(/^https:\/\/\S{8,280}$/.test(r.icon||'')?{i:r.icon}:{}), ...(r.payer||(r.from||[]).length===1?{f:String(r.payer?(r.from||[])[0]||short(r.payer):r.from[0]).replace(/ \(own round.*$/,'')}:{})}));
+      // which coin pays its holders from where (no wallet in it): feeds the bag calculator, so every coin someone scanned can be measured
+      const seeds=[]; { const by={}; for (const p of payouts){ if (!p.coin || p.platform==='StonkFun') continue; const k=p.chain+'|'+p.coin+'|'+p.platform; if (!by[k] || (p.t||0)>(by[k].t||0)) by[k]=p; }
+        for (const p of Object.values(by).slice(0,40)) seeds.push({c:p.chain, p:p.platform, m:String(p.coin), d:p.distributor?String(p.distributor):null, a:String(p.asset||''), s:String(p.sig||'').startsWith('record:')?null:p.sig, t:p.t||0}); }
+      logEvent({kind:second?'final':'first', seeds, wallets:inputs, linked:found.map(l=>l.address), total:Math.round(total*100)/100, plats, coins, payouts:payouts.length,
+        chains:new Set(rows.map(r=>r.chain)).size, secs:Math.round((Date.now()-t0)/1000), handle:pfpHandle||'', flags, mobile:matchMedia('(max-width:999px)').matches, ref:document.referrer, search:location.search}); }
+    { const rl=$('reportLink'); if (rl){ const top=Object.entries(byPlat).sort((a,b)=>b[1].usd-a[1].usd).slice(0,6).map(([k,v])=>`${k}: ${fmtUsd(v.usd)}`).join('\n');
+      const body=`Kickback report\n\nWallet: ${inputs.join(', ')}${found.length?'\nLinked: '+found.map(l=>l.address).join(', '):''}\nFound: ${fmtUsd(total)}${second?'':' (first pass)'}\n${top}\n\nWhat looks wrong: `;
+      rl.href=REPORT_DM+'&text='+encodeURIComponent(body.slice(0,1800)); } }
+    if (EMBED && EMB_CUR && myRun===RUN_ID){ EMB_CUR.last={...embJson([...inputs, ...found.map(l=>l.address)], rows, total, byPlat, payouts.length), helius:EMB_HK||{used:'kickback'}}; parent.postMessage({type:'kickback:result', id:EMB_CUR.id, final:false, data:EMB_CUR.last}, EMB_CUR.origin); }
+    if (!KN && !EMBED && !STUDIO && myRun===RUN_ID && (second===true || (!second && !res.some(([j,r])=>r?.deep)))) snapSave(inputs, rows, total, payouts.length);
+    window.__result = {total, rows:rows.map(r=>({sym:r.sym, platform:r.platform, chain:r.chain, amount:r.amount, usd:+r.usd.toFixed(2), n:r.count})), byPlat, checks, notes, suspects};
+    };
+    clearInterval(liveTimer); shownTotal = QUIET===myRun ? SNAP_T : (LIVE?.shown||0); LIVE=null;
+    await finalize(res, false);
+    if (QUIET===myRun && !res.some(([j,r])=>r?.deep)) $('deep').classList.add('hidden');
+    $('go').disabled=false;
+    // StonkFun answered after the first result: split rewards by coin now instead of after the deep check
+    if (pairsMiss && pairsLate) pairsLate.then(()=>{ if (myRun===RUN_ID && !secondDone) return finalize(res, 'late'); }).catch(e=>console.warn('late split', e));
+    if (res.some(([j,r])=>r?.deep)){
+      $('deep').classList.remove('hidden'); $('knRes')?.classList.add('verifying');
+      const res2 = await Promise.all(res.map(async ([j,r])=>{ if (!r?.deep) return [j,r]; try{ return [j, await r.deep()]; }catch(e){ return [j, {...r, partial:false, deepFailed:true}]; } }));
+      if (myRun!==RUN_ID) return;
+      secondDone=true; try{ await finalize(res2, true); }catch(e){ console.warn('second pass', e); }
+      $('deep').classList.add('hidden'); $('knRes')?.classList.remove('verifying');
+    }
+  }catch(e){
+    clearInterval(liveTimer); LIVE=null;
+    if (EMBED && EMB_CUR) EMB_CUR.err=e.message;
+    kbErr(e);
+    if (myRun===RUN_ID && QUIET===myRun){ $('deep').classList.add('hidden'); } else if (myRun===RUN_ID){ kbState('idle'); setStatus('Error: '+e.message, true); progBase=0; progSpan=100; setProg(0); }
+  }finally{ if (myRun===RUN_ID){ $('go').disabled=false; progBase=0; progSpan=100; if(document.body.classList.contains('scanning')) kbState('idle'); } }
+}
+$('go').onclick = run;
+// --- embed: JSON for partners ---
+function embJson(wallet, rows, total, byPlat, np){
+  const now=Date.now()/1000, DAY=86400, base=Math.floor(now/DAY)-29;
+  const daily=Array.from({length:30},(_,i)=>({day:new Date((base+i)*DAY*1000).toISOString().slice(0,10), usd:0}));
+  let wk=0; const latest=[];
+  const clean=x=>String(x||'').replace(/\s*\(.*\)\s*$/,'').trim();
+  const coins=rows.filter(r=>(r.usd||0)>0).sort((a,b)=>b.usd-a.usd).map(r=>{ let first=0;
+    for (const p of (r.proofs||[])){ if (!p.t) continue; const v=r.price!=null?(+p.d||0)*r.price:0, k=Math.floor(p.t/DAY)-base;
+      if (k>=0 && k<30) daily[k].usd+=v; if (p.t>=now-7*DAY) wk+=v; if (!first || p.t<first) first=p.t;
+      latest.push({time:p.t, chain:r.chain, symbol:r.sym||null, mint:r.asset, amount:+p.d||0, usd:+v.toFixed(4), tx:p.sig||null, link:p.link||null, paidFor:clean(p.lab)||null}); }
+    return {symbol:r.sym||null, chain:r.chain, mint:r.asset, icon:r.icon||null, platform:r.platform, usd:+r.usd.toFixed(2), amount:r.amount, price:r.price??null, payouts:r.count, paidFor:[...new Set((r.from||[]).map(clean).filter(Boolean))], firstPayout:first||null}; });
+  latest.sort((a,b)=>b.time-a.time);
+  return {wallet:wallet[0], wallets:wallet, chains:[...new Set(rows.filter(r=>(r.usd||0)>0).map(r=>r.chain))], totalUsd:+(+total).toFixed(2), payouts:np, last7dUsd:+wk.toFixed(2), daily30d:daily.map(x=>({day:x.day, usd:+x.usd.toFixed(2)})),
+    platforms:Object.fromEntries(Object.entries(byPlat).filter(([k,v])=>(+v.usd||0)>=0.01).map(([k,v])=>[k, +(+v.usd).toFixed(2)])), coins, latest:latest.slice(0,50),
+    pricedAt:Math.floor(now), poweredBy:'https://getkickback.fun'};
+}
+if (EMBED){
+  let Q=Promise.resolve();
+  const scanOne=async (d, origin)=>{
+    const reply=(type,o)=>parent.postMessage({type, id:d.id, ...o}, origin);
+    const ws=[...new Set((Array.isArray(d.wallet)?d.wallet:String(d.wallet||'').split(/[\s,;]+/)).map(x=>String(x).trim()).filter(Boolean))].slice(0,5);
+    if (!ws.length || ws.some(x=>!isSol(x)&&!isEvm(x))) return reply('kickback:error',{error:'not a Solana or EVM wallet'});
+    const w=ws.join(' ');
+    const chk=await fetch('/api/partner?key='+encodeURIComponent(d.key||'')+'&origin='+encodeURIComponent(origin)).then(r=>r.json()).catch(()=>null);
+    if (!chk?.ok) return reply('kickback:error',{error:chk?.error||'key check failed'});
+    EMB_P=chk.name; EMB_HELIUS=(typeof d.helius==='string' && /^[A-Za-z0-9-]{8,80}$/.test(d.helius)) ? 'https://mainnet.helius-rpc.com/?api-key='+d.helius : null;
+    EMB_HK=null;
+    if (EMB_HELIUS){ const sw=ws.find(isSol);
+      if (sw){ let why='';
+        try{ const r=await fetch(EMB_HELIUS,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({jsonrpc:'2.0',id:1,method:'getTransactionsForAddress',params:[sw,{transactionDetails:'signatures',limit:1}]})});
+          const j=await r.json().catch(()=>null);
+          if (!r.ok || !j || j.error) why=(j?.error?.message||('HTTP '+r.status)).slice(0,160); }
+        catch(e){ why='request blocked (domain lock or network): '+e.message; }
+        if (why){ EMB_HK={used:'kickback', error:'your Helius key could not run the scan, used ours instead: '+why}; EMB_HELIUS=null; }
+        else EMB_HK={used:'partner'}; } }
+    EMB_CUR={id:d.id, origin, last:null, err:null}; EMB_PARTNER={key:String(d.key||''), origin};
+    $('wallet').value=w;
+    try{ await run(); }catch(e){ EMB_CUR.err=e.message; }
+    if (EMB_CUR.last) reply('kickback:result',{final:true, data:EMB_CUR.last}); else reply('kickback:error',{error:EMB_CUR.err||'scan failed'});
+    EMB_CUR=null;
+  };
+  addEventListener('message', e=>{ const d=e.data||{}; if (e.source!==parent || d.type!=='kickback:scan') return; Q=Q.then(()=>scanOne(d, e.origin)).catch(()=>{}); });
+  if (parent!==window) parent.postMessage({type:'kickback:ready'}, '*');
+}
+for (const id of ['wallet']) $(id).addEventListener('keydown', e=>{ if(e.key==='Enter') run(); });
+$('wallet').addEventListener('input', wbCheck);
+const q=new URLSearchParams(location.search); if(q.get('wallet')) $('wallet').value=q.get('wallet');
+if (!KN && q.get('wallet') && q.has('go')) setTimeout(()=>{ if (document.body.classList.contains('idle')) run(); }, 500);
+

@@ -21,7 +21,7 @@ export async function onRequestGet({ params, request, env }) {
   }
   const short = a.slice(0, 4) + '…' + a.slice(-4);
   const title = total >= 1 ? `${short} got ${usd(total)} in holder rewards` : 'Kickback · your bags paid you';
-  const desc = 'Your bags paid you too. Paste any wallet on Kickback and see every holder reward, each with its transaction.';
+  const desc = 'Your bags paid you too. Paste any wallet on Kickback and see every holder reward, each with its transaction.' + (total >= 1 ? ' Total from the last check of this wallet.' : '');
   const img = card ? `${origin}/api/wcard?w=${encodeURIComponent(w)}&v=${card.ts}` : `${origin}/og.png`;
   const [iw, ih] = card ? [1200, 675] : [1200, 630];
   const html = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
@@ -33,7 +33,8 @@ export async function onRequestGet({ params, request, env }) {
 <meta property="og:image:width" content="${iw}"><meta property="og:image:height" content="${ih}"><meta property="og:image:alt" content="${esc(title)}">
 <meta name="twitter:card" content="summary_large_image"><meta name="twitter:title" content="${esc(title)}">
 <meta name="twitter:description" content="${esc(desc)}"><meta name="twitter:image" content="${esc(img)}"><meta name="twitter:image:alt" content="${esc(title)}">
+<meta http-equiv="refresh" content="0;url=${esc(to)}">
 <style>body{background:#141210;color:#fff6ea;font:15px system-ui;display:grid;place-items:center;height:100vh;margin:0}a{color:#ff8a3d}</style>
-</head><body><a href="${esc(to)}">Open on Kickback →</a><script>location.replace(${JSON.stringify(to)})</script></body></html>`;
+</head><body><a href="${esc(to)}">Open on Kickback →</a></body></html>`;
   return new Response(html, { headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'public, max-age=300' } });
 }

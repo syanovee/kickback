@@ -1,0 +1,5 @@
+{
+  "version": 1,
+  "include": ["/api/*", "/w/*", "/s/*", "/c/*", "/coin/*", "/embed"],
+  "exclude": []
+}

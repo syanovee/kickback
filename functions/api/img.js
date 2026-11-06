@@ -10,17 +10,26 @@ export async function onRequestGet(ctx) {
   let r = null;
   try { r = await fetch(u.toString(), { headers: { 'User-Agent': 'Mozilla/5.0 kickback' }, cf: { cacheTtl: 86400, cacheEverything: true } }); } catch {}
   let ok = r && r.ok && /^image\//.test(r.headers.get('Content-Type') || '');
+  if (!ok && r?.body) r.body.cancel().catch(() => {});
   if (!ok) { // some hosts refuse us: try the resizer once
     try { r = await fetch('https://wsrv.nl/?url=' + encodeURIComponent(u.toString()) + '&w=256&h=256&fit=cover&output=png'); ok = r.ok; } catch { ok = false; }
   }
   if (!ok) return new Response('not found', { status: 404, headers: { 'Cache-Control': 'public, max-age=600' } });
-  const buf = await r.arrayBuffer(); if (buf.byteLength > MAX) return new Response('too big', { status: 413 });
+  // size first from the header, then while reading: never more than MAX bytes in memory
+  if (+(r.headers.get('Content-Length') || 0) > MAX) return new Response('too big', { status: 413 });
+  const buf = await capped(r.body, MAX); if (!buf) return new Response('too big', { status: 413 });
   const res = new Response(buf, { headers: {
-    'Content-Type': r.headers.get('Content-Type') || 'image/png',
+    'Content-Type': /^image\/[a-z0-9.+-]+$/i.test((r.headers.get('Content-Type') || '').split(';')[0].trim()) ? r.headers.get('Content-Type').split(';')[0].trim() : 'image/png',
     'Cache-Control': 'public, max-age=604800',
     // an svg opened directly must not run anything on our origin
     'Content-Security-Policy': "default-src 'none'; style-src 'unsafe-inline'; sandbox",
     'X-Content-Type-Options': 'nosniff' } });
   ctx.waitUntil(caches.default.put(key, res.clone()));
   return res;
+}
+async function capped(body, max) {
+  if (!body) return null;
+  const rd = body.getReader(), parts = []; let n = 0;
+  for (;;) { const { done, value } = await rd.read(); if (done) break; n += value.byteLength; if (n > max) { rd.cancel().catch(() => {}); return null; } parts.push(value); }
+  const out = new Uint8Array(n); let o = 0; for (const p of parts) { out.set(p, o); o += p.byteLength; } return out.buffer;
 }

@@ -1,29 +1,31 @@
-// per-address request budget for the api, so a script can't burn our provider allowances through it.
-// each worker counts in memory and adds its count to a shared total in D1 every ~5 seconds (one small write),
+// Request budgets, so a script can't burn our provider allowances or fill the database through the api.
+// Each worker counts in memory and adds its count to a shared total in D1 every ~5 seconds (one small write),
 // so the total is right across all workers and data centers, only a moment late.
-// normal scans stay far below these numbers (measured on the heaviest wallets we have).
-const WINDOWS = [[60, 1200], [3600, 8000], [86400, 30000]];   // [seconds, max requests per address]
+// Normal scans stay far below these numbers (measured on the heaviest wallets we have).
+export const IP_WINDOWS = [[60, 1200], [3600, 8000], [86400, 30000]];   // [seconds, max units per address]
 const FLUSH_MS = 5000;
-const mem = new Map();   // key -> {pend, total, last}
+const mem = new Map();   // key -> {pend, total, last, busy}
 let ready = false;
-const ipKey = request => {
+export const ipKey = request => {
   const ip = request.headers.get('cf-connecting-ip') || '';
   return ip.includes(':') ? ip.split(':').slice(0, 4).join(':') : ip;   // IPv6: one /64 counts as one address
 };
-// returns {wait, n}: wait = 0 when the request may go on, else seconds to wait; n = this address's count this minute
-export async function overLimit(ctx) {
-  const { request, env } = ctx, ip = ipKey(request);
-  if (!ip || !env.DB) return { wait: 0, n: 0 };
+const siteOf = request => new URL(request.url).hostname.endsWith('kickback-test.pages.dev') ? 't' : 'p';   // test and live counted apart (same database)
+
+// count `weight` units for `who` in each window; returns {wait, n}: wait = 0 when the request may go on, else seconds to wait
+export async function bump(ctx, who, windows, weight = 1) {
+  const { request, env } = ctx;
+  if (!who || !env.DB) return { wait: 0, n: 0 };
   const nowMs = Date.now(), now = Math.floor(nowMs / 1000);
   if (mem.size > 20000) mem.clear();
-  const site = new URL(request.url).hostname.endsWith('kickback-test.pages.dev') ? 't' : 'p';   // test and live counted apart (same database)
-  const rows = WINDOWS.map(([sec, max]) => {
-    const slot = Math.floor(now / sec), k = site + '|' + sec + '|' + ip + '|' + slot;
+  const site = siteOf(request);
+  const rows = windows.map(([sec, max]) => {
+    const slot = Math.floor(now / sec), k = site + '|' + sec + '|' + who + '|' + slot;
     let e = mem.get(k); if (!e) mem.set(k, e = { pend: 0, total: 0, last: 0 });
-    e.pend++;
+    e.pend += weight;
     return { sec, max, slot, k, e };
   });
-  // one flush at a time per address in this worker: requests that arrive meanwhile keep counting locally
+  // one flush at a time per key in this worker: requests that arrive meanwhile keep counting locally
   const due = !rows[0].e.busy && rows.some(r => nowMs - r.e.last > FLUSH_MS || r.e.total + r.e.pend > r.max * 0.8);
   if (due) {
     const take = rows.map(r => r.e.pend);
@@ -44,3 +46,5 @@ export async function overLimit(ctx) {
   for (const r of rows) if (r.e.total + r.e.pend > r.max) wait = Math.max(wait, (r.slot + 1) * r.sec - now);
   return { wait, n: rows[0].e.total + rows[0].e.pend };
 }
+// the per-address budget every api call counts against
+export const overLimit = (ctx, weight = 1) => bump(ctx, ipKey(ctx.request), IP_WINDOWS, weight);
