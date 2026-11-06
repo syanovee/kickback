@@ -433,6 +433,17 @@
   #result.z0 .ztrack{display:grid;border-color:rgba(255,138,61,.3);color:var(--muted)}
   .coin.qcoin{cursor:default} .coin.qcoin .disc{background:radial-gradient(circle at 36% 30%,#3a3129,var(--s1) 75%);border:2px solid rgba(255,138,61,.4);color:var(--acc);font:900 calc(var(--s)*.4) var(--disp);box-shadow:0 10px 24px -12px rgba(255,138,61,.35)} .coin.qcoin b{color:var(--muted)}
   #result.z0 .pdraw,#result.z0 #shareBtn,#result.z0 #postBig,#result.z0 .rank{display:none!important}
+  .zero0{display:none}
+  #result.z0 .zero0{display:block;text-align:center;margin:auto 0;padding:8px 0 4px;animation:zin .6s var(--ease) both}
+  .zero0 h2{margin:0;font:900 24px/1.15 var(--disp);color:var(--text);letter-spacing:0}
+  .zero0 p{margin:10px auto 0;max-width:250px;font:500 13.5px/1.5 var(--sans);color:var(--muted)}
+  .zpill{display:inline-flex;gap:10px;align-items:center;margin-top:20px;border:1px solid var(--line2);background:var(--s1);border-radius:99px;padding:8px 14px;font:500 12px var(--mono);color:var(--muted)} .zpill b{font:900 14px var(--disp);color:var(--text)}
+  #result.z0{background:none!important;border-color:transparent!important;box-shadow:none!important}
+  #result.z0 .eyebrow,#result.z0 .total-row,#result.z0 .ztrack,#result.z0 #moreBtn,#result.z0 #details{display:none!important}
+  body.done.zero #stage{display:none!important} body.done.zero main{align-content:center}
+  #result.z0 #againBtn{display:block!important;margin:26px auto 0!important;background:var(--acc)!important;color:#140c05!important;font:800 15px var(--sans)!important;padding:14px 22px!important;border-radius:14px!important;border:0!important;height:auto!important;width:auto!important}
+  @media (min-width:1000px){ .zero0 h2{font-size:34px} .zero0 p{font-size:16px;max-width:none} }
+  @media (max-width:999px){ body.done.zero #result{display:flex!important;flex-direction:column;min-height:calc(100svh - 150px)} #result.z0 #againBtn{width:100%!important;margin-top:24px!important} }
   .stack i{display:block;height:100%}
   .pdraw{display:grid;grid-template-rows:1fr} .pdraw>div{min-height:0;overflow:hidden}
   body.done .pdraw{animation:kbOpen 1.5s cubic-bezier(.45,0,.2,1) .8s both}
@@ -1009,6 +1020,7 @@
 
     <div class="card hidden" id="result">
       <div class="who hidden" id="who"><img id="whoImg" alt=""><span id="whoName"></span></div>
+      <div class="zero0" id="zZero"><h2>No kickbacks yet</h2><p id="zWhy">This wallet hasn't held a coin that pays its holders.</p><span class="zpill"><b>$0.00</b><span id="zInfo"></span></span></div>
       <div class="eyebrow">Holder rewards earned · today's prices</div>
       <div class="total-row">
         <div class="tot-wrap"><div class="total" id="total">$0.00</div><div class="wk hidden" id="wk"></div></div>
@@ -1073,6 +1085,6 @@
   </div>
 </div>
 
-<script src="/app.js?v=7"></script>
+<script src="/app.js?v=8"></script>
 </body>
 </html>

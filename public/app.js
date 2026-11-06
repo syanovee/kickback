@@ -2626,7 +2626,10 @@ async function run(){
     $('meta').textContent = `${payouts.length} payouts · ${txTotal.toLocaleString('en-US')} transactions checked · ${Math.round((Date.now()-t0)/1000)}s`+(partial?' · deep check running…':'')+(TESTRUN&&DIAG.req?` · [test] cache ${Math.round(DIAG.hit/Math.max(1,DIAG.sigs)*100)}% of ${DIAG.sigs.toLocaleString('en-US')} · ${DIAG.req} req · avg ${Math.round(DIAG.ms/DIAG.req)}ms · ${DIAG.colo||'?'}`:'');
     const platList = Object.entries(byPlat).filter(([k,v])=>v.usd>=0.01).sort((a,b)=>b[1].usd-a[1].usd);
     { const zero = total < 0.005; $('result').classList.toggle('z0', zero); document.body.classList.toggle('zero', zero);
-      $('zTrack').textContent = `no payouts yet · ${txTotal.toLocaleString('en-US')} txs read`; }
+      $('zTrack').textContent = `no payouts yet · ${txTotal.toLocaleString('en-US')} txs read`;
+      const zc=Object.keys(chainLeft).map(k=>CHAIN_NAME[k]||k); $('zInfo').textContent=`${zc.length<=2?zc.join(' + '):zc.length+' chains'} · ${txTotal.toLocaleString('en-US')} txs read`;
+      $('zWhy').textContent = inputs.length>1 ? "These wallets haven't held a coin that pays holders." : "This wallet hasn't held a coin that pays its holders.";
+      if (!KN) $('againBtn').textContent = zero ? 'Check another wallet' : 'Check another'; }
     if (!hold) drawPlats(platList, 0.12);
     // one coin per list line (same key as mergeRows), so the fan and the list count and sum the same things
     const coinMap={}; for (const r of rows){ if(!r.usd) continue; const k=r.chain+'|'+r.platform+'|'+r.asset; const c=coinMap[k]=coinMap[k]||{key:k, sym:r.sym||'?', usd:0, n:0, icon:r.icon, platform:r.platform, from:(r.from||[])[0]||'', best:0}; c.usd+=r.usd; c.n+=r.count||0; if(!c.icon&&r.icon) c.icon=r.icon; if(r.usd>c.best){ c.best=r.usd; c.platform=r.platform; if((r.from||[])[0]) c.from=String(r.from[0]).replace(/ \(own round.*$/,''); } }
