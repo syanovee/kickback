@@ -204,6 +204,9 @@
   @media (max-width:999px) and (min-width:400px){ .coins{zoom:1.16} body.done .stage{height:172px} }
   @media (max-width:399px){ .coins{zoom:1.06} body.done .stage{height:158px} }
   @media (max-width:999px){ body.idle .kbfoot{font-size:10px;gap:3px 8px;bottom:calc(14px + env(safe-area-inset-bottom))} }
+  html:not(.kn) body.idle .kbfoot.kbfoot{flex-wrap:nowrap;gap:0 16px;font:500 11.5px/1 var(--sans);opacity:.75} .kbfoot a,.kbfoot button{white-space:nowrap}
+  @media (max-width:999px){ html:not(.kn) body.idle .kbfoot.kbfoot{font-size:10.5px;gap:0 14px;bottom:calc(12px + env(safe-area-inset-bottom))} }
+  .kbmod h3.kb2{margin-top:18px}
   .kbmod{position:fixed;inset:0;z-index:90;display:grid;place-items:center;padding:16px;background:rgba(10,8,6,.62);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);opacity:0;pointer-events:none;transition:opacity .25s var(--ease)}
   .kbmod.open{opacity:1;pointer-events:auto}
   .kbmod .bx{position:relative;width:min(560px,100%);max-height:calc(100vh - 32px);overflow:auto;background:var(--s1);border:1px solid var(--line2);border-radius:20px;padding:24px 26px;box-shadow:0 40px 100px rgba(0,0,0,.6);transform:translateY(12px) scale(.98);transition:transform .3s var(--ease)}
@@ -955,21 +958,21 @@
     <div class="wallm" id="wallM"></div>
     <div class="mtag"><svg viewBox="0 0 52 52"><path d="M40 14A18 18 0 1 0 44 30" fill="none" stroke="var(--acc)" stroke-width="7" stroke-linecap="round"/><path d="M30 12l12 2-2 12" fill="none" stroke="var(--acc)" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/><circle cx="26" cy="26" r="6" fill="var(--dot)"/></svg><b>kickback</b></div>
     <div class="noca">There is no CA.</div>
-    <nav class="kbfoot" aria-label="About Kickback"><button type="button" data-kbtip>No CA</button><i>·</i><button type="button" data-kbmod="kbPriv">Privacy</button><i>·</i><button type="button" data-kbmod="kbDisc">Disclaimer</button><i>·</i><a class="kbhow" href="https://github.com/syanovee/kickback#how-we-count" target="_blank" rel="noopener">How it works</a><i>·</i><button type="button" data-kbx>@syanovee</button></nav>
-    <div class="kbmod" id="kbPriv" role="dialog" aria-modal="true" aria-label="Privacy"><div class="bx"><button class="x" type="button" data-kbclose aria-label="Close">✕</button><h3>Privacy</h3><ul>
+    <nav class="kbfoot" aria-label="About Kickback"><button type="button" data-kbtip>No CA</button><a class="kbhow" href="https://github.com/syanovee/kickback#how-we-count" target="_blank" rel="noopener">How it works</a><button type="button" data-kbmod="kbPriv">Legal</button></nav>
+    <div class="kbmod" id="kbPriv" role="dialog" aria-modal="true" aria-label="Legal"><div class="bx"><button class="x" type="button" data-kbclose aria-label="Close">✕</button><h3>Privacy</h3><ul>
       <li>You paste a public address. There's nothing to sign and we never touch your funds.</li>
       <li>We log the addresses checked, wallets we found linked to them through bridges, what we found, your X handle if you add one, your country and the site that sent you.</li>
       <li>To keep checks fast we keep the Solana transactions we read for a wallet for 45 days, and the last full result for each wallet. Anyone who checks the same wallet sees that saved result, the same as a fresh check would show.</li>
       <li>No IP addresses stored, no ad cookies, no tracking across sites.</li>
       <li>Cards you post or copy are saved so the link keeps working. Logs, saved results and cards have no set expiry yet.</li>
-      <li>Want a wallet removed or kept off the homepage? DM <a href="https://x.com/syanovee" target="_blank" rel="noopener">@syanovee</a> on X.</li></ul></div></div>
-    <div class="kbmod" id="kbDisc" role="dialog" aria-modal="true" aria-label="Disclaimer"><div class="bx"><button class="x" type="button" data-kbclose aria-label="Close">✕</button><h3>Disclaimer</h3><ul>
+      <li>Want a wallet removed or kept off the homepage? DM <a href="https://x.com/syanovee" target="_blank" rel="noopener">@syanovee</a> on X.</li></ul><h3 class="kb2">Disclaimer</h3><ul>
       <li>This isn't financial advice. Kickback shows what a wallet already got, not what to buy or sell.</li>
       <li>Totals use today's prices, not the price on the day of each payout. Very old rewards, or ones we can't verify on-chain yet, may be missing.</li>
       <li>We only read public blockchain data. No wallet connection, nothing to sign.</li>
       <li>We're not affiliated with StonkFun, pump.fun, Flap, Pons, Ember, Four.meme or any other platform. Names and logos belong to their owners.</li>
       <li>Kickback has no token and no CA. If someone is selling one, it's not us.</li>
       <li>getkickback.fun is our only site. We never DM links and never ask for a seed phrase or private key.</li></ul></div></div>
+    
     <div class="status" id="status"></div>
 
     <div class="stage" id="stage" aria-hidden="true">
