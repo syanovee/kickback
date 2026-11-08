@@ -1,0 +1,15 @@
+# Daily Telegram updates for chats that turned them on in the Kickback bot (functions/api/tgcron.js).
+name: tg-daily
+on:
+  schedule:
+    - cron: '23 12 * * *'
+  workflow_dispatch:
+jobs:
+  send:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - run: curl -fsS -X POST -H "x-cron-key: $KEY" "$SITE/api/tgcron"
+        env:
+          KEY: ${{ secrets.TG_CRON_KEY }}
+          SITE: ${{ vars.TG_SITE || 'https://kickback-test.pages.dev' }}
