@@ -4,5 +4,6 @@
 #   MAX_MIN=60 bash tools/coins-local.sh a longer first run, to count old coins faster
 cd "$(dirname "$0")/.."
 k(){ python3 -c "import json;print(json.load(open('secrets.json')).get('$1',''))"; }
-export SITE=${SITE:-https://kickback-test.pages.dev} YIELD_KEY=$(k YIELD_KEY) HELIUS_KEY=$(k HELIUS_KEY) BLOCKSCOUT_KEY=$(k BLOCKSCOUT_KEY) MAX_MIN=${MAX_MIN:-25}
-NODE_OPTIONS="--dns-result-order=ipv4first" node tools/coins-job.mjs 2>&1 | tee "Claude outputs/coins_job_log.txt"
+export SITE=${SITE:-https://kickback-test.pages.dev} YIELD_KEY=$(k YIELD_KEY) HELIUS_KEY=$(k HELIUS_KEY) BLOCKSCOUT_KEY=$(k BLOCKSCOUT_KEY) MAX_MIN=${MAX_MIN:-25} PUMP_EVERY_H=${PUMP_EVERY_H:-0} HELIUS_DAY=${HELIUS_DAY:-3000}
+export NODE_OPTIONS="--dns-result-order=ipv4first"
+{ echo "===== run $(date "+%Y-%m-%d %H:%M")"; node tools/coins-job.mjs; } 2>&1 | tee -a "Claude outputs/coins_job_log.txt"

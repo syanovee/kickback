@@ -31,7 +31,14 @@ async function get(url, tries = 6) {
     await sleep(Math.min(20e3, 1000 * 2 ** i));
   }
 }
+// Helius budget: every call is counted; once the day's cap is reached, Helius calls stop until tomorrow (UTC) and the rest of the run goes on.
+//   HELIUS_DAY   calls a day (default 4000), shared by every run that day (kept in the hidden '_helius' row on the site)
+//   PUMP_EVERY_H count pump.fun at most every N hours (default 3; 0 = every run, for catching up)
+const HELIUS_DAY = +(process.env.HELIUS_DAY || 4000), PUMP_EVERY_H = +(process.env.PUMP_EVERY_H ?? 3);
+const H = { used: 0, run: 0, by: {} };
 async function rpc(method, params) {
+  if (H.used >= HELIUS_DAY) throw new Error('helius daily budget reached');
+  H.used++; H.run++; H.by[method] = (H.by[method] || 0) + 1;
   for (let i = 0; i < 6; i++) {
     try {
       const r = await fetch('https://mainnet.helius-rpc.com/?api-key=' + HELIUS, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ jsonrpc: '2.0', id: 1, method, params }), signal: AbortSignal.timeout(60000) });
@@ -55,10 +62,10 @@ const word = h => (h && h.length >= 66 ? BigInt('0x' + h.slice(2, 66)) : 0n);
 const addr = h => (h && h.length >= 66 && !/^0x0{64}$/.test(h.slice(0, 66)) ? '0x' + h.slice(26, 66).toLowerCase() : null);
 const text = h => { try { const n = parseInt(h.slice(66, 130), 16); return Buffer.from(h.slice(130, 130 + n * 2), 'hex').toString('utf8').replace(/\0/g, '') || null; } catch { return null; } };
 
-async function site(method, body) {
+async function site(method, body, q = '') {
   let last = '';
   for (let i = 0; i < 20; i++) {   // a Mac on wifi can drop out for a few minutes: keep trying for ~8 min
-    const r = await fetch(SITE + '/api/coins/ingest', { method, headers: { authorization: 'Bearer ' + KEY, 'Content-Type': 'application/json' }, body: body ? JSON.stringify(body) : undefined, signal: AbortSignal.timeout(60000) }).catch(e => (last = e.message + (e.cause ? ' [' + (e.cause.code || '') + ' ' + (e.cause.message || '') + ']' : ''), null));
+    const r = await fetch(SITE + '/api/coins/ingest' + q, { method, headers: { authorization: 'Bearer ' + KEY, 'Content-Type': 'application/json' }, body: body ? JSON.stringify(body) : undefined, signal: AbortSignal.timeout(60000) }).catch(e => (last = e.message + (e.cause ? ' [' + (e.cause.code || '') + ' ' + (e.cause.message || '') + ']' : ''), null));
     if (r?.ok) return r.json();
     if (r) { last = r.status + ' ' + (await r.text().catch(() => '')).slice(0, 200); if (r.status < 500) throw new Error('site ' + last); }
     log('  site busy (' + last + '), retrying'); await sleep(Math.min(30000, 3000 * (i + 1)));
@@ -66,11 +73,11 @@ async function site(method, body) {
   throw new Error('site unreachable: ' + last);
 }
 // a coin's new days and its moved cursor always go out in the same request
-async function post(coins, days = [], reset = [], expect, rounds = []) {
+async function post(coins, days = [], reset = [], expect, rounds = [], prices = []) {
   const clean = o => Object.fromEntries(Object.entries(o).filter(([, v]) => v !== undefined));
   for (let i = 0; i < Math.max(coins.length, 1); i += 300) {
     const cs = coins.slice(i, i + 300).map(clean);
-    await site('POST', { coins: cs, days: i ? [] : days, reset: i ? [] : reset, ...(rounds.length && !i ? { rounds } : {}), ...(expect && !i ? { expect } : {}) });
+    await site('POST', { coins: cs, days: i ? [] : days, reset: i ? [] : reset, ...(rounds.length && !i ? { rounds } : {}), ...(prices.length && !i ? { prices } : {}), ...(expect && !i ? { expect } : {}) });
   }
 }
 const toNum = (raw, dec) => { const b = BigInt(raw), d = 10n ** BigInt(dec); return Number(b / d) + Number(b % d) / Number(d); };
@@ -92,6 +99,66 @@ async function market(chain, mints) {
   }
   return out;
 }
+// logos by ticker, for payout tokens whose own listing has none (Pons pays in Robinhood Chain tokens: DOGE, wXRP, stock tokens).
+// Filled from the Solana payout tokens each run (NVDAx there has a logo, NVDAX on Robinhood doesn't), plus a few majors.
+const ICON_BY_SYM = { DOGE: 'https://coin-images.coingecko.com/coins/images/5/large/dogecoin.png', XRP: 'https://coin-images.coingecko.com/coins/images/44/large/xrp-symbol-white-128.png', ETH: 'https://coin-images.coingecko.com/coins/images/279/large/ethereum.png' };
+const symKey = s => String(s || '').toUpperCase().replace(/^W(?=[A-Z]{3,}$)/, '').replace(/X$/, '');
+const iconFor = s => ICON_BY_SYM[symKey(s)] || ICON_BY_SYM[String(s || '').toUpperCase()] || null;
+// SOL's daily close for the last two years (CoinGecko, free), to value pump.fun payouts in SOL at the price of their day
+let SOLH = null;
+async function solHist() {
+  if (SOLH) return SOLH;
+  SOLH = new Map();
+  const j = await get('https://api.coingecko.com/api/v3/coins/solana/market_chart?vs_currency=usd&days=730&interval=daily', 3).catch(() => null);
+  for (const [ms, p] of j?.prices || []) SOLH.set(Math.floor(ms / 1000 / DAY), p);
+  // CoinGecko can be unreachable (from China it is): Kraken's daily candles, then Binance's, give the same closes
+  if (!SOLH.size) { const k = await get('https://api.kraken.com/0/public/OHLC?pair=SOLUSD&interval=1440', 2).catch(() => null); for (const r of Object.values(k?.result || {}).find(Array.isArray) || []) SOLH.set(Math.floor(r[0] / DAY), +r[4]); }
+  if (!SOLH.size) { const b = await get('https://api.binance.com/api/v3/klines?symbol=SOLUSDT&interval=1d&limit=1000', 2).catch(() => null); for (const r of Array.isArray(b) ? b : []) SOLH.set(Math.floor(r[0] / 1000 / DAY), +r[4]); }
+  log(`SOL price history: ${SOLH.size} days`);
+  return SOLH;
+}
+// Every payout token's daily close (by ticker), so the site can show each day, week and month at that day's price.
+// Kraken first (its daily candles go back 720 days), then Binance. A ticker neither has is marked and asked again in a week.
+// Stablecoins are $1 any day: today's price is already right for them.
+const STABLE = new Set(['USDC', 'USDT', 'USDG', 'USD1', 'PYUSD', 'USDS', 'DAI', 'USDE', 'FDUSD', 'USDH']);
+const KRAKEN_AS = { BTC: 'XBT', WBTC: 'XBT', DOGE: 'XDG', WETH: 'ETH', WSOL: 'SOL', WXRP: 'XRP' };
+async function closes(sym) {
+  const m = new Map(), k = KRAKEN_AS[sym] || sym;
+  for (const pair of [...new Set([k + 'USD', k.replace(/X$/, '') + 'xUSD'])]) {
+    if (m.size) break;
+    await new Promise(r => setTimeout(r, 1500));   // Kraken's public API allows about one call a second
+    const j = await get(`https://api.kraken.com/0/public/OHLC?pair=${encodeURIComponent(pair)}&interval=1440`, 1).catch(() => null);
+    for (const r of Object.values(j?.result || {}).find(Array.isArray) || []) if (+r[4] > 0) m.set(Math.floor(r[0] / DAY), +r[4]);
+  }
+  if (!m.size && !closes.noBinance) {
+    // Binance can be blocked (it is from China): one failed connection and it isn't asked again this run
+    const b = await get(`https://api.binance.com/api/v3/klines?symbol=${encodeURIComponent((sym === 'WBTC' ? 'BTC' : sym) + 'USDT')}&interval=1d&limit=1000`, 1).catch(e => { if (!/^4\d\d /.test(e.message)) closes.noBinance = true; return null; });
+    for (const r of Array.isArray(b) ? b : []) if (+r[4] > 0) m.set(Math.floor(r[0] / 1000 / DAY), +r[4]);
+  }
+  return m;
+}
+async function priceRun(st, rows) {
+  const today = Math.floor(Date.now() / 1000 / DAY), have = new Map((st.prices || []).map(p => [p.sym, p]));
+  // tickers worth pricing: what coins that paid real money pay in, biggest first
+  const w = new Map();
+  for (const r of [...(st.coins || []), ...rows]) { const s = String(r.pay_symbol || '').replace(/^\$/, '').toUpperCase(); if (s && s !== 'NULL' && !STABLE.has(s) && /^[A-Z0-9.]{1,20}$/.test(s)) w.set(s, (w.get(s) || 0) + 1); }
+  let asked = 0, got = 0, rowsN = 0, none = 0;
+  for (const s of [...w.keys()].sort((a, b) => w.get(b) - w.get(a))) {
+    const h = have.get(s);
+    if (h?.none != null && today - h.none < 7 && !(h.last >= 0)) continue;   // no exchange had it a few days ago
+    if (h && h.last >= today - 1) continue;                                   // up to date
+    if (asked >= 40 || left() < 120e3) break;
+    asked++;
+    const m = await closes(s);
+    if (!m.size) { if (!(h?.last >= 0)) { await post([], [], [], undefined, [], [[s, -1, today]]); none++; } continue; }
+    const from = h?.last >= 0 ? h.last - 2 : -1;
+    const add = [...m].filter(([d]) => d > from).map(([d, p]) => [s, d, p]);
+    for (let i = 0; i < add.length; i += 800) await post([], [], [], undefined, [], add.slice(i, i + 800));
+    got++; rowsN += add.length;
+  }
+  log(`prices: ${got} payout tokens got daily closes (${rowsN} days), ${none} no exchange has, ${w.size} tickers in all`);
+}
+const solAt = (h, d, now) => h.get(d) ?? h.get(d - 1) ?? h.get(d + 1) ?? now;
 const MAJOR = { [WSOL]: { symbol: 'SOL', icon: 'https://coin-images.coingecko.com/coins/images/4128/large/solana.png' },
   [WBNB]: { symbol: 'BNB', icon: 'https://coin-images.coingecko.com/coins/images/825/large/bnb-icon2_2x.png' } };
 
@@ -123,13 +190,14 @@ function vaultOf(t) {
 }
 // active coins right now: a sample of the payout signer's latest rounds
 async function pumpDiscover() {
-  const found = {}; let tk;
+  const found = {}; let tk, seen = 0, dist = 0, novault = 0;
   for (let p = 0; p < 10; p++) {
-    const o = { transactionDetails: 'full', encoding: 'jsonParsed', maxSupportedTransactionVersion: 1, limit: 100, sortOrder: 'desc' }; if (tk) o.paginationToken = tk;
+    const o = { transactionDetails: 'full', encoding: 'jsonParsed', maxSupportedTransactionVersion: 1, limit: 100, sortOrder: 'desc', filters: { status: 'succeeded' } }; if (tk) o.paginationToken = tk;
     const r = await rpc('getTransactionsForAddress', [PUMP_SIGNER, o]).catch(e => (log('  pump discover page failed', e.message), null));
-    for (const t of r?.data || []) { if (!isDist(t)) continue; const v = vaultOf(t); if (v?.coin && v.vault) (found[v.coin] = found[v.coin] || { vault: v.vault, n: 0 }).n++; }
+    for (const t of r?.data || []) { seen++; if (!isDist(t)) continue; dist++; const v = vaultOf(t); if (v?.coin && v.vault) (found[v.coin] = found[v.coin] || { vault: v.vault, n: 0 }).n++; else novault++; }
     tk = r?.paginationToken; if (!tk) break;
   }
+  log(`  pump discover: ${seen} signer transactions read, ${dist} payout rounds, ${novault} without a coin or vault`);   // tells why "0 coins paying" when it happens
   return found;
 }
 // the coin's own history often misses its payout rounds (the mint comes in through a lookup table), so look in the payout signer's history first
@@ -181,7 +249,8 @@ async function pumpCount(c, maxPages) {
       paid += out; rounds++; payouts += n; first = first ?? t.blockTime; last = t.blockTime;
       const d = Math.floor(t.blockTime / DAY), x = days.get(d) || { v: 0, n: 0 }; x.v += toNum(out, dec); x.n += n; days.set(d, x);
       proofs.unshift(t.transaction.signatures[0]); if (proofs.length > 3) proofs.pop();
-      if (t.blockTime > Date.now() / 1000 - 14 * DAY) { recent.push([t.blockTime, toNum(out, dec), n]); if (recent.length > 6) recent.shift(); }
+      // one payout round is split over many transactions in the same block: they make one row, not one row each
+      if (t.blockTime > Date.now() / 1000 - 14 * DAY) { const lr = recent[recent.length - 1]; if (lr && t.blockTime - lr[0] <= 2) { lr[1] += toNum(out, dec); lr[2] += n; } else { recent.push([t.blockTime, toNum(out, dec), n]); if (recent.length > 6) recent.shift(); } }
     }
     if ((r?.data || []).length < 100) { done = true; break; }
   }
@@ -225,6 +294,47 @@ async function bs(path, q = {}) {
     catch (e) { if (i === 5 || /blockscout 4/.test(e.message)) throw e; }
     await sleep(1000 * 2 ** i);
   }
+}
+// Pons coins older than our first escrow read had their earlier payouts missing from All time. For each holder vault, once:
+// walk what it received from the escrow (newest back) up to B, the high-water mark when its walk began. When the walk ends:
+//   paid = (everything up to B) + (what the live count added after B)     rounds the same way; days before startDay are written, later days are already right.
+// A walk that runs out of time keeps its place (next page) and partial sums in the state row and goes on next run.
+async function ponsBackfill(bf, vaults, known, wrote, hw, startDay) {
+  if (!hw) return bf;
+  const now = new Map(wrote.map(c => [c.mint, c])), cur = m => now.get(m) || known.get(m) || {};
+  const todo = Object.entries(vaults).filter(([v, m]) => m && !bf[v]?.done && cur(m).pay_mint && cur(m).status !== 'hidden')
+    .sort((a, b) => (cur(b[1]).paid_usd || 0) - (cur(a[1]).paid_usd || 0));
+  let pages = 0, finished = 0;
+  for (const [v, m] of todo) {
+    if (pages >= 300 || left() < 150e3) break;
+    const c = cur(m), pay = c.pay_mint.toLowerCase();
+    const w = bf[v] || (bf[v] = { B: hw.t, r0: String(c.paid_raw || '0'), n0: c.rounds || 0, raw: '0', n: 0, d: {}, np: null });
+    let raw = BigInt(w.raw), end = false;
+    while (pages < 300 && left() > 120e3) {
+      const j = await bs(`/addresses/${v}/token-transfers`, { type: 'ERC-20', filter: 'to', token: pay, ...(w.np || {}) }); pages++;
+      for (const t of j?.items || []) {
+        if ((t.from?.hash || '').toLowerCase() !== PONS_ESCROW) continue;
+        if ((t.token?.address_hash || t.token?.address || '').toLowerCase() !== pay) continue;
+        const ts = Date.parse(t.timestamp); if (ts > w.B) continue;
+        const x = BigInt(t.total?.value || '0'); raw += x; w.n++;
+        const d = Math.floor(ts / 1000 / DAY); if (d < startDay) { const o = w.d[d] || (w.d[d] = ['0', 0]); o[0] = (BigInt(o[0]) + x).toString(); o[1]++; }
+        w.first = Math.floor(ts / 1000);
+      }
+      w.raw = raw.toString();
+      if (!j?.next_page_params) { end = true; break; }
+      w.np = j.next_page_params;
+    }
+    if (!end) break;   // keeps its place, next run goes on
+    const dec = c.pay_dec ?? 18, k = known.get(m) || {};
+    const total = raw + (BigInt(c.paid_raw || '0') - BigInt(w.r0)), rounds = w.n + ((c.rounds || 0) - w.n0);
+    const paidN = toNum(total, dec), first = Object.keys(w.d).map(Number).sort((a, b) => a - b)[0];
+    const dayRows = Object.entries(w.d).map(([d, [r, n]]) => [m, +d, toNum(BigInt(r), dec), n, 'set']);
+    await post([{ mint: m, ...(c.status === 'small' && c.pay_price && paidN * c.pay_price >= MIN_USD ? { status: 'ok' } : {}), paid_raw: total.toString(), rounds, paid_usd: c.pay_price ? paidN * c.pay_price : undefined, first_ts: w.first || null, days_from: first ?? (c.days_from ?? startDay) }], dayRows);
+    log(`  Pons $${c.symbol || k.symbol || m.slice(0, 8)} history: +${toNum(raw > BigInt(w.r0) ? raw - BigInt(w.r0) : 0n, dec).toFixed(2)} ${c.pay_symbol || k.pay_symbol || ''} from before we started, ${paidN.toFixed(2)} all time`);
+    bf[v] = { done: 1 }; finished++;
+  }
+  if (todo.length) log(`Pons history: ${finished} coins completed, ${todo.length - finished} left, ${pages} pages this run`);
+  return bf;
 }
 async function bsCall(to, data) {
   for (let i = 0; i < 4; i++) {
@@ -296,7 +406,7 @@ async function ponsRun(known) {
     const paidN = toNum(total, main.dec), usdNow = main.price ? paidN * main.price : 0, status = k?.status === 'hidden' ? 'hidden' : usdNow >= MIN_USD ? 'ok' : 'small';   // same bar as the other platforms
     coins.push({ mint: c.coin, chain: 'robinhood', platform: 'Pons', symbol: info?.symbol || k?.symbol || null, name: info?.name || null, icon: info?.icon_url || null,
       price: info?.exchange_rate ? +info.exchange_rate : null, mcap: info?.circulating_market_cap ? +info.circulating_market_cap : null, vol24: info?.volume_24h ? +info.volume_24h : null,
-      pay_mint: main.a, pay_symbol: main.sym, pay_dec: main.dec, pay_icon: main.icon, pay_price: main.price, paid_raw: total.toString(), paid_usd: main.price ? paidN * main.price : null,
+      pay_mint: main.a, pay_symbol: main.sym, pay_dec: main.dec, pay_icon: main.icon || iconFor(main.sym), pay_price: main.price, paid_raw: total.toString(), paid_usd: main.price ? paidN * main.price : null,
       rounds: (k?.rounds || 0) + main.n, last_ts: Math.max(c.last, k?.last_ts || 0), days_from: k?.days_from ?? startDay, src: 'pons', proofs: c.proofs, status, updated: Math.floor(Date.now() / 1000) });
     for (const x of c.days.values()) if (x.a === main.a && x.d >= startDay) days.push([c.coin, x.d, toNum(x.raw, main.dec), x.n, 'add']);
   }
@@ -305,6 +415,8 @@ async function ponsRun(known) {
   const hw = topT ? { t: topT, h: items.filter(t => Date.parse(t.timestamp) === topT).map(t => t.transaction_hash + ':' + t.log_index) } : S.hw;
   const next = { from: startDay, hw, v: vaults };
   for (let i = 0; i < coins.length; i += 100) { const part = coins.slice(i, i + 100), has = d => part.some(c => c.mint === d[0]); await post(part, days.filter(has)); }
+  // 5. history before we started reading the escrow: each holder vault once, everything it got from the escrow up to a fixed moment B
+  next.bf = await ponsBackfill(S.bf || {}, vaults, known, coins, hw, startDay).catch(e => { log('Pons history failed, next run continues:', e.message); return S.bf || {}; });
   await post([{ mint: PONS_STATE, chain: 'robinhood', platform: 'Pons', status: 'hidden', cursor: JSON.stringify(next) }]);
   log(`Pons: ${items.length} escrow transfers read, ${per.size} coins paid holders, ${Object.values(vaults).filter(Boolean).length} holder vaults known`);
 }
@@ -321,13 +433,19 @@ async function main() {
   const sfMs = Date.now();
   const sf = await stonkList(pins.filter(p => p.platform === 'StonkFun').map(p => p.mint));
   for (const r of sf) if (want(r.mint)) rows.set(r.mint, { mint: r.mint, chain: 'solana', platform: 'StonkFun', pay_mint: r.asset.mint, pay_symbol: r.asset.symbol, pay_dec: r.asset.decimals,
-    paid_raw: r.distributedRaw, payouts: r.payoutCount ?? null, wallets: r.walletsPaid ?? null, last_ts: r.lastPayoutAt ? Math.floor(Date.parse(r.lastPayoutAt) / 1000) : null, src: 'stonk' });
+    paid_raw: r.distributedRaw, payouts: r.payoutCount ?? null, wallets: r.walletsPaid ?? null, last_ts: r.lastPayoutAt ? Math.floor(Date.parse(r.lastPayoutAt) / 1000) : null, src: 'stonk', _usdAt: r.distributedUsdAtPayout ?? null, _usdPart: !!r.distributedUsdAtPayoutPartial });
   log(`StonkFun: ${sf.length} coins`);
 
   // 2. pump.fun: coins paying right now, pinned ones, and the ones we already count
   // NO_PUMP=1: skip pump.fun, it is the only part that spends Helius credits (StonkFun is free)
-  const NO_PUMP = !!process.env.NO_PUMP;
+  const HS = '_helius', hst = (() => { try { return JSON.parse(known.get(HS)?.cursor || '{}') || {}; } catch { return {}; } })();
+  if (hst.d === today()) H.used = hst.n || 0;
+  const pumpDue = PUMP_EVERY_H <= 0 || !hst.pump || Date.now() / 1000 - hst.pump >= PUMP_EVERY_H * 3600 - 300;
+  const saveH = async (pumpRan) => { await post([{ mint: HS, chain: 'solana', platform: 'pump.fun', status: 'hidden', cursor: JSON.stringify({ d: today(), n: H.used, pump: pumpRan ? Math.floor(Date.now() / 1000) : hst.pump || 0 }) }]).catch(() => {}); };
+  log(`helius: ${H.used}/${HELIUS_DAY} calls used today, pump.fun ${process.env.NO_PUMP ? 'off (NO_PUMP)' : pumpDue ? 'runs this time' : `waits (every ${PUMP_EVERY_H}h)`}`);
+  const NO_PUMP = !!process.env.NO_PUMP || !pumpDue || H.used >= HELIUS_DAY;
   const pf = NO_PUMP ? {} : await pumpDiscover().catch(e => (log('pump discover failed', e.message), {}));
+  const pfAll = pf;
   const pumpMints = NO_PUMP ? new Set() : new Set([...Object.keys(pf), ...pins.filter(p => p.platform === 'pump.fun').map(p => p.mint), ...[...known.values()].filter(c => c.platform === 'pump.fun' && c.status === 'ok').map(c => c.mint)]);
   log(`pump.fun: ${Object.keys(pf).length} coins paying in the last minutes, ${pumpMints.size} to look at`);
 
@@ -353,6 +471,24 @@ async function main() {
   const mk = { ...(await market('solana', sol)), ...(await market('bsc', bsc)) };
   const payS = [...new Set([WSOL, ...[...rows.values()].filter(r => r.chain === 'solana').map(r => r.pay_mint)])], payB = [...new Set([WBNB, ...[...rows.values()].filter(r => r.chain === 'bsc').map(r => r.pay_mint)])];
   const pk = { ...(await market('solana', payS)), ...(await market('bsc', payB)) };
+  // what they pay in, its logo and exact ticker (xStocks write NVDAx, not NVDAX): Jupiter's token list, free, one call per token we have no logo for
+  // tokens we already have a logo for are not looked up again (this took minutes every run)
+  const haveIcon = new Map([...known.values()].filter(c => c.pay_icon && c.pay_mint).map(c => [c.pay_mint, { icon: c.pay_icon, sym: c.pay_symbol }]));
+  let jupN = 0;
+  for (const m of payS) {
+    if (!MAJOR[m] && !pk[m]?.icon && haveIcon.has(m)) { const h = haveIcon.get(m), o = pk[m] || (pk[m] = {}); o.icon = h.icon; if (h.sym) o.jsym = h.sym; }
+    if (MAJOR[m] || pk[m]?.icon) continue;
+    if (++jupN > 25) continue;   // a few new tokens a run is plenty; tokens Jupiter has no logo for would otherwise be asked again every run
+    const t = (await get(`https://lite-api.jup.ag/tokens/v2/search?query=${m}`, 1).catch(() => null) || []).find(x => x.id === m);
+    if (t) { const o = pk[m] || (pk[m] = {}); if (t.icon) o.icon = t.icon; if (t.symbol) o.jsym = t.symbol; if (!o.price && t.usdPrice) o.price = t.usdPrice; }
+    await sleep(120);
+  }
+  for (const m of payS) { const o = pk[m]; const sy = o?.jsym || o?.symbol; if (o?.icon && sy) { ICON_BY_SYM[symKey(sy)] ??= o.icon; ICON_BY_SYM[String(sy).toUpperCase()] ??= o.icon; } }
+  for (const [m, h] of haveIcon) if (h.sym) { ICON_BY_SYM[symKey(h.sym)] ??= h.icon; ICON_BY_SYM[String(h.sym).toUpperCase()] ??= h.icon; }
+  // coins this run doesn't rewrite (quiet ones, pump.fun between its runs) still get their payout token's logo: same token elsewhere, or the same ticker
+  { const byMint = new Map([...haveIcon].map(([m, h]) => [m, h.icon])); for (const m of payS) if (pk[m]?.icon) byMint.set(m, pk[m].icon);
+    const fix = [...known.values()].filter(c => c.status === 'ok' && !c.pay_icon && c.pay_mint && !rows.has(c.mint)).map(c => ({ mint: c.mint, pay_icon: byMint.get(c.pay_mint) || iconFor(c.pay_symbol) })).filter(x => x.pay_icon);
+    if (fix.length) { await post(fix); log(`payout token logos added to ${fix.length} coins`); } }
   // coins DexScreener doesn't list (dead or never traded there) still get a name: from the token's own on-chain metadata, 100 per call
   { const miss = [...rows.values()].filter(r => r.chain === 'solana' && !mk[r.mint]?.symbol && !known.get(r.mint)?.symbol).map(r => r.mint);
     for (let i = 0; i < miss.length; i += 100) {
@@ -365,7 +501,7 @@ async function main() {
   }
   // known coins keep the name they already have when DexScreener drops them
   const meta = (r, m) => Object.assign(r, { symbol: m?.symbol ?? r.symbol ?? known.get(r.mint)?.symbol, name: m?.name ?? r.name, icon: m?.icon ?? r.icon, price: m?.price ?? null, mcap: m?.mcap ?? null, vol24: m?.vol24 ?? null, created: m?.created ?? null });
-  const payMeta = r => { const p = pk[key(r.pay_mint)] || {}; Object.assign(r, { pay_price: p.price ?? null, pay_icon: MAJOR[r.pay_mint]?.icon || p.icon || null }); if (MAJOR[r.pay_mint]) r.pay_symbol = MAJOR[r.pay_mint].symbol; };
+  const payMeta = r => { const p = pk[key(r.pay_mint)] || {}; Object.assign(r, { pay_price: p.price ?? null, pay_icon: MAJOR[r.pay_mint]?.icon || p.icon || iconFor(p.jsym || r.pay_symbol) || null }); if (MAJOR[r.pay_mint]) r.pay_symbol = MAJOR[r.pay_mint].symbol; else if (p.jsym) r.pay_symbol = p.jsym; };
 
   // pump coins worth a page: busy ones (or pinned, or already counted)
   for (const m of pumpMints) {
@@ -380,7 +516,10 @@ async function main() {
     r.updated = now;
     if (SKIP.has(r.mint.toLowerCase())) r.status = 'hidden';
     if (r.platform !== 'pump.fun') {
-      const paid = toNum(r.paid_raw, r.pay_dec); r.paid_usd = r.pay_price ? paid * r.pay_price : null;
+      // dollars as they were at each payout (what holders actually got), as StonkFun counts them. When StonkFun lacks a price for some payouts (partial), the larger of that and today's value
+      const paid = toNum(r.paid_raw, r.pay_dec), now$ = r.pay_price ? paid * r.pay_price : null;
+      r.paid_usd = r._usdAt != null ? (r._usdPart ? Math.max(r._usdAt, now$ || 0) : r._usdAt) : now$;
+      delete r._usdAt; delete r._usdPart;
       if (!r.status) r.status = (r.paid_usd || 0) >= MIN_USD || pinned.has(r.mint) ? 'ok' : 'small';
     }
     if (r._day) dayRows.push(r._day); delete r._day;
@@ -394,21 +533,41 @@ async function main() {
   log(`wrote ${rows.size} coins (${first.length} new)`);
 
   // 4b. Pons (Robinhood Chain), cheap: only the escrow's new transfers
+  // a Pons coin first seen as small whose earlier payouts (read later) put it over the bar shows up now
+  { const up = [...known.values()].filter(k => k.platform === 'Pons' && k.status === 'small' && (k.paid_usd || 0) >= MIN_USD).map(k => ({ mint: k.mint, status: 'ok' }));
+    if (up.length) { await post(up); log(`Pons: ${up.length} coins over the bar after their history was read`); } }
   if (!ONLY.length) await ponsRun(known).catch(e => log('Pons failed, next run tries again:', e.message));
+  if (!ONLY.length) await priceRun(st, [...rows.values()]).catch(e => log('prices failed, next run tries again:', e.message));
 
   // 5. pump.fun: count rounds from the vault, biggest coins first
+  let quietUsd = 0;
   for (const r of NO_PUMP ? [] : pumpRows.sort((a, b) => (b.vol24 || 0) - (a.vol24 || 0))) {
-    if (left() < 90e3) break;
+    if (left() < 90e3 || H.used >= HELIUS_DAY) break;
     try { await pumpOne(r); } catch (e) { log('  pump', r.symbol, 'failed, next run continues from its last saved point:', e.message); }
   }
+  if (quietUsd) log(`pump.fun: ${quietUsd} quiet coins valued at payout-day SOL price`);
   async function pumpOne(r) {
     if (r.status === 'hidden' || r.status === 'feeshare') return;
     const k = known.get(r.mint) || {};
+    // caught up and no payout for a week: its total won't move, leave it (it comes back as soon as it pays again: pumpDiscover sees it)
+    { let cu = {}; try { cu = JSON.parse(k.cursor || '{}') || {}; } catch {} if (cu.done && k.last_ts && Date.now() / 1000 - k.last_ts > 7 * DAY && !(r.mint in pfAll)) {
+      // a quiet SOL coin counted before dollars-at-payout existed: value it once from its saved days (no Helius calls)
+      if ((cu.asset || WSOL) === WSOL && cu.usdAt == null) { const h = await solHist(); const dd = h.size ? await site('GET', undefined, `?days=${r.mint}`).catch(() => null) : null;
+        if (dd?.days) { cu.usdAt = dd.days.reduce((a, x) => a + (x.v || 0) * solAt(h, x.d, pk[WSOL]?.price || 0), 0); await post([{ mint: r.mint, cursor: JSON.stringify(cu), paid_usd: cu.usdAt }]); quietUsd++; } }
+      return; } }
     if (!r.vault) r.vault = await pumpVault(r.mint).catch(() => null);
     if (!r.vault) { await post([{ mint: r.mint, status: 'novault' }]); log('  pump', r.symbol, 'no rewards vault found'); return; }
     const fresh = !k.cursor || k.vault !== r.vault;
     let c = { ...k, mint: r.mint, vault: r.vault, days_from: fresh ? null : k.days_from, cursor: fresh ? null : k.cursor, paid_raw: fresh ? '0' : k.paid_raw, rounds: fresh ? 0 : k.rounds, payouts: fresh ? 0 : k.payouts, first_ts: fresh ? null : k.first_ts, last_ts: fresh ? null : k.last_ts };
     let resetDone = !fresh;
+    // dollars at payout for SOL payouts: the running sum lives in the cursor; a coin counted before this existed is valued once from its saved days
+    let usdAt = null;
+    { let cu = {}; try { cu = JSON.parse(c.cursor || '{}') || {}; } catch {}
+      if ((cu.asset || WSOL) === WSOL) { const h = await solHist(); if (h.size) {
+        if (cu.usdAt != null && !fresh) usdAt = cu.usdAt;
+        else if (fresh || !c.cursor) usdAt = 0;
+        else { const dd = await site('GET', undefined, `?days=${r.mint}`).catch(() => null); if (dd?.days) usdAt = dd.days.reduce((a, x) => a + (x.v || 0) * solAt(h, x.d, pk[WSOL]?.price || 0), 0); }
+      } } }
     for (let step = 0; step < 40 && left() > 90e3; step++) {
       const x = await pumpCount(c, 25);
       const days = [...x.days].map(([d, v]) => [r.mint, d, v.v, v.n, 'add']);
@@ -419,6 +578,7 @@ async function main() {
       if (a !== WSOL && a !== r.mint && !pk[a]) Object.assign(pk, await market('solana', [a]));
       const am = a === WSOL ? { symbol: 'SOL', icon: MAJOR[WSOL].icon, price: pk[WSOL]?.price } : a === r.mint ? { symbol: r.symbol, icon: r.icon, price: r.price } : pk[a] || {};
       Object.assign(upd, { pay_mint: a, pay_dec: x.cursor.dec ?? 9, pay_symbol: am.symbol || null, pay_icon: am.icon || null, pay_price: am.price || null, paid_usd: paidN * (am.price || 0) });
+      if (a === WSOL && usdAt != null) { const h = await solHist(); for (const [d, y] of x.days) usdAt += y.v * solAt(h, d, am.price || 0); x.cursor.usdAt = usdAt; upd.cursor = JSON.stringify(x.cursor); upd.paid_usd = usdAt; }
       if (c.days_from == null && x.first) upd.days_from = c.days_from = Math.floor(x.first / DAY);
       await post([upd], days, resetDone ? [] : [r.mint], { mint: r.mint, cursor: resetDone ? c.cursor : (k.cursor ?? null) }, x.recent.map(([t, v, n]) => [r.mint, t, v, n])); resetDone = true;
       c = { ...c, cursor: upd.cursor, paid_raw: upd.paid_raw, rounds: x.rounds, payouts: x.payouts, first_ts: x.first, last_ts: x.last };
@@ -508,6 +668,8 @@ async function main() {
     } catch (e) { log('  history', x.r.symbol, 'stopped:', e.message, '(saved, next run continues)'); break; }
   }
   if (todo.length) log(`StonkFun history: ${bfDone} coins completed, ${todo.length - bfDone} left, ${bfPages} pages this run`);
+  await saveH(!NO_PUMP);
+  log(`helius: ${H.run} calls this run (${Object.entries(H.by).map(([m, n]) => m + ' ' + n).join(', ') || 'none'}), ${H.used}/${HELIUS_DAY} today`);
   log('done in', Math.round((Date.now() - T0) / 1000), 's');
 }
 main().catch(e => { console.error(e); process.exit(1); });

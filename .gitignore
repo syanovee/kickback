@@ -3,3 +3,5 @@ node_modules/
 .dev.vars
 secrets.json
 .DS_Store
+Claude outputs/
+.d1.txt

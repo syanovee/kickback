@@ -1,0 +1,37 @@
+# Counts what every reward coin paid its holders, for the coin pages at /coins. Runs every 30 minutes.
+# StonkFun and Pons every run (their own APIs, free). pump.fun every 3 hours, under a daily Helius cap (tools/coins-job.mjs).
+name: coins
+on:
+  schedule:
+    - cron: '7,37 * * * *'
+  workflow_dispatch:
+    inputs:
+      only:
+        description: 'Only these mints (comma separated), for testing'
+        required: false
+concurrency:
+  group: coins
+  cancel-in-progress: false
+jobs:
+  count:
+    runs-on: ubuntu-latest
+    timeout-minutes: 28
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: tools
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: node tools/coins-job.mjs
+        env:
+          # the coin pages live on the test site until they ship; then set COINS_SITE (or change this) to https://getkickback.fun. Same database either way.
+          SITE: ${{ vars.COINS_SITE || 'https://kickback-test.pages.dev' }}
+          YIELD_KEY: ${{ secrets.YIELD_KEY }}
+          HELIUS_KEY: ${{ secrets.HELIUS_KEY }}
+          BLOCKSCOUT_KEY: ${{ secrets.BLOCKSCOUT_KEY }}
+          ONLY: ${{ github.event.inputs.only }}
+          MAX_MIN: '24'
+          BF_MIN: '8'
+          PUMP_EVERY_H: '3'
+          HELIUS_DAY: '2500'
