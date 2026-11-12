@@ -35,9 +35,9 @@ async function get(url, tries = 6) {
 //   HELIUS_DAY   calls a day (default 4000), shared by every run that day (kept in the hidden '_helius' row on the site)
 //   PUMP_EVERY_H count pump.fun at most every N hours (default 3; 0 = every run, for catching up)
 const HELIUS_DAY = +(process.env.HELIUS_DAY || 4000), PUMP_EVERY_H = +(process.env.PUMP_EVERY_H ?? 3);
-const H = { used: 0, run: 0, by: {} };
+const H = { used: 0, run: 0, by: {}, cap: HELIUS_DAY };
 async function rpc(method, params) {
-  if (H.used >= HELIUS_DAY) throw new Error('helius daily budget reached');
+  if (H.used >= H.cap) throw new Error(H.cap < HELIUS_DAY ? 'helius share for this run used' : 'helius daily budget reached');
   H.used++; H.run++; H.by[method] = (H.by[method] || 0) + 1;
   for (let i = 0; i < 6; i++) {
     try {
@@ -444,6 +444,13 @@ async function main() {
   const saveH = async (pumpRan) => { await post([{ mint: HS, chain: 'solana', platform: 'pump.fun', status: 'hidden', cursor: JSON.stringify({ d: today(), n: H.used, pump: pumpRan ? Math.floor(Date.now() / 1000) : hst.pump || 0 }) }]).catch(() => {}); };
   log(`helius: ${H.used}/${HELIUS_DAY} calls used today, pump.fun ${process.env.NO_PUMP ? 'off (NO_PUMP)' : pumpDue ? 'runs this time' : `waits (every ${PUMP_EVERY_H}h)`}`);
   const NO_PUMP = !!process.env.NO_PUMP || !pumpDue || H.used >= HELIUS_DAY;
+  // the day's budget is spread over the pump.fun runs still to come today (UTC), so coins stay fresh all day
+  // instead of the morning runs using it all up; a coin cut off mid-way goes on from its saved point next run
+  if (!NO_PUMP && PUMP_EVERY_H > 0) {
+    const runsLeft = Math.max(1, Math.ceil((DAY - Math.floor(Date.now() / 1000) % DAY) / (PUMP_EVERY_H * 3600)));
+    H.cap = Math.min(HELIUS_DAY, H.used + Math.max(100, Math.floor((HELIUS_DAY - H.used) / runsLeft)));
+    log(`helius: this run may use up to ${H.cap - H.used} calls (${runsLeft} pump.fun runs left today)`);
+  }
   const pf = NO_PUMP ? {} : await pumpDiscover().catch(e => (log('pump discover failed', e.message), {}));
   const pfAll = pf;
   const pumpMints = NO_PUMP ? new Set() : new Set([...Object.keys(pf), ...pins.filter(p => p.platform === 'pump.fun').map(p => p.mint), ...[...known.values()].filter(c => c.platform === 'pump.fun' && c.status === 'ok').map(c => c.mint)]);
@@ -542,7 +549,7 @@ async function main() {
   // 5. pump.fun: count rounds from the vault, biggest coins first
   let quietUsd = 0;
   for (const r of NO_PUMP ? [] : pumpRows.sort((a, b) => (b.vol24 || 0) - (a.vol24 || 0))) {
-    if (left() < 90e3 || H.used >= HELIUS_DAY) break;
+    if (left() < 90e3 || H.used >= H.cap) break;
     try { await pumpOne(r); } catch (e) { log('  pump', r.symbol, 'failed, next run continues from its last saved point:', e.message); }
   }
   if (quietUsd) log(`pump.fun: ${quietUsd} quiet coins valued at payout-day SOL price`);
