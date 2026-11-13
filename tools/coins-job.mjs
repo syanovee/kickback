@@ -26,8 +26,8 @@ async function get(url, tries = 6) {
       const r = await fetch(url, { headers: { accept: 'application/json' }, signal: AbortSignal.timeout(30000) });   // a hung request must not freeze the whole run
       if (r.ok) return await r.json();
       if (r.status === 404) return null;
-      if (r.status !== 429 && r.status < 500) throw new Error(r.status + ' ' + url);
-    } catch (e) { if (i === tries - 1) throw e; }
+      if (r.status !== 429 && r.status < 500) throw Object.assign(new Error(r.status + ' ' + url), { final: true });   // 400/403: asking again won't help
+    } catch (e) { if (e.final || i === tries - 1) throw e; }
     await sleep(Math.min(20e3, 1000 * 2 ** i));
   }
 }
@@ -83,10 +83,10 @@ async function post(coins, days = [], reset = [], expect, rounds = [], prices = 
 const toNum = (raw, dec) => { const b = BigInt(raw), d = 10n ** BigInt(dec); return Number(b / d) + Number(b % d) / Number(d); };
 
 // ---- market data (DexScreener): price, market cap, 24h volume, icon, name
-async function market(chain, mints) {
+async function market(chain, mints, tries = 6) {
   const out = {};
   for (let i = 0; i < mints.length; i += 30) {
-    const j = await get(`https://api.dexscreener.com/tokens/v1/${chain}/${mints.slice(i, i + 30).join(',')}`).catch(() => null);
+    const j = await get(`https://api.dexscreener.com/tokens/v1/${chain}/${mints.slice(i, i + 30).join(',')}`, tries).catch(e => (log('  dexscreener:', e.message.slice(0, 120)), null));
     for (const p of Array.isArray(j) ? j : []) {
       const m = key(p.baseToken?.address || ''); if (!m) continue;
       const o = out[m] || (out[m] = { vol24: 0, liq: -1 });
@@ -547,7 +547,7 @@ async function main() {
   if (!ONLY.length) await priceRun(st, [...rows.values()]).catch(e => log('prices failed, next run tries again:', e.message));
 
   // 5. pump.fun: count rounds from the vault, biggest coins first
-  let quietUsd = 0;
+  let quietUsd = 0; const noMarket = new Set();
   for (const r of NO_PUMP ? [] : pumpRows.sort((a, b) => (b.vol24 || 0) - (a.vol24 || 0))) {
     if (left() < 90e3 || H.used >= H.cap) break;
     try { await pumpOne(r); } catch (e) { log('  pump', r.symbol, 'failed, next run continues from its last saved point:', e.message); }
@@ -582,7 +582,7 @@ async function main() {
       const upd = { mint: r.mint, vault: r.vault, cursor: JSON.stringify(x.cursor), paid_raw: x.paid.toString(), rounds: x.rounds, payouts: x.payouts, first_ts: x.first, last_ts: x.last,
         proofs: x.proofs.length ? x.proofs.map(s => ({ s })) : undefined, paid_usd: paidN * (r.pay_price || 0), status: x.feeShare ? 'feeshare' : (r.status === 'hidden' ? 'hidden' : 'ok') };
       const a = x.cursor.asset || WSOL;
-      if (a !== WSOL && a !== r.mint && !pk[a]) Object.assign(pk, await market('solana', [a]));
+      if (a !== WSOL && a !== r.mint && !pk[a] && !noMarket.has(a)) { const m = await market('solana', [a], 2); Object.assign(pk, m); if (!m[a]) noMarket.add(a); }   // asked once a run, not once per coin
       const am = a === WSOL ? { symbol: 'SOL', icon: MAJOR[WSOL].icon, price: pk[WSOL]?.price } : a === r.mint ? { symbol: r.symbol, icon: r.icon, price: r.price } : pk[a] || {};
       Object.assign(upd, { pay_mint: a, pay_dec: x.cursor.dec ?? 9, pay_symbol: am.symbol || null, pay_icon: am.icon || null, pay_price: am.price || null, paid_usd: paidN * (am.price || 0) });
       if (a === WSOL && usdAt != null) { const h = await solHist(); for (const [d, y] of x.days) usdAt += y.v * solAt(h, d, am.price || 0); x.cursor.usdAt = usdAt; upd.cursor = JSON.stringify(x.cursor); upd.paid_usd = usdAt; }
