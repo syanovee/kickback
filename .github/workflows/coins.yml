@@ -29,6 +29,7 @@ jobs:
           SITE: ${{ vars.COINS_SITE || 'https://kickback-test.pages.dev' }}
           YIELD_KEY: ${{ secrets.YIELD_KEY }}
           HELIUS_KEY: ${{ secrets.HELIUS_KEY }}
+          QUICKNODE_URL: ${{ secrets.QUICKNODE_URL }}
           BLOCKSCOUT_KEY: ${{ secrets.BLOCKSCOUT_KEY }}
           ONLY: ${{ github.event.inputs.only }}
           MAX_MIN: '24'

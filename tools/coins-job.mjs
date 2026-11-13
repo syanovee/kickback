@@ -36,16 +36,35 @@ async function get(url, tries = 6) {
 //   PUMP_EVERY_H count pump.fun at most every N hours (default 3; 0 = every run, for catching up)
 const HELIUS_DAY = +(process.env.HELIUS_DAY || 4000), PUMP_EVERY_H = +(process.env.PUMP_EVERY_H ?? 3);
 const H = { used: 0, run: 0, by: {}, cap: HELIUS_DAY };
+const QN = process.env.QUICKNODE_URL || '';
+let heliusDown = false;   // Helius refused this run (rate limit / credits): QuickNode takes the rest, or pump.fun waits for the next run
+const REFUSED = /rate.?limit|too many|credit|exceed|upgrade|plan|quota|unauthori|forbidden|api.?key/i;
+async function rpcAt(url, method, params, tries) {
+  let last = '';
+  for (let i = 0; i < tries; i++) {
+    try {
+      const r = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ jsonrpc: '2.0', id: 1, method, params }), signal: AbortSignal.timeout(60000) });
+      if (r.status === 429 || r.status === 401 || r.status === 403 || r.status >= 500) { last = 'status ' + r.status; await sleep(800 * 2 ** i); continue; }
+      const j = await r.json();
+      if (j.error) { const m = String(j.error.message || ''); if (REFUSED.test(m)) { last = m.slice(0, 80); await sleep(800 * 2 ** i); continue; } throw Object.assign(new Error(method + ': ' + m), { final: true }); }
+      return j.result;
+    } catch (e) { if (e.final) throw e; last = String(e.message || e).slice(0, 80); await sleep(800 * 2 ** i); }
+  }
+  throw Object.assign(new Error(method + ' refused (' + last + ')'), { refused: true });
+}
 async function rpc(method, params) {
   if (H.used >= H.cap) throw new Error(H.cap < HELIUS_DAY ? 'helius share for this run used' : 'helius daily budget reached');
   H.used++; H.run++; H.by[method] = (H.by[method] || 0) + 1;
-  for (let i = 0; i < 6; i++) {
-    try {
-      const r = await fetch('https://mainnet.helius-rpc.com/?api-key=' + HELIUS, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ jsonrpc: '2.0', id: 1, method, params }), signal: AbortSignal.timeout(60000) });
-      if (r.status === 429 || r.status >= 500) { await sleep(800 * 2 ** i); continue; }
-      const j = await r.json(); if (j.error) throw new Error(method + ': ' + j.error.message); return j.result;
-    } catch (e) { if (i === 5) throw e; await sleep(800 * 2 ** i); }
+  if (heliusDown === false) {
+    try { return await rpcAt('https://mainnet.helius-rpc.com/?api-key=' + HELIUS, method, params, 3); }
+    catch (e) {
+      if (e.refused === undefined) throw e;
+      heliusDown = true;
+      log('helius refused (' + e.message + ')' + (QN ? ', QuickNode takes over for this run' : ', no QUICKNODE_URL: pump.fun waits for the next run'));
+    }
   }
+  if (QN === '') throw new Error('helius refused, no fallback');
+  return rpcAt(QN, method, params, 4);
 }
 async function evm(method, params) {
   for (let i = 0; i < 5; i++) {
@@ -549,7 +568,7 @@ async function main() {
   // 5. pump.fun: count rounds from the vault, biggest coins first
   let quietUsd = 0; const noMarket = new Set();
   for (const r of NO_PUMP ? [] : pumpRows.sort((a, b) => (b.vol24 || 0) - (a.vol24 || 0))) {
-    if (left() < 90e3 || H.used >= H.cap) break;
+    if (left() < 90e3 || H.used >= H.cap || (heliusDown && QN === '')) break;
     try { await pumpOne(r); } catch (e) { log('  pump', r.symbol, 'failed, next run continues from its last saved point:', e.message); }
   }
   if (quietUsd) log(`pump.fun: ${quietUsd} quiet coins valued at payout-day SOL price`);
