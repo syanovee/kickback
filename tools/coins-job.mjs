@@ -67,7 +67,8 @@ async function rpc(method, params) {
   if (QN === '') throw new Error('helius refused, no fallback');
   if (QQ.used >= QN_RUN) throw new Error('quicknode share for this run used');
   QQ.used++; H.used--;   // a QuickNode call is not a Helius call: it counts against its own share
-  return rpcAt(QN, method, params, 4);
+  try { return await rpcAt(QN, method, params, 4); }
+  catch (e) { if (e.refused) { QQ.used = QN_RUN; log('quicknode refused too (' + e.message + '): pump.fun waits for the next run'); } throw e; }
 }
 async function evm(method, params) {
   for (let i = 0; i < 5; i++) {
