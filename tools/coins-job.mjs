@@ -123,6 +123,20 @@ async function market(chain, mints, tries = 6) {
   }
   return out;
 }
+// a second opinion on what payout tokens cost: in a batch DexScreener can hand back an odd pool with fake liquidity and a nonsense quote
+// ($HYPE came out at $588K instead of $66, and three coins looked like they paid holders $850M). Jupiter's price wins when they differ 3x or more.
+async function jupCheck(pk, mints) {
+  const ms = [...new Set(mints)].filter(m => m && !isEvm(m) && pk[m]?.price > 0);
+  for (let i = 0; i < ms.length; i += 50) {
+    const part = ms.slice(i, i + 50);
+    const j = await get(`https://lite-api.jup.ag/price/v3?ids=${part.join(',')}`, 1).catch(() => null);
+    for (const m of part) {
+      const p = +(j?.[m]?.usdPrice), o = pk[m];
+      if (p > 0 && (o.price / p >= 3 || p / o.price >= 3)) { log(`  price of ${o.symbol || m.slice(0, 6)}: DexScreener says ${o.price}, Jupiter ${p}, taking Jupiter`); o.price = p; }
+    }
+    await sleep(150);
+  }
+}
 // logos by ticker, for payout tokens whose own listing has none (Pons pays in Robinhood Chain tokens: DOGE, wXRP, stock tokens).
 // Filled from the Solana payout tokens each run (NVDAx there has a logo, NVDAX on Robinhood doesn't), plus a few majors.
 const ICON_BY_SYM = { DOGE: 'https://coin-images.coingecko.com/coins/images/5/large/dogecoin.png', XRP: 'https://coin-images.coingecko.com/coins/images/44/large/xrp-symbol-white-128.png', ETH: 'https://coin-images.coingecko.com/coins/images/279/large/ethereum.png' };
@@ -502,6 +516,7 @@ async function main() {
   const mk = { ...(await market('solana', sol)), ...(await market('bsc', bsc)) };
   const payS = [...new Set([WSOL, ...[...rows.values()].filter(r => r.chain === 'solana').map(r => r.pay_mint)])], payB = [...new Set([WBNB, ...[...rows.values()].filter(r => r.chain === 'bsc').map(r => r.pay_mint)])];
   const pk = { ...(await market('solana', payS)), ...(await market('bsc', payB)) };
+  await jupCheck(pk, payS);
   // what they pay in, its logo and exact ticker (xStocks write NVDAx, not NVDAX): Jupiter's token list, free, one call per token we have no logo for
   // tokens we already have a logo for are not looked up again (this took minutes every run)
   const haveIcon = new Map([...known.values()].filter(c => c.pay_icon && c.pay_mint).map(c => [c.pay_mint, { icon: c.pay_icon, sym: c.pay_symbol }]));
@@ -614,7 +629,7 @@ async function main() {
       const upd = { mint: r.mint, vault: r.vault, cursor: JSON.stringify(x.cursor), paid_raw: x.paid.toString(), rounds: x.rounds, payouts: x.payouts, first_ts: x.first, last_ts: x.last,
         proofs: x.proofs.length ? x.proofs.map(s => ({ s })) : undefined, paid_usd: paidN * (r.pay_price || 0), status: x.feeShare ? 'feeshare' : (r.status === 'hidden' ? 'hidden' : 'ok') };
       const a = x.cursor.asset || WSOL;
-      if (a !== WSOL && a !== r.mint && !pk[a] && !noMarket.has(a)) { const m = await market('solana', [a], 2); Object.assign(pk, m); if (!m[a]) noMarket.add(a); }   // asked once a run, not once per coin
+      if (a !== WSOL && a !== r.mint && !pk[a] && !noMarket.has(a)) { const m = await market('solana', [a], 2); Object.assign(pk, m); if (!m[a]) noMarket.add(a); else await jupCheck(pk, [a]); }   // asked once a run, not once per coin
       const am = a === WSOL ? { symbol: 'SOL', icon: MAJOR[WSOL].icon, price: pk[WSOL]?.price } : a === r.mint ? { symbol: r.symbol, icon: r.icon, price: r.price } : pk[a] || {};
       Object.assign(upd, { pay_mint: a, pay_dec: x.cursor.dec ?? 9, pay_symbol: am.symbol || null, pay_icon: am.icon || null, pay_price: am.price || null, paid_usd: paidN * (am.price || 0) });
       if (a === WSOL && usdAt != null) { const h = await solHist(); for (const [d, y] of x.days) usdAt += y.v * solAt(h, d, am.price || 0); x.cursor.usdAt = usdAt; upd.cursor = JSON.stringify(x.cursor); upd.paid_usd = usdAt; }
