@@ -34,5 +34,5 @@ jobs:
           ONLY: ${{ github.event.inputs.only }}
           MAX_MIN: '24'
           BF_MIN: '8'
-          PUMP_EVERY_H: '3'
+          PUMP_EVERY_H: '1'
           HELIUS_DAY: '2500'

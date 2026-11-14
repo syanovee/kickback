@@ -576,7 +576,11 @@ async function main() {
     try { await pumpOne(r); } catch (e) { log('  pump', r.symbol, 'failed, next run continues from its last saved point:', e.message); }
   }
   if (quietUsd) log(`pump.fun: ${quietUsd} quiet coins valued at payout-day SOL price`);
+  // one coin may use at most PER_COIN calls a run: a coin with tens of thousands of payouts a day catches up over a few runs
+  // instead of eating the whole run while every other coin waits
+  const PER_COIN = +(process.env.PER_COIN || 120);
   async function pumpOne(r) {
+    const c0 = H.run;
     if (r.status === 'hidden' || r.status === 'feeshare') return;
     const k = known.get(r.mint) || {};
     // caught up and no payout for a week: its total won't move, leave it (it comes back as soon as it pays again: pumpDiscover sees it)
@@ -598,7 +602,7 @@ async function main() {
         else if (fresh || !c.cursor) usdAt = 0;
         else { const dd = await site('GET', undefined, `?days=${r.mint}`).catch(() => null); if (dd?.days) usdAt = dd.days.reduce((a, x) => a + (x.v || 0) * solAt(h, x.d, pk[WSOL]?.price || 0), 0); }
       } } }
-    for (let step = 0; step < 40 && left() > 90e3; step++) {
+    for (let step = 0; step < 40 && left() > 90e3 && H.run - c0 < PER_COIN; step++) {
       const x = await pumpCount(c, 25);
       const days = [...x.days].map(([d, v]) => [r.mint, d, v.v, v.n, 'add']);
       const paidN = toNum(x.paid, x.cursor.dec ?? 9);
