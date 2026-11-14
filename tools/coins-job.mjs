@@ -38,8 +38,8 @@ const HELIUS_DAY = +(process.env.HELIUS_DAY || 4000), PUMP_EVERY_H = +(process.e
 const H = { used: 0, run: 0, by: {}, cap: HELIUS_DAY };
 const QN = process.env.QUICKNODE_URL || '';
 let heliusDown = false;   // Helius refused this run (rate limit / credits): QuickNode takes the rest, or pump.fun waits for the next run
-const QN_RUN = +(process.env.QN_RUN || 1500), QQ = { used: 0 };   // QuickNode calls a run may make once it takes over
-const PER_COIN = +(process.env.PER_COIN || 120);   // calls one pump.fun coin may use per run (see pumpOne)
+const QN_RUN = +(process.env.QN_RUN || 4000), QQ = { used: 0 };   // QuickNode calls a run may make once it takes over
+const PER_COIN = +(process.env.PER_COIN || 60);   // calls one pump.fun coin may use per run (see pumpOne)
 const REFUSED = /rate.?limit|too many|credit|exceed|upgrade|plan|quota|unauthori|forbidden|api.?key/i;
 async function rpcAt(url, method, params, tries) {
   let last = '';
@@ -571,15 +571,20 @@ async function main() {
   if (!ONLY.length) await priceRun(st, [...rows.values()]).catch(e => log('prices failed, next run tries again:', e.message));
 
   // 5. pump.fun: count rounds from the vault, biggest coins first
-  let quietUsd = 0; const noMarket = new Set();
+  let quietUsd = 0; const noMarket = new Set(), behind = [];
   for (const r of NO_PUMP ? [] : pumpRows.sort((a, b) => (b.vol24 || 0) - (a.vol24 || 0))) {
     if (left() < 90e3 || (heliusDown ? (QN === '' || QQ.used >= QN_RUN) : H.used >= H.cap)) break;
-    try { await pumpOne(r); } catch (e) { log('  pump', r.symbol, 'failed, next run continues from its last saved point:', e.message); }
+    try { if (await pumpOne(r, PER_COIN) === false) behind.push(r); } catch (e) { log('  pump', r.symbol, 'failed, next run continues from its last saved point:', e.message); }
+  }
+  // second pass: what is left of the run goes to the coins still behind, biggest first, without the per-coin cap
+  for (const r of behind) {
+    if (left() < 90e3 || (heliusDown ? (QN === '' || QQ.used >= QN_RUN) : H.used >= H.cap)) break;
+    try { await pumpOne(r, Infinity); } catch (e) { log('  pump', r.symbol, 'failed, next run continues from its last saved point:', e.message); }
   }
   if (quietUsd) log(`pump.fun: ${quietUsd} quiet coins valued at payout-day SOL price`);
   // one coin may use at most PER_COIN calls a run: a coin with tens of thousands of payouts a day catches up over a few runs
   // instead of eating the whole run while every other coin waits
-  async function pumpOne(r) {
+  async function pumpOne(r, cap) {   // true: caught up (or nothing to do), false: still behind after its share
     const c0 = H.run;
     if (r.status === 'hidden' || r.status === 'feeshare') return;
     const k = known.get(r.mint) || {};
@@ -602,7 +607,7 @@ async function main() {
         else if (fresh || !c.cursor) usdAt = 0;
         else { const dd = await site('GET', undefined, `?days=${r.mint}`).catch(() => null); if (dd?.days) usdAt = dd.days.reduce((a, x) => a + (x.v || 0) * solAt(h, x.d, pk[WSOL]?.price || 0), 0); }
       } } }
-    for (let step = 0; step < 40 && left() > 90e3 && H.run - c0 < PER_COIN; step++) {
+    for (let step = 0; step < 40 && left() > 90e3 && H.run - c0 < cap; step++) {
       const x = await pumpCount(c, 25);
       const days = [...x.days].map(([d, v]) => [r.mint, d, v.v, v.n, 'add']);
       const paidN = toNum(x.paid, x.cursor.dec ?? 9);
@@ -616,9 +621,10 @@ async function main() {
       if (c.days_from == null && x.first) upd.days_from = c.days_from = Math.floor(x.first / DAY);
       await post([upd], days, resetDone ? [] : [r.mint], { mint: r.mint, cursor: resetDone ? c.cursor : (k.cursor ?? null) }, x.recent.map(([t, v, n]) => [r.mint, t, v, n])); resetDone = true;
       c = { ...c, cursor: upd.cursor, paid_raw: upd.paid_raw, rounds: x.rounds, payouts: x.payouts, first_ts: x.first, last_ts: x.last };
-      if (x.feeShare || x.done) { log(`  pump $${r.symbol} ${paidN.toFixed(2)} ${x.cursor.asset === WSOL ? 'SOL' : 'tokens'}, ${x.rounds} rounds${x.feeShare ? ', fee sharing: hidden' : ''}`); break; }
+      if (x.feeShare || x.done) { log(`  pump $${r.symbol} ${paidN.toFixed(2)} ${x.cursor.asset === WSOL ? 'SOL' : 'tokens'}, ${x.rounds} rounds${x.feeShare ? ', fee sharing: hidden' : ''}`); return true; }
       log(`  pump $${r.symbol} catching up: ${paidN.toFixed(2)} so far, ${x.rounds} rounds, up to ${new Date(x.last * 1000).toISOString().slice(0, 16)}`);
     }
+    return false;
   }
 
   // 6. StonkFun days. Walking whole ledgers is too slow (big coins have millions of payouts), so:
