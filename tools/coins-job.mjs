@@ -37,8 +37,9 @@ async function get(url, tries = 6) {
 const HELIUS_DAY = +(process.env.HELIUS_DAY || 4000), PUMP_EVERY_H = +(process.env.PUMP_EVERY_H ?? 3);
 const H = { used: 0, run: 0, by: {}, cap: HELIUS_DAY };
 const QN = process.env.QUICKNODE_URL || '';
-let heliusDown = false;
-const QN_RUN = +(process.env.QN_RUN || 1500), QQ = { used: 0 };   // QuickNode calls a run may make once it takes over   // Helius refused this run (rate limit / credits): QuickNode takes the rest, or pump.fun waits for the next run
+let heliusDown = false;   // Helius refused this run (rate limit / credits): QuickNode takes the rest, or pump.fun waits for the next run
+const QN_RUN = +(process.env.QN_RUN || 1500), QQ = { used: 0 };   // QuickNode calls a run may make once it takes over
+const PER_COIN = +(process.env.PER_COIN || 120);   // calls one pump.fun coin may use per run (see pumpOne)
 const REFUSED = /rate.?limit|too many|credit|exceed|upgrade|plan|quota|unauthori|forbidden|api.?key/i;
 async function rpcAt(url, method, params, tries) {
   let last = '';
@@ -578,7 +579,6 @@ async function main() {
   if (quietUsd) log(`pump.fun: ${quietUsd} quiet coins valued at payout-day SOL price`);
   // one coin may use at most PER_COIN calls a run: a coin with tens of thousands of payouts a day catches up over a few runs
   // instead of eating the whole run while every other coin waits
-  const PER_COIN = +(process.env.PER_COIN || 120);
   async function pumpOne(r) {
     const c0 = H.run;
     if (r.status === 'hidden' || r.status === 'feeshare') return;
