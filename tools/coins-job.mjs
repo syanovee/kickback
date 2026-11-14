@@ -37,7 +37,8 @@ async function get(url, tries = 6) {
 const HELIUS_DAY = +(process.env.HELIUS_DAY || 4000), PUMP_EVERY_H = +(process.env.PUMP_EVERY_H ?? 3);
 const H = { used: 0, run: 0, by: {}, cap: HELIUS_DAY };
 const QN = process.env.QUICKNODE_URL || '';
-let heliusDown = false;   // Helius refused this run (rate limit / credits): QuickNode takes the rest, or pump.fun waits for the next run
+let heliusDown = false;
+const QN_RUN = +(process.env.QN_RUN || 1500), QQ = { used: 0 };   // QuickNode calls a run may make once it takes over   // Helius refused this run (rate limit / credits): QuickNode takes the rest, or pump.fun waits for the next run
 const REFUSED = /rate.?limit|too many|credit|exceed|upgrade|plan|quota|unauthori|forbidden|api.?key/i;
 async function rpcAt(url, method, params, tries) {
   let last = '';
@@ -64,6 +65,8 @@ async function rpc(method, params) {
     }
   }
   if (QN === '') throw new Error('helius refused, no fallback');
+  if (QQ.used >= QN_RUN) throw new Error('quicknode share for this run used');
+  QQ.used++; H.used--;   // a QuickNode call is not a Helius call: it counts against its own share
   return rpcAt(QN, method, params, 4);
 }
 async function evm(method, params) {
@@ -568,7 +571,7 @@ async function main() {
   // 5. pump.fun: count rounds from the vault, biggest coins first
   let quietUsd = 0; const noMarket = new Set();
   for (const r of NO_PUMP ? [] : pumpRows.sort((a, b) => (b.vol24 || 0) - (a.vol24 || 0))) {
-    if (left() < 90e3 || H.used >= H.cap || (heliusDown && QN === '')) break;
+    if (left() < 90e3 || (heliusDown ? (QN === '' || QQ.used >= QN_RUN) : H.used >= H.cap)) break;
     try { await pumpOne(r); } catch (e) { log('  pump', r.symbol, 'failed, next run continues from its last saved point:', e.message); }
   }
   if (quietUsd) log(`pump.fun: ${quietUsd} quiet coins valued at payout-day SOL price`);
@@ -695,7 +698,7 @@ async function main() {
   }
   if (todo.length) log(`StonkFun history: ${bfDone} coins completed, ${todo.length - bfDone} left, ${bfPages} pages this run`);
   await saveH(!NO_PUMP);
-  log(`helius: ${H.run} calls this run (${Object.entries(H.by).map(([m, n]) => m + ' ' + n).join(', ') || 'none'}), ${H.used}/${HELIUS_DAY} today`);
+  log(`helius: ${H.run} calls this run (${Object.entries(H.by).map(([m, n]) => m + ' ' + n).join(', ') || 'none'}), ${H.used}/${HELIUS_DAY} today${QQ.used ? ', of them ' + QQ.used + ' via QuickNode' : ''}`);
   log('done in', Math.round((Date.now() - T0) / 1000), 's');
 }
 main().catch(e => { console.error(e); process.exit(1); });
