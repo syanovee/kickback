@@ -37,7 +37,8 @@ async function get(url, tries = 6) {
 const HELIUS_DAY = +(process.env.HELIUS_DAY || 4000), PUMP_EVERY_H = +(process.env.PUMP_EVERY_H ?? 3);
 const H = { used: 0, run: 0, by: {}, cap: HELIUS_DAY };
 const QN = process.env.QUICKNODE_URL || '';
-let heliusDown = false;   // Helius refused this run (rate limit / credits): QuickNode takes the rest, or pump.fun waits for the next run
+const HELIUS_OFF = HELIUS_DAY <= 0;   // HELIUS_DAY=0: the collector leaves Helius to the site (its free credits ran out on this job) and reads through QuickNode only
+let heliusDown = HELIUS_OFF;   // Helius refused this run (rate limit / credits): QuickNode takes the rest, or pump.fun waits for the next run
 const QN_RUN = +(process.env.QN_RUN || 4000), QQ = { used: 0 };   // QuickNode calls a run may make once it takes over
 const PER_COIN = +(process.env.PER_COIN || 60);   // calls one pump.fun coin may use per run (see pumpOne)
 const REFUSED = /rate.?limit|too many|credit|exceed|upgrade|plan|quota|unauthori|forbidden|api.?key/i;
@@ -55,7 +56,7 @@ async function rpcAt(url, method, params, tries) {
   throw Object.assign(new Error(method + ' refused (' + last + ')'), { refused: true });
 }
 async function rpc(method, params) {
-  if (H.used >= H.cap) throw new Error(H.cap < HELIUS_DAY ? 'helius share for this run used' : 'helius daily budget reached');
+  if (!heliusDown && H.used >= H.cap) throw new Error(H.cap < HELIUS_DAY ? 'helius share for this run used' : 'helius daily budget reached');
   H.used++; H.run++; H.by[method] = (H.by[method] || 0) + 1;
   if (heliusDown === false) {
     try { return await rpcAt('https://mainnet.helius-rpc.com/?api-key=' + HELIUS, method, params, 3); }
@@ -481,7 +482,7 @@ async function main() {
   const pumpDue = PUMP_EVERY_H <= 0 || !hst.pump || Date.now() / 1000 - hst.pump >= PUMP_EVERY_H * 3600 - 300;
   const saveH = async (pumpRan) => { await post([{ mint: HS, chain: 'solana', platform: 'pump.fun', status: 'hidden', cursor: JSON.stringify({ d: today(), n: H.used, pump: pumpRan ? Math.floor(Date.now() / 1000) : hst.pump || 0 }) }]).catch(() => {}); };
   log(`helius: ${H.used}/${HELIUS_DAY} calls used today, pump.fun ${process.env.NO_PUMP ? 'off (NO_PUMP)' : pumpDue ? 'runs this time' : `waits (every ${PUMP_EVERY_H}h)`}`);
-  const NO_PUMP = !!process.env.NO_PUMP || !pumpDue || H.used >= HELIUS_DAY;
+  const NO_PUMP = !!process.env.NO_PUMP || !pumpDue || (!HELIUS_OFF && H.used >= HELIUS_DAY);
   // the day's budget is spread over the pump.fun runs still to come today (UTC), so coins stay fresh all day
   // instead of the morning runs using it all up; a coin cut off mid-way goes on from its saved point next run
   if (!NO_PUMP && PUMP_EVERY_H > 0) {

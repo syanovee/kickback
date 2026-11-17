@@ -35,4 +35,5 @@ jobs:
           MAX_MIN: '24'
           BF_MIN: '8'
           PUMP_EVERY_H: '1'
-          HELIUS_DAY: '2500'
+          HELIUS_DAY: '0'
+          QN_RUN: '600'
