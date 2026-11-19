@@ -9,7 +9,8 @@ const DAS = new Set(['getAssetBatch', 'getAsset']);                        // to
 // weights: higher = more of the traffic. OrbitFlare's free plan allows ~1 history read a second, so it only takes a little.
 // helius2 / helius3: extra Helius keys (HELIUS_KEY_2, HELIUS_KEY_3), used only when set
 const ROUTES = { hist: { helius: 5, helius2: 5, helius3: 5, quicknode: 4, orbitflare: 1 }, das: { helius: 1, helius2: 1, helius3: 1 }, std: { alchemy: 4, orbitflare: 2, quicknode: 2, helius: 1, helius2: 1, helius3: 1 } };
-const REST_MS = { auth: 30 * 60e3, limit: 60e3, down: 3 * 60e3, soft: 15e3 };        // how long a provider sits out after each kind of refusal
+// a rate limit is per second (free plans allow a few history reads a second): a short rest, not a minute that sends every read to the slowest provider
+const REST_MS = { auth: 30 * 60e3, limit: 2e3, down: 3 * 60e3, soft: 15e3 };        // how long a provider sits out after each kind of refusal
 const rest = new Map();                                                   // provider -> until (per worker instance)
 export const stats = {};                                                  // provider -> {ok, fail, skip}
 
@@ -76,13 +77,14 @@ export async function solRpc(env, method, params, { timeout = 25000 } = {}) {
   for (const p of list) {
     let status = 0, text = '', why = null;
     // a paged read can't move to another provider, so a short rate limit there is waited out (a few tries) instead of failing the page
-    for (let a = 0; a < (s.only ? 4 : 1); a++) {
+    // a rate limit is waited out a little on the same provider first (a paged read can't move at all)
+    for (let a = 0; a < (s.only ? 4 : 3); a++) {
       if (a) await new Promise(r => setTimeout(r, 600 * a + Math.random() * 400));
       status = 0; text = '';
       try { const r = await fetch(have[p], { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ jsonrpc: '2.0', id: 1, method, params: s.params }), signal: AbortSignal.timeout(timeout) });
         status = r.status; text = await r.text(); } catch { status = 0; }
       why = refusal(status, text);
-      if (why !== 'limit' && why !== 'down') break;
+      if (why !== 'limit' && !(why === 'down' && s.only)) break;
     }
     const st = stats[p] || (stats[p] = { ok: 0, fail: 0 });
     if (!why) { st.ok++; return { status, text: retag(text, p), via: p }; }
