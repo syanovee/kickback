@@ -13,7 +13,7 @@ const REST_MS = { auth: 30 * 60e3, limit: 60e3, down: 3 * 60e3, soft: 15e3 };   
 const rest = new Map();                                                   // provider -> until (per worker instance)
 export const stats = {};                                                  // provider -> {ok, fail, skip}
 
-function urls(env) {
+export function urls(env) {
   const u = {};
   if (env.HELIUS_KEY) u.helius = 'https://mainnet.helius-rpc.com/?api-key=' + env.HELIUS_KEY;
   if (env.HELIUS_KEY_2) u.helius2 = 'https://mainnet.helius-rpc.com/?api-key=' + env.HELIUS_KEY_2;
@@ -36,7 +36,7 @@ function order(route, have) {
 // Status codes and documented error codes decide first; an error message alone (which a caller's own params could provoke)
 // only rests the provider for a few seconds ('soft'), so one crafted request can't bench a healthy provider for long.
 const AUTH_CODES = new Set([-32401, -32403, -32404]), LIMIT_CODES = new Set([-32005, -32429]);
-function refusal(status, text) {
+export function refusal(status, text) {
   if (status === 401 || status === 403) return 'auth';
   if (status === 429) return /max usage|monthly limit|upgrade your plan|out of credits/i.test(text) ? 'auth' : 'limit';
   if (status >= 500 || status === 0) return 'down';

@@ -1,0 +1,15 @@
+# Every hour: asks each Solana provider one cheap question; a used-up plan or dead key pings the admin chat in Telegram (functions/api/rpchealth.js).
+name: rpc-health
+on:
+  schedule:
+    - cron: '17 * * * *'
+  workflow_dispatch:
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - run: curl -fsS -X POST -H "x-cron-key: $KEY" "$SITE/api/rpchealth"
+        env:
+          KEY: ${{ secrets.TG_CRON_KEY }}
+          SITE: ${{ vars.TG_SITE || 'https://kickback-test.pages.dev' }}
