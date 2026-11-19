@@ -8,7 +8,7 @@ export async function onRequestGet(ctx) {
   const key = ctx.env.BLOCKSCOUT_KEY;
   const url = key ? 'https://api.blockscout.com/4663/api/v2/tokens/' + a + '?apikey=' + encodeURIComponent(key)
                   : 'https://robinhoodchain.blockscout.com/api/v2/tokens/' + a;
-  return cached(ctx, 'bs-token', a, 600, async () => {
+  return cached(ctx, 'bs-token', a, 3600, async () => {
     if (await charge(ctx, 1)) return { status: 429, text: '{"error":"budget"}' };
     const r = await fetch(url);
     return { status: r.status, text: await r.text() };

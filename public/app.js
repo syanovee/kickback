@@ -379,9 +379,12 @@ async function rpc(url, method, params){
 
 const bsToken = a => bs('/tokens/'+a.toLowerCase());
 async function bs(path){
-  for (let i=0;i<10;i++){
-    try{ const r = await fetch(path.startsWith('/tokens/') ? '/api/bs'+path : RH_API+path); if (r.ok) return await r.json(); if (r.status!==429 && r.status<500) return null; }catch(e){}
-    await sleep(Math.min(10000, 800*2**i));
+  // token info (name, icon, price) is decoration: a few quick tries, then the row shows without it instead of holding the whole check for minutes
+  const tok = path.startsWith('/tokens/'), tries = tok ? 4 : 10;
+  for (let i=0;i<tries;i++){
+    const ac=new AbortController(), tm=setTimeout(()=>ac.abort(), tok ? 8000 : 30000);
+    try{ const r = await fetch(tok ? '/api/bs'+path : RH_API+path, {signal:ac.signal}); if (r.ok) return await r.json(); if (r.status!==429 && r.status<500) return null; }catch(e){}finally{ clearTimeout(tm); }
+    await sleep(Math.min(tok ? 2500 : 10000, 800*2**i));
   }
   SCAN_PARTIAL=true; throw new Error('Robinhood Chain explorer is not responding');
 }
