@@ -7,7 +7,8 @@
 const HIST = new Set(['getTransactionsForAddress']);                       // full wallet history incl. token accounts
 const DAS = new Set(['getAssetBatch', 'getAsset']);                        // token names, icons
 // weights: higher = more of the traffic. OrbitFlare's free plan allows ~1 history read a second, so it only takes a little.
-const ROUTES = { hist: { helius: 5, quicknode: 4, orbitflare: 1 }, das: { helius: 1 }, std: { alchemy: 4, orbitflare: 2, quicknode: 2, helius: 1 } };
+// helius2 / helius3: extra Helius keys (HELIUS_KEY_2, HELIUS_KEY_3), used only when set
+const ROUTES = { hist: { helius: 5, helius2: 5, helius3: 5, quicknode: 4, orbitflare: 1 }, das: { helius: 1, helius2: 1, helius3: 1 }, std: { alchemy: 4, orbitflare: 2, quicknode: 2, helius: 1, helius2: 1, helius3: 1 } };
 const REST_MS = { auth: 30 * 60e3, limit: 60e3, down: 3 * 60e3, soft: 15e3 };        // how long a provider sits out after each kind of refusal
 const rest = new Map();                                                   // provider -> until (per worker instance)
 export const stats = {};                                                  // provider -> {ok, fail, skip}
@@ -15,6 +16,8 @@ export const stats = {};                                                  // pro
 function urls(env) {
   const u = {};
   if (env.HELIUS_KEY) u.helius = 'https://mainnet.helius-rpc.com/?api-key=' + env.HELIUS_KEY;
+  if (env.HELIUS_KEY_2) u.helius2 = 'https://mainnet.helius-rpc.com/?api-key=' + env.HELIUS_KEY_2;
+  if (env.HELIUS_KEY_3) u.helius3 = 'https://mainnet.helius-rpc.com/?api-key=' + env.HELIUS_KEY_3;
   if (env.QUICKNODE_URL) u.quicknode = env.QUICKNODE_URL;
   if (env.ORBITFLARE_URL) u.orbitflare = env.ORBITFLARE_URL;
   if (env.ALCHEMY_KEY) u.alchemy = 'https://solana-mainnet.g.alchemy.com/v2/' + env.ALCHEMY_KEY;
@@ -54,10 +57,10 @@ function refusal(status, text) {
   return null;                                                            // a real answer: every provider would say the same
 }
 // page tokens carry the provider that issued them: "qn~<token>"
-const TAG = { helius: 'he', quicknode: 'qn', orbitflare: 'of', alchemy: 'al' }, UNTAG = Object.fromEntries(Object.entries(TAG).map(([k, v]) => [v, k]));
+const TAG = { helius: 'he', helius2: 'h2', helius3: 'h3', quicknode: 'qn', orbitflare: 'of', alchemy: 'al' }, UNTAG = Object.fromEntries(Object.entries(TAG).map(([k, v]) => [v, k]));
 function stick(params) {
   const o = params?.[1]; const t = o?.paginationToken; if (typeof t !== 'string') return { params, only: null };
-  const m = /^([a-z]{2})~(.*)$/s.exec(t); if (!m || !UNTAG[m[1]]) return { params, only: 'helius' };   // old untagged tokens came from Helius
+  const m = /^([a-z0-9]{2})~(.*)$/s.exec(t); if (!m || !UNTAG[m[1]]) return { params, only: 'helius' };   // old untagged tokens came from Helius
   return { params: [params[0], { ...o, paginationToken: m[2] }, ...params.slice(2)], only: UNTAG[m[1]] };
 }
 function retag(text, p) {
