@@ -35,12 +35,14 @@ function order(route, have) {
 const AUTH_CODES = new Set([-32401, -32403, -32404]), LIMIT_CODES = new Set([-32005, -32429]);
 function refusal(status, text) {
   if (status === 401 || status === 403) return 'auth';
-  if (status === 429) return 'limit';
+  if (status === 429) return /max usage|monthly limit|upgrade your plan|out of credits/i.test(text) ? 'auth' : 'limit';
   if (status >= 500 || status === 0) return 'down';
   let j; try { j = JSON.parse(text); } catch { return 'down'; }
   const e = j?.error; if (!e) return null;
   const c = e.code, msg = String(e.message || '');
   if (AUTH_CODES.has(c)) return 'auth';
+  // a used-up plan (monthly limit, max usage, out of credits) won't come back in seconds: rest it like a bad key
+  if (/max usage|monthly limit|upgrade your plan|out of credits|credits? (limit|exhausted|exceeded)/i.test(msg)) return 'auth';
   if (LIMIT_CODES.has(c)) return 'limit';
   if (c === -32602) return null;                                          // bad params: every provider would say the same, so answer as is
   if (c === -32601) return 'nomethod';

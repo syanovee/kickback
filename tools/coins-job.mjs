@@ -281,7 +281,7 @@ async function pumpCount(c, maxPages) {
         for (const b of t.meta.postTokenBalances || []) {
           if (b.mint !== asset) continue;
           const q = (t.meta.preTokenBalances || []).find(x => x.accountIndex === b.accountIndex), d = BigInt(b.uiTokenAmount.amount) - BigInt(q?.uiTokenAmount.amount || '0');
-          if (b.owner === c.vault && d < 0n) out += -d; else if (d > 0n) { n++; if (checking && who.size < 50) who.add(b.owner); }
+          if (b.owner === c.vault) { out -= d; continue; } if (d > 0n) { n++; if (checking && who.size < 50) who.add(b.owner); }
         }
       }
       if (out <= 0n) continue;
@@ -289,7 +289,7 @@ async function pumpCount(c, maxPages) {
       const d = Math.floor(t.blockTime / DAY), x = days.get(d) || { v: 0, n: 0 }; x.v += toNum(out, dec); x.n += n; days.set(d, x);
       proofs.unshift(t.transaction.signatures[0]); if (proofs.length > 3) proofs.pop();
       // one payout round is split over many transactions in the same block: they make one row, not one row each
-      if (t.blockTime > Date.now() / 1000 - 14 * DAY) { const lr = recent[recent.length - 1]; if (lr && t.blockTime - lr[0] <= 2) { lr[1] += toNum(out, dec); lr[2] += n; } else { recent.push([t.blockTime, toNum(out, dec), n]); if (recent.length > 6) recent.shift(); } }
+      if (t.blockTime > Date.now() / 1000 - 14 * DAY) { const lr = recent[recent.length - 1]; if (lr && t.blockTime - lr[0] <= 2) { lr[1] += toNum(out, dec); lr[2] += n; } else { recent.push([t.blockTime, toNum(out, dec), n]); while (recent.length > 6 && (recent[0][0] < Date.now() / 1000 - 26 * 3600 || recent.length > 1500)) recent.shift(); } }   // every round of the last day (for the 12h / 24h totals), at least the latest 6
     }
     if ((r?.data || []).length < 100) { done = true; break; }
   }

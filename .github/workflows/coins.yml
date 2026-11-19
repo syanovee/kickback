@@ -37,3 +37,5 @@ jobs:
           PUMP_EVERY_H: '1'
           HELIUS_DAY: '0'
           QN_RUN: '600'
+          # pump.fun paused while the RPC plans are used up: the site's scans need what is left
+          NO_PUMP: '1'
